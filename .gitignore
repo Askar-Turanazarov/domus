@@ -27,6 +27,8 @@ eval/reports/*.tmp
 AGENTS.md
 GEMINI.md
 CLAUDE.local.md
+docs/
+handoff.md
 .cursor/
 .codex/
 .windsurf/

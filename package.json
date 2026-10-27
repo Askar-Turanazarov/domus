@@ -16,12 +16,15 @@
     "preload": "node scripts/preload.js",
     "admin-password": "node scripts/admin-password.js",
     "db:migrate": "node scripts/migrate.js",
-    "seed": "node scripts/seed.js"
+    "seed": "node scripts/seed.js",
+    "jobs:run": "node scripts/jobs-run.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",
     "@neondatabase/serverless": "^1.2.0",
+    "@upstash/qstash": "2.12.0",
     "@vercel/blob": "^2.8.2",
+    "@vercel/functions": "3.9.11",
     "express": "^4.21.2",
     "three": "^0.170.0",
     "zod": "^4.6.7"

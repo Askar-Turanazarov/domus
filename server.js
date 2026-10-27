@@ -14,6 +14,7 @@ import { BUILDING_ID, createBuildings } from './server/buildings.js';
 import * as auth from './server/adminAuth.js';
 import * as pages from './server/pages.js';
 import { loadEnv } from './server/env.js';
+import { mountJobs } from './server/events/routes.js';
 
 const __dirname = import.meta.dirname;
 
@@ -37,6 +38,7 @@ app.use((req, res, next) => {
   res.set({ 'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'SAMEORIGIN', 'Referrer-Policy': 'strict-origin-when-cross-origin' });
   next();
 });
+mountJobs(app, db);                        // deadlines: tick, /api/jobs/run (raw body for the QStash signature), /api/cron/daily
 app.use(express.json({ limit: '4mb' }));   // the order carries the drawing PNG and a 3D picture (≤ 1.5 MB each); Vercel takes ≤ 4.5 MB
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));   // "/" is rendered below
 app.get('/favicon.ico', (req, res) => res.redirect(301, '/favicon.svg'));
