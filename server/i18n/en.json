@@ -1,0 +1,14 @@
+{
+  "pay.reason.bank_declined": "The bank declined the payment. Try another card.",
+  "pay.reason.insufficient_funds": "Insufficient funds on the card.",
+  "pay.reason.code_attempts_exceeded": "The code was entered incorrectly 3 times. Start the payment again.",
+  "pay.reason.session_expired": "The confirmation time is up. Start the payment again.",
+  "pay.reason.hold_expired": "The time to pay is up; the apartment is no longer held for you.",
+  "pay.reason.provider_error": "The payment system did not respond. Try again or choose another method.",
+  "pay.reason.cancelled_by_user": "Payment cancelled.",
+  "pay.reason.booking_closed": "The booking was cancelled.",
+  "pay.form.card_invalid": "Check the card number.",
+  "pay.form.card_expired": "The card has expired.",
+  "pay.form.card_not_supported": "This is a training emulator: use a test card from the hint.",
+  "pay.form.wrong_code": "Wrong code. Attempts left: {left}."
+}

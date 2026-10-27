@@ -1,0 +1,14 @@
+{
+  "pay.reason.bank_declined": "Банк отклонил оплату. Попробуйте другую карту.",
+  "pay.reason.insufficient_funds": "Недостаточно средств на карте.",
+  "pay.reason.code_attempts_exceeded": "Код введён неверно 3 раза. Начните оплату заново.",
+  "pay.reason.session_expired": "Время на подтверждение истекло. Начните оплату заново.",
+  "pay.reason.hold_expired": "Время на оплату истекло, квартира больше не закреплена за вами.",
+  "pay.reason.provider_error": "Платёжная система не ответила. Попробуйте ещё раз или выберите другой способ.",
+  "pay.reason.cancelled_by_user": "Оплата отменена.",
+  "pay.reason.booking_closed": "Оформление отменено.",
+  "pay.form.card_invalid": "Проверьте номер карты.",
+  "pay.form.card_expired": "Срок действия карты истёк.",
+  "pay.form.card_not_supported": "Это учебный эмулятор: используйте тестовую карту из подсказки.",
+  "pay.form.wrong_code": "Неверный код. Осталось попыток: {left}."
+}

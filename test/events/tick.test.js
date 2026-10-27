@@ -73,9 +73,10 @@ test('daily: stale open payments get payment.reconcile; technical tables are cle
   await db.query(`INSERT INTO payments (code, kind, booking_id, client_id, provider, amount, status, created_by, created_at, updated_at)
     VALUES ('P-1', 'deposit', $1, $2, 'card', 1, 'pending', '{}', $3, $3)`, [booking.id, booking.client_id, now()]);
   await db.query(`INSERT INTO idempotency_keys (scope, key, request_hash, created_at) VALUES ('hold', 'old', 'h', $1)`, [now()]);
+  await db.query(`UPDATE bookings SET expires_at = $2 WHERE id = $1`, [booking.id, new Date(now().getTime() + 864e5)]);   // the hold outlives the stale scan
   fakeClock.advance('3h');
   const r = await daily(db, { env: ENV, handlers: { 'payment.reconcile': async () => 'done' } });
-  assert.ok(r.reconcile + r.jobs.done >= 1);
+  assert.equal(r.reconcile, 1);
   fakeClock.advance('25h');
   assert.equal((await daily(db, { env: ENV, handlers: { 'payment.reconcile': async () => 'done' } })).cleaned.idempotency_keys, 1);
 });

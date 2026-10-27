@@ -11,6 +11,7 @@ import { bookingPath } from './links.js';
 import { maskPhone } from './phone.js';
 import { requestRefund } from './refunds.js';
 import { context, inTx, notify, later } from './tx.js';
+import { closeOpenPayments } from './payments.js';
 
 const ACTIVE = ['held', 'booked'];
 const BROWSER = ['web', 'mini'];                 // the hold form there has the offer checkbox (§4.4)
@@ -18,7 +19,7 @@ const iso = d => new Date(d).toISOString();
 const minutes = m => m * 60e3;
 
 // Business settings inside the transaction: ctx.settings (createSettings) or the table over the defaults.
-async function settingsOf(q, ctx) {
+export async function settingsOf(q, ctx) {
   if (ctx.settings) return ctx.settings.get();
   const rows = await q.query('SELECT key, value FROM settings');
   return { ...DEFAULT_SETTINGS, ...Object.fromEntries(rows.filter(r => r.key in DEFAULT_SETTINGS).map(r => [r.key, r.value])) };
@@ -52,12 +53,8 @@ export async function getBooking(q, id, opts = {}) {
   return b && { ...b, status: effectiveStatus(b, ctx.now()) };
 }
 
-// Open payments of a closed hold are closed by the payment.reconcile job (04 §6.1).
-async function reconcilePayments(q, fx, ctx, bookingId) {
-  const open = await q.query(`SELECT id FROM payments WHERE booking_id = $1 AND status IN ('pending', 'processing')`, [bookingId]);
-  const at = ctx.now();
-  for (const p of open) await later(q, fx, ctx, 'payment.reconcile', at, { paymentId: p.id }, `payment.reconcile:${p.id}`);
-}
+// Open payments of a closed hold (05 §7.3): cancelled now; Stripe also gets payment.reconcile.
+const reconcilePayments = (q, fx, ctx, bookingId, why = 'booking_closed') => closeOpenPayments(q, fx, ctx, { bookingId, why });
 
 // T3 / T7 for rows the sweep has just closed: event, messages, jobs.
 async function afterSweep(q, fx, ctx, rows) {
@@ -67,7 +64,7 @@ async function afterSweep(q, fx, ctx, rows) {
     if (b.status === 'hold_expired') {
       const ev = await emit(q, 'booking.hold_expired', refs, { expiresAt: iso(b.expires_at) }, sys, ctx);
       await cancelJobs(q, { type: 'hold.expire', bookingId: b.id }, ctx);
-      await reconcilePayments(q, fx, ctx, b.id);
+      await reconcilePayments(q, fx, ctx, b.id, 'hold_expired');
       await notify(q, fx, ctx, { template: 'hold_expired', audience: 'client', clientId: b.client_id, vars: { apt: b.apartment_no },
         eventId: ev, dedupeKey: `hold_expired:${b.id}` });
     } else {

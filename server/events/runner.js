@@ -6,18 +6,24 @@ import { now as clockNow } from '../core/clock.js';
 import { runDue } from '../core/jobs.js';
 import { deliver } from '../core/outbox.js';
 import { sweepDue, bookingJobHandlers } from '../core/bookings.js';
+import { paymentJobHandlers } from '../core/payments.js';
+import { refundJobHandlers } from '../core/refunds.js';
 
 const WEEK = 7 * 24 * 3600e3;
 const HOUR = 3600e3;
 
-// opts — { now, env, send?, render?, handlers? }: send(row) → Telegram result (D2-16); handlers — extra job types (payments).
+// opts — { now, env, send?, render?, handlers? }: send(row) → Telegram result (D2-16); handlers — extra job types (tests).
 // outbox.retry only marks the row: it is delivered after the run, outside the job's transaction (a send is not undone).
 function allHandlers(opts) {
   const { handlers, fx } = bookingJobHandlers(opts);
+  const pay = paymentJobHandlers(opts, fx);
+  const refund = refundJobHandlers(opts, fx);
   return {
     fx,
     handlers: {
       ...handlers,
+      ...pay.handlers,
+      ...refund.handlers,
       'outbox.retry': async job => {
         if (!opts.send) return 'skipped';
         fx.outbox.push(job.payload.outboxId);

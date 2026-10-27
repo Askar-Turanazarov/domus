@@ -17,7 +17,8 @@
     "admin-password": "node scripts/admin-password.js",
     "db:migrate": "node scripts/migrate.js",
     "seed": "node scripts/seed.js",
-    "jobs:run": "node scripts/jobs-run.js"
+    "jobs:run": "node scripts/jobs-run.js",
+    "stripe:check": "node --env-file-if-exists=.env scripts/stripe-check.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",
@@ -26,6 +27,7 @@
     "@vercel/blob": "^2.8.2",
     "@vercel/functions": "3.9.11",
     "express": "^4.21.2",
+    "stripe": "23.0.0",
     "three": "^0.170.0",
     "zod": "^4.6.7"
   },

@@ -1,0 +1,14 @@
+{
+  "pay.reason.bank_declined": "Bank to‘lovni rad etdi. Boshqa kartani sinab ko‘ring.",
+  "pay.reason.insufficient_funds": "Kartada mablag‘ yetarli emas.",
+  "pay.reason.code_attempts_exceeded": "Kod 3 marta noto‘g‘ri kiritildi. To‘lovni qaytadan boshlang.",
+  "pay.reason.session_expired": "Tasdiqlash vaqti tugadi. To‘lovni qaytadan boshlang.",
+  "pay.reason.hold_expired": "To‘lov vaqti tugadi, xonadon endi siz uchun band qilinmagan.",
+  "pay.reason.provider_error": "To‘lov tizimi javob bermadi. Qayta urinib ko‘ring yoki boshqa usulni tanlang.",
+  "pay.reason.cancelled_by_user": "To‘lov bekor qilindi.",
+  "pay.reason.booking_closed": "Rasmiylashtirish bekor qilindi.",
+  "pay.form.card_invalid": "Karta raqamini tekshiring.",
+  "pay.form.card_expired": "Kartaning amal qilish muddati tugagan.",
+  "pay.form.card_not_supported": "Bu o‘quv emulyatori: maslahatdagi test kartadan foydalaning.",
+  "pay.form.wrong_code": "Kod noto‘g‘ri. Qolgan urinishlar: {left}."
+}
