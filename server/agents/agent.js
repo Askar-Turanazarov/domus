@@ -47,7 +47,7 @@ export async function runAgent({ ai, tools, agent, task = null, message, context
   const done = (fields = {}) => Object.assign(run, fields, { ms: Math.round(performance.now() - t0) });
 
   async function step(msgs) {
-    const r = await ai.chat({ role: 'tools', agent, turnId: toolCtx.turnId ?? null, system, messages: msgs, tools: schemas,
+    const r = await ai.chat({ role: 'tools', agent, turnId: toolCtx.turnId ?? null, system, messages: [...msgs], tools: schemas,
       maxOutputTokens: MAX_OUTPUT[agent], onEvent: emit, signal, deadline, from: turn.from ?? null });
     run.usage = sumUsage(run.usage, r.usage);
     run.costUsd += r.costUsd || 0;
