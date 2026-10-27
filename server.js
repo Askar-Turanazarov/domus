@@ -66,7 +66,7 @@ app.use((req, res, next) => {
 app.use(requestId);
 app.use('/api', noStore);
 mountJobs(app, db, { ...notifyOpts });                      // deadlines: tick, /api/jobs/run (raw body for the QStash signature), /api/cron/daily
-mountStripeWebhook(app, db);               // the raw body for the Stripe signature — before the JSON parser (05 §6.4)
+mountStripeWebhook(app, db, coreOpts);     // the raw body for the Stripe signature — before the JSON parser (05 §6.4)
 mountTelegram(app, db, { core: coreOpts, turns, tools });  // Telegram webhook (10 §3): the secret, the answer at once, the bot in waitUntil
 mountBookings(app, db, coreOpts);          // booking: hold, personal link (13 §4); own 64 KB JSON parser
 mountChat(app, db, { turns, tools }, coreOpts);   // the site chat: POST /api/chat (SSE), confirm, feedback, messages (13 §6)

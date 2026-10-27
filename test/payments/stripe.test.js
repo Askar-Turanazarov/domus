@@ -3,12 +3,16 @@
 // The Stripe API is a fake client; the signature is made and checked by the real library.
 import { test, before, after, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import express from 'express';
 import Stripe from 'stripe';
 import { fakeClock, now } from '../../server/core/clock.js';
 import { createHold, sweepDue } from '../../server/core/bookings.js';
 import { startPayment, paymentJobHandlers } from '../../server/core/payments.js';
 import { runDue } from '../../server/core/jobs.js';
+import { afterCommit } from '../../server/events/runner.js';
+import { createRender } from '../../server/notify/render.js';
+import { createSender } from '../../server/notify/telegramSender.js';
 import { mountPayments, mountStripeWebhook } from '../../server/http/payments.js';
 import { stripeConfig, stripeMoney, stripeProvider } from '../../server/payments/stripe.js';
 import { createTestDb, resetDb } from '../support/db.js';
@@ -150,6 +154,35 @@ test('webhook: completed → booking with the card; the same event again → dup
   assert.equal((await row(payment.id)).version, p.version);
   assert.deepEqual(await db.one(`SELECT result, payment_id FROM provider_events WHERE event_id = 'evt_paid'`),
     { result: 'booked', payment_id: payment.id });
+});
+
+test('webhook: after COMMIT the core hands the Outbox rows over — the group hears about a paid booking; server.js passes coreOpts', async () => {
+  const env = { ...ENV, TELEGRAM_STAFF_CHAT_ID: '-1001' };
+  const sent = [];
+  const send = createSender({ api: { sendMessage: async (chat, text) => { sent.push({ chat, text }); return { message_id: 700 + sent.length }; } } });
+  const commits = [];
+  const app = express();
+  mountStripeWebhook(app, db, { ...OPTS, env, render: createRender(env),
+    onCommit: fx => commits.push(afterCommit(db, fx, { env, send }).then(() => fx)) });
+  const own = app.listen(0);
+  try {
+    const { payment } = await pay();
+    stripe.pay(payment.provider_ref);
+    const payload = event('checkout.session.completed', stripe.sessions.get(payment.provider_ref), 'evt_outbox');
+    const signature = Stripe.webhooks.generateTestHeaderString({ payload, secret: ENV.STRIPE_WEBHOOK_SECRET });
+    const r = await fetch(`http://127.0.0.1:${own.address().port}/api/payments/stripe/webhook`, { method: 'POST',
+      headers: { 'content-type': 'application/json', 'stripe-signature': signature }, body: payload });
+    assert.equal(r.status, 200);
+    assert.equal(commits.length, 1, 'onCommit called once, after the transaction');
+    const fx = await commits[0];
+    const rows = await db.query('SELECT template, status, chat_id FROM outbox WHERE id = ANY($1) ORDER BY template', [fx.outbox]);
+    assert.deepEqual(rows.map(x => [x.template, x.status]), [['staff_booking_paid', 'sent']], 'the client has no Telegram: his row is skipped at once');
+    assert.deepEqual(sent.map(x => x.chat), [-1001], 'the staff group got the message');
+    await hook(payload);
+    assert.equal(commits.length, 1, 'a repeat of the event hands over nothing');
+  } finally { own.close(); }
+  // the production wiring: the Stripe webhook gets the same core options as every other entry (the bug of booking 1002)
+  assert.match(readFileSync(new URL('../../server.js', import.meta.url), 'utf8'), /mountStripeWebhook\(app, db, coreOpts\)/);
 });
 
 test('webhook: expired → cancelled / session_expired; async failed → bank_declined; others → ignored', async () => {
