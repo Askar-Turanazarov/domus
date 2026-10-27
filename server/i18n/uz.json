@@ -167,5 +167,10 @@
   "tpl.staff_refund_done.text.nobooking": "↩️ {amount} so‘m qaytarildi ({reasonText}).",
   "tpl.staff_viewing_created.text": "📅 {apt}-kvartirani ko‘rish: {at}. Mijoz: {name}, {phoneMasked}.",
   "tpl.staff_new_request.text": "📝 {apt}-kvartiraga ariza. Mijoz: {name}, {phoneMasked}. Izoh: {comment}",
-  "tpl.staff_extend_requested.text": "🙏 Mijoz №{bookingNo} bronni ({apt}-kv., {until} gacha) uzaytirishni so‘ramoqda{hoursText}."
+  "tpl.staff_extend_requested.text": "🙏 Mijoz №{bookingNo} bronni ({apt}-kv., {until} gacha) uzaytirishni so‘ramoqda{hoursText}.",
+  "tg.take_unlinked": "Telegramni adminkada ulang: Profil → Telegramni ulash",
+  "tg.take_ok": "Mijoz sizga biriktirildi",
+  "tg.take_taken": "Mijozni allaqachon {name} oldi",
+  "tg.take_mine": "Bu mijoz allaqachon sizga biriktirilgan",
+  "tg.not_for_you": "Bu tugma siz uchun emas"
 }

@@ -167,5 +167,10 @@
   "tpl.staff_refund_done.text.nobooking": "↩️ Возврат {amount} сум ({reasonText}).",
   "tpl.staff_viewing_created.text": "📅 Показ квартиры №{apt}: {at}. Клиент: {name}, {phoneMasked}.",
   "tpl.staff_new_request.text": "📝 Заявка на квартиру №{apt}. Клиент: {name}, {phoneMasked}. Комментарий: {comment}",
-  "tpl.staff_extend_requested.text": "🙏 Клиент просит продлить бронь №{bookingNo} (кв. №{apt}, до {until}){hoursText}."
+  "tpl.staff_extend_requested.text": "🙏 Клиент просит продлить бронь №{bookingNo} (кв. №{apt}, до {until}){hoursText}.",
+  "tg.take_unlinked": "Привяжите Telegram в админке: Профиль → Привязать Telegram",
+  "tg.take_ok": "Клиент закреплён за вами",
+  "tg.take_taken": "Клиента уже взял {name}",
+  "tg.take_mine": "Этот клиент уже закреплён за вами",
+  "tg.not_for_you": "Эта кнопка не для вас"
 }

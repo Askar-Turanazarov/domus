@@ -33,3 +33,14 @@ export async function attachStaffTelegram(db, { code, telegram }, opts = {}) {
     return row;
   });
 }
+
+// «Беру клиента» looks the person up by the Telegram account that pressed the button (10 §6.2). → the active staff row | null.
+export const staffByTelegram = (q, userId) => q.one('SELECT * FROM staff WHERE telegram_user_id = $1 AND active', [userId]);
+
+// The bot left or was removed from the staff group (10 §6.3): Outbox skips the group («blocked») until the bot is back.
+// state — 'removed' | 'ok'. A settings row, so every function instance sees it.
+export async function setStaffChatState(q, state, opts = {}) {
+  const ctx = context(opts);
+  await q.query(`INSERT INTO settings (key, value, updated_at) VALUES ('staff_chat', $1, $2)
+    ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at`, [JSON.stringify({ state }), ctx.now()]);
+}

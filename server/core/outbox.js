@@ -17,7 +17,9 @@ async function recipient(q, { audience, clientId, staffId }, env) {
   }
   if (audience === 'staff_group') {
     const chat = env.TELEGRAM_STAFF_CHAT_ID;
-    return { chatId: chat ? Number(chat) : null, lang: 'ru', skip: chat ? null : 'disabled' };
+    if (!chat) return { chatId: null, lang: 'ru', skip: 'disabled' };
+    const state = await q.one("SELECT value FROM settings WHERE key = 'staff_chat'");       // the bot was removed from the group (10 §6.3)
+    return { chatId: Number(chat), lang: 'ru', skip: state?.value?.state === 'removed' ? 'blocked' : null };
   }
   const s = staffId && await q.one('SELECT telegram_user_id, lang FROM staff WHERE id = $1', [staffId]);
   return { chatId: s?.telegram_user_id ?? null, lang: s?.lang ?? 'ru', skip: s?.telegram_user_id ? null : 'no_telegram' };

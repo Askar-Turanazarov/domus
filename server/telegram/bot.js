@@ -1,10 +1,10 @@
 // The client bot (10 §4): /start in its four forms, the contact (R2), the language, help, the menu. The chat with the
-// AI agent and «Мои брони» come with D3; the staff group (take:) with D2-17. Every reply is a direct answer to the
+// AI agent and «Мои брони» come with D3. The staff group (take:, the bot's membership) is at the end. Every reply is a direct answer to the
 // update; notifications go through the Outbox (server/notify).
 import { Bot, InlineKeyboard, Keyboard } from 'grammy';
 import { DomainError } from '../core/errors.js';
-import { resolveClient, attachTelegram, verifyPhone, unblockTelegram, setLang } from '../core/clients.js';
-import { attachStaffTelegram } from '../core/staff.js';
+import { resolveClient, attachTelegram, verifyPhone, unblockTelegram, setLang, assignClient } from '../core/clients.js';
+import { attachStaffTelegram, staffByTelegram, setStaffChatState } from '../core/staff.js';
 import { getApartment } from '../core/apartments.js';
 import { context } from '../core/tx.js';
 import { t } from '../i18n/index.js';
@@ -166,6 +166,34 @@ export function createBot({ db, env = process.env, core = {}, token = env.TELEGR
     const { client } = await visitor(ctx);
     await reply(ctx, client, t(client.lang, menuKey(ctx.message.text) ? 'tg.soon' : 'tg.text_soon'));
   });
+
+  // ── the staff group (10 §6): «Беру клиента» and the bot's own membership
+  const inStaffChat = ctx => String(ctx.chat?.id) === String(env.TELEGRAM_STAFF_CHAT_ID ?? '');
+
+  bot.callbackQuery(/^take:([0-9a-f-]{36})$/, async ctx => {
+    const alert = text => ctx.answerCallbackQuery({ text, show_alert: true });
+    if (!inStaffChat(ctx)) return alert(t('ru', 'tg.not_for_you'));       // a forwarded message: the button is for the group only
+    const staff = await staffByTelegram(db, ctx.from.id);
+    if (!staff) return alert(t('ru', 'tg.take_unlinked'));
+    const r = await assignClient(db, { clientId: ctx.match[1], staffId: staff.id }, opts).catch(e => {
+      if (e instanceof DomainError) return null;
+      throw e;
+    });
+    if (!r) return alert(t(staff.lang, 'tg.not_for_you'));
+    if (r.taken) return ctx.answerCallbackQuery({ text: t(staff.lang, 'tg.take_ok') });
+    return alert(r.by.id === staff.id ? t(staff.lang, 'tg.take_mine') : t(staff.lang, 'tg.take_taken', { name: r.by.name }));
+  });
+
+  // The bot left or was removed from the group: the Outbox stops writing there until it is back (10 §6.3).
+  bot.on('my_chat_member', async ctx => {
+    if (!inStaffChat(ctx)) return;
+    const status = ctx.myChatMember.new_chat_member.status;
+    const state = ['left', 'kicked'].includes(status) ? 'removed' : ['member', 'administrator'].includes(status) ? 'ok' : null;
+    if (state) await db.tx(q => setStaffChatState(q, state, opts));
+  });
+
+  // «Связаться с менеджером» under the reminders: the dialogue with a manager comes with D3.
+  bot.callbackQuery('mgr', ctx => ctx.answerCallbackQuery({ text: t('ru', 'tg.soon'), show_alert: true }));
 
   // Any other button: the clock must stop spinning (10 §4.4).
   bot.on('callback_query:data', ctx => ctx.answerCallbackQuery());

@@ -190,3 +190,31 @@ export async function setLang(q, clientId, lang) {
   await q.query('UPDATE conversations SET lang = $2 WHERE client_id = $1', [clientId, lang]);
   return q.one('UPDATE clients SET lang = $2 WHERE id = $1 RETURNING *', [clientId, lang]);
 }
+
+const TAKE_EDIT_HOURS = 48;
+
+// «Беру клиента» (10 §6.2, BR-20): the first manager wins, a race has one winner (the UPDATE is conditional). The group messages
+// with this client's «Беру» button (last 48 h) are edited to «✅ Взял …» through the Outbox (staff_lead_taken, op = edit).
+// → { taken: true, staff } | { taken: false, by: { id, name } }.
+export async function assignClient(db, { clientId, staffId }, opts = {}) {
+  const ctx = context(opts);
+  return inTx(db, ctx, async (q, fx) => {
+    const staff = await q.one('SELECT id, name, role FROM staff WHERE id = $1 AND active', [staffId]);
+    const c = staff && await canonical(q, clientId);
+    if (!c) throw new DomainError('not_found');
+    const at = ctx.now();
+    const won = await q.one(`UPDATE clients SET assigned_staff_id = $2, assigned_at = $3, updated_at = $3
+      WHERE id = $1 AND assigned_staff_id IS NULL RETURNING id`, [c.id, staff.id, at]);
+    if (!won) return { taken: false, by: await q.one('SELECT s.id, s.name FROM clients c JOIN staff s ON s.id = c.assigned_staff_id WHERE c.id = $1', [c.id]) };
+    const ev = await emit(q, 'client.assigned', { clientId: c.id, staffId: staff.id }, { via: 'telegram' },
+      { type: 'staff', id: staff.id, role: staff.role, channel: 'telegram' }, ctx);
+    const messages = await q.query(`SELECT id, template, vars, tg_message_id FROM outbox
+      WHERE audience = 'staff_group' AND op = 'send' AND status = 'sent' AND tg_message_id IS NOT NULL AND sent_at > $2
+        AND vars->>'clientId' = $1 AND rendered::text LIKE '%take:%'`, [c.id, new Date(at.getTime() - TAKE_EDIT_HOURS * 3600e3)]);
+    for (const m of messages) {
+      await notify(q, fx, ctx, { template: 'staff_lead_taken', audience: 'staff_group', op: 'edit', editMessageId: m.tg_message_id,
+        vars: { ...m.vars, of: m.template, staffName: staff.name }, eventId: ev, dedupeKey: `staff_lead_taken:${m.id}` });
+    }
+    return { taken: true, staff };
+  });
+}

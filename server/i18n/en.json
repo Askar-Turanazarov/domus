@@ -167,5 +167,10 @@
   "tpl.staff_refund_done.text.nobooking": "↩️ Refund of {amount} UZS ({reasonText}).",
   "tpl.staff_viewing_created.text": "📅 Viewing of apartment {apt}: {at}. Client: {name}, {phoneMasked}.",
   "tpl.staff_new_request.text": "📝 Request for apartment {apt}. Client: {name}, {phoneMasked}. Comment: {comment}",
-  "tpl.staff_extend_requested.text": "🙏 The client asks to extend booking {bookingNo} (apt {apt}, until {until}){hoursText}."
+  "tpl.staff_extend_requested.text": "🙏 The client asks to extend booking {bookingNo} (apt {apt}, until {until}){hoursText}.",
+  "tg.take_unlinked": "Link your Telegram in the admin: Profile → Link Telegram",
+  "tg.take_ok": "The client is assigned to you",
+  "tg.take_taken": "{name} has already taken this client",
+  "tg.take_mine": "This client is already assigned to you",
+  "tg.not_for_you": "This button is not for you"
 }
