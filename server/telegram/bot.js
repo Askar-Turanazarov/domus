@@ -1,5 +1,5 @@
-// The client bot (10 §4): /start in its four forms, the contact (R2), the language, help, the menu. The chat with the
-// AI agent and «Мои брони» come with D3. The staff group (take:, the bot's membership) is at the end. Every reply is a direct answer to the
+// The client bot (10 §4): /start in its four forms, the contact (R2), the language, help, the menu, the dialogue with the AI agent
+// (free text, menu tasks, buttons — telegram/agent.js). The staff group (take:, the bot's membership) is at the end. Every reply is a direct answer to the
 // update; notifications go through the Outbox (server/notify).
 import { Bot, InlineKeyboard, Keyboard } from 'grammy';
 import { DomainError } from '../core/errors.js';
@@ -9,6 +9,7 @@ import { getApartment } from '../core/apartments.js';
 import { context } from '../core/tx.js';
 import { t } from '../i18n/index.js';
 import { money, areaText } from '../notify/format.js';
+import { createTelegramAgent, MENU_INTENTS } from './agent.js';
 
 export const LANGS = ['ru', 'uz', 'en'];
 const MENU_KEYS = ['pick', 'open', 'bookings', 'manager'];
@@ -51,7 +52,8 @@ const menuKey = text => MENU_KEYS.find(k => LANGS.some(l => t(l, `tg.btn.${k}`) 
 const asClient = c => ({ type: 'client', id: c.id, role: 'client', channel: 'telegram' });
 
 // core — extra options of the core calls ({ now, onCommit, render }); tests put a transformer on bot.api.config.
-export function createBot({ db, env = process.env, core = {}, token = env.TELEGRAM_BOT_TOKEN }) {
+// turns, tools — the agent layer (D3); without them the bot answers free text with a stub.
+export function createBot({ db, env = process.env, core = {}, token = env.TELEGRAM_BOT_TOKEN, turns = null, tools = null }) {
   const bot = new Bot(token, { botInfo: botInfoOf(token, env.TELEGRAM_BOT_USERNAME || 'bot') });
   const opts = { ...core, env };
   // An error of a handler goes up to the webhook, which writes its code into telegram_updates (10 §3).
@@ -117,6 +119,7 @@ export function createBot({ db, env = process.env, core = {}, token = env.TELEGR
   }
 
   const dm = bot.chatType('private');
+  const agent = turns && tools ? createTelegramAgent({ db, turns, tools, env, core: opts }) : null;
 
   dm.command('start', async ctx => {
     const arg = String(ctx.match ?? '').trim();
@@ -156,16 +159,33 @@ export function createBot({ db, env = process.env, core = {}, token = env.TELEGR
     await reply(ctx, r.client, t(r.client.lang, r.conflict ? 'tg.phone_conflict' : 'tg.phone_ok'));
   });
 
-  dm.command('bookings', async ctx => {
+  // Not text (10 §4.3): a photo, a file, a sticker, a voice, a place — a short answer, no AI.
+  dm.on(['message:photo', 'message:document', 'message:sticker', 'message:voice', 'message:video', 'message:video_note',
+    'message:audio', 'message:animation', 'message:location'], async ctx => {
     const { client } = await visitor(ctx);
-    await reply(ctx, client, t(client.lang, 'tg.soon'));
+    await reply(ctx, client, t(client.lang, 'tg.nontext'));
   });
 
-  dm.on('message:text', async ctx => {
-    if (ctx.message.text.startsWith('/')) return;                      // an unknown command: no answer, no noise
+  // «Мои брони», «Подобрать квартиру», «Связаться с менеджером» and the free text are turns of the agent (10 §4.2–4.3).
+  const task = async (ctx, intent) => {
     const { client } = await visitor(ctx);
-    await reply(ctx, client, t(client.lang, menuKey(ctx.message.text) ? 'tg.soon' : 'tg.text_soon'));
+    if (!agent) return reply(ctx, client, t(client.lang, 'tg.soon'));
+    await agent.run(ctx, client, { intent });
+  };
+  dm.command('bookings', ctx => task(ctx, MENU_INTENTS.bookings));
+
+  dm.on('message:text', async ctx => {
+    const text = ctx.message.text;
+    if (text.startsWith('/')) return;                                  // an unknown command: no answer, no noise
+    const key = menuKey(text);
+    if (MENU_INTENTS[key]) return task(ctx, MENU_INTENTS[key]);
+    const { client } = await visitor(ctx);
+    if (!agent) return reply(ctx, client, t(client.lang, key ? 'tg.soon' : 'tg.text_soon'));
+    if (key) return reply(ctx, client, t(client.lang, 'tg.soon'));     // «Открыть ЖК» without https: the mini app comes with D4
+    await agent.run(ctx, client, { text });
   });
+
+  agent?.mount(dm, visitor);
 
   // ── the staff group (10 §6): «Беру клиента» and the bot's own membership
   const inStaffChat = ctx => String(ctx.chat?.id) === String(env.TELEGRAM_STAFF_CHAT_ID ?? '');

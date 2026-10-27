@@ -18,13 +18,13 @@ export const kindOf = update => Object.keys(update).find(k => k !== 'update_id')
 // A short code for telegram_updates.error: no text of the message may get into the journal (NFR-SEC-02).
 const codeOf = e => `${e?.name ?? 'Error'}${e?.error_code ? `:${e.error_code}` : ''}${e?.code ? `:${e.code}` : ''}`.slice(0, 100);
 
-// opts — { env, core, bot?, defer?, now? }: bot — a ready one (tests); defer(promise) — the work after the answer (waitUntil).
+// opts — { env, core, turns?, tools?, bot?, defer?, now? }: bot — a ready one (tests); turns, tools — the agent layer; defer(promise) — the work after the answer (waitUntil).
 export function mountTelegram(app, db, opts = {}) {
   const env = opts.env ?? process.env;
   const now = opts.now ?? clockNow;
   const defer = opts.defer ?? (p => background(p, 'telegram update'));
   let bot = opts.bot ?? null;
-  const botOf = () => (bot ??= createBot({ db, env, core: opts.core }));
+  const botOf = () => (bot ??= createBot({ db, env, core: opts.core, turns: opts.turns, tools: opts.tools }));
 
   async function handleOne(update) {
     try {

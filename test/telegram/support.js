@@ -5,12 +5,14 @@ export const ENV = { TELEGRAM_BOT_TOKEN: '123456:TEST-TOKEN', TELEGRAM_BOT_USERN
   TELEGRAM_WEBHOOK_SECRET: 'w'.repeat(40), PUBLIC_URL: 'https://domus.test', LINK_SECRET: 'test-secret', TELEGRAM_STAFF_CHAT_ID: '-100500' };
 
 // → { bot, calls, sent() }: calls — [{ method, payload }] in order; sent() — only the texts of sendMessage.
-export function makeBot(db, { env = ENV, core = {} } = {}) {
-  const bot = createBot({ db, env, core });
+// draft — false: the Bot API has no sendMessageDraft (the method answers 404); turns, tools — the agent layer.
+export function makeBot(db, { env = ENV, core = {}, turns = null, tools = null, draft = true } = {}) {
+  const bot = createBot({ db, env, core, turns, tools });
   const calls = [];
   let id = 1000;
   bot.api.config.use((prev, method, payload) => {
     calls.push({ method, payload });
+    if (method === 'sendMessageDraft' && !draft) return Promise.resolve({ ok: false, error_code: 404, description: 'Not Found: method not found' });
     const result = method === 'sendMessage' ? { message_id: ++id, date: 0, chat: { id: payload.chat_id, type: 'private' }, text: payload.text } : true;
     return Promise.resolve({ ok: true, result });
   });
