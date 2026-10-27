@@ -55,6 +55,7 @@ test('08 §5: my_bookings shows only the own bookings (merged cards too); a clie
   const mine = await tools.run('my_bookings', {}, { actor: asClient(anya), source: 'agent' });
   assert.deepEqual(mine.out.items.map(b => b.apartmentNo).sort(), [41, 42]);
   assert.ok(mine.out.items.every(b => b.link.startsWith('https://x.test/b/')));
+  assert.ok(mine.out.items.every(b => b.area > 0 && b.floor > 0 && b.rooms >= 0), 'the apartment: rooms, area, floor');
   const none = await tools.run('my_bookings', {}, { actor: { type: 'client', id: null, role: 'client', channel: 'web' }, source: 'agent' });
   assert.deepEqual(none.out.items, []);
 });

@@ -112,6 +112,17 @@ test('blocks: the confirmation card passes the answer once and locks the buttons
   assert.ok(yes.disabled && no.disabled);
 });
 
+test('blocks: the booking card shows the texts as plain text and the link as a button to our own domain only', () => {
+  const card = url => ({ title: '🏢 ЖК <b>X</b>', lines: ['Ваша бронь №1002', 'Квартира №39'], note: 'Спасибо!', url, label: '📄 Моя бронь' });
+  const node = renderBlock({ type: 'bookings', data: { items: [card('/b/1002-x'), card('https://evil.example/b/1')] } }, ctx());
+  assert.equal(node.querySelectorAll('.chat-apt').length, 2);
+  assert.match(node.textContent, /Квартира №39/);
+  assert.equal(node.querySelectorAll('b').length, 0, 'a text never becomes HTML');
+  const links = node.querySelectorAll('a');
+  assert.equal(links.length, 1);
+  assert.equal(links[0].getAttribute('href'), '/b/1002-x');
+});
+
 test('blocks: suggestions keep own links only; unknown blocks are not drawn', () => {
   const node = renderBlock({ type: 'suggestions', data: [
     { label: 'Оплатить', url: '/pay/x' }, { label: 'Чужое', url: 'https://evil.example' }, { label: 'Ещё', intent: 'show_free', payload: {} }] }, ctx());

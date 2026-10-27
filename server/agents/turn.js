@@ -11,6 +11,7 @@ import { runAgent, smalltalk } from './agent.js';
 import { contextBlock, digestOf, memoryLine } from './context.js';
 import { mask, forStorage } from './pii.js';
 import { confirmCard, textConsent } from './confirm.js';
+import { bookingCard } from './bookingCard.js';
 import { menu, template, statusText, fallbackSuggestions } from './scripted.js';
 
 export const TURN_MS = 45_000;            // §10: the turn's budget
@@ -116,6 +117,7 @@ export function createTurns({ db, ai, tools, env = process.env, settings = null,
       if (c.name === 'search_apartments') cards.push(...(c.result.items ?? []).slice(0, 3));
       if (c.name === 'get_apartment') cards.push(c.result);
       if (c.name === 'calc_installment' || c.name === 'compare_finance') out.push({ type: 'table', data: { tool: c.name, ...c.result } });
+      if (c.name === 'my_bookings' && c.result.items?.length) out.push({ type: 'bookings', data: { items: c.result.items.slice(0, 5).map(b => bookingCard(b, lang)) } });
     }
     const seen = new Set();
     const uniq = cards.filter(a => a?.no != null && !seen.has(a.no) && seen.add(a.no));
@@ -202,8 +204,7 @@ export function createTurns({ db, ai, tools, env = process.env, settings = null,
       run.agent = 'booking';
       const r = await call('my_bookings', {});
       const items = r.ok ? r.out.items : [];
-      run.text = items.length ? [t(lang, 'agent.bookings'), ...items.map(b => `- №${b.apartmentNo}: ${b.link}`)].join('\n')
-        : t(lang, 'agent.no_bookings');
+      run.text = t(lang, items.length ? 'agent.bookings' : 'agent.no_bookings');      // the bookings themselves are cards (blocksOf)
     } else if (intent === 'call_manager') {
       await call('call_manager', {});
       run.text = template('handoff', lang).text;

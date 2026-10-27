@@ -22,6 +22,7 @@ export function renderBlock(block, ctx) {
   const d = block?.data ?? {};
   switch (block?.type) {
     case 'apartments': return apartments(d.items ?? [], ctx);
+    case 'bookings': return bookings(d.items ?? [], ctx);
     case 'table': return table(d, ctx);
     case 'confirm': return confirm(d, ctx);
     case 'suggestions': return suggestions(d, ctx);
@@ -43,6 +44,28 @@ function apartments(items, { t, doc, onOpen }) {
     row.append(btn(doc, 'chat-btn', t('chat.open3d'), () => onOpen(a.no, { book: false })));
     if (a.status === 'free') row.append(btn(doc, 'chat-btn primary', t('chat.book'), () => onOpen(a.no, { book: true })));
     card.append(row);
+    box.append(card);
+  }
+  return box;
+}
+
+// The booking cards of «my bookings»: the texts are ready from the server (its language), the link is a button — only to our own domain.
+function bookings(items, { doc, origin }) {
+  const box = el(doc, 'div', 'chat-cards');
+  for (const c of items.slice(0, 5)) {
+    const card = el(doc, 'div', 'chat-apt');
+    card.append(el(doc, 'strong', null, c.title));
+    for (const line of c.lines ?? []) card.append(el(doc, 'div', 'chat-apt-line', line));
+    card.append(el(doc, 'div', 'chat-apt-note', c.note));
+    const href = ownUrl(c.url ?? '', origin);
+    if (href) {
+      const a = el(doc, 'a', 'chat-btn primary', c.label);
+      a.href = href;
+      a.rel = 'noopener noreferrer';
+      const row = el(doc, 'div', 'chat-row');
+      row.append(a);
+      card.append(row);
+    }
     box.append(card);
   }
   return box;

@@ -55,6 +55,7 @@
 .chat-apt, .chat-confirm, .chat-phone { border: 1px solid var(--line-2); border-radius: var(--r-m); background: var(--surface); padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
 .chat-apt-head { display: flex; justify-content: space-between; align-items: baseline; }
 .chat-apt-line { color: var(--muted); font-size: 13px; }
+.chat-apt-note { font-size: 13px; padding-top: 4px; }
 .chat-apt-price { font: 600 15px/1.2 var(--f-ui); color: var(--gold-2); }
 .chat-state { font: 600 10px/1 var(--f-ui); letter-spacing: var(--caps); text-transform: uppercase; color: var(--ok); }
 .chat-state.held, .chat-state.booked { color: var(--warn); }

@@ -12,7 +12,7 @@ import { createTurns } from '../../server/agents/turn.js';
 import { resetDraftMode } from '../../server/telegram/stream.js';
 import { fakeProvider } from '../ai/fakes.js';
 import { createTestDb, resetDb } from '../support/db.js';
-import { makeClient } from '../support/factories.js';
+import { makeClient, makeBooking } from '../support/factories.js';
 import { makeBot, text, callback, ENV, FROM } from './support.js';
 
 let db, tools;
@@ -83,6 +83,24 @@ test('10 §4.2: «Мои брони» and /bookings are a task of the agent (no 
   await bot.handleUpdate(text('/bookings'));
   assert.ok(sent(calls).length >= 2);
   assert.ok(sent(calls).every(c => !/скоро появится/.test(c.payload.text)));
+});
+
+test('10 §4.2: «Мои брони» → a card per booking (apartment, area, floor, thanks) and the link as a button, not a bare URL', async () => {
+  const { bot, calls } = world();
+  const c = await verified();
+  const b = await makeBooking(db, { apartmentNo: 41, clientId: c.id, status: 'booked', minutes: 600 });
+  const h = await makeBooking(db, { apartmentNo: 42, clientId: c.id, status: 'held' });
+  await bot.handleUpdate(text('📋 Мои брони'));
+  const msgs = sent(calls);
+  assert.ok(msgs.every(m => !/https?:\/\//.test(m.payload.text)), 'no bare link in any text');
+  const apt = await db.one('SELECT area, floor FROM apartments WHERE no = 41');
+  const done = msgs.find(m => m.payload.text.includes(`№${b.no}`));
+  for (const part of ['ЖК Chinor Park by Domus', 'Ваша бронь', 'Квартира №41', `Площадь: ${String(Number(apt.area)).replace('.', ',')} м²`,
+    `Этаж: ${apt.floor}`, 'Спасибо за вашу бронь']) assert.ok(done.payload.text.includes(part), part);
+  assert.ok(keys(done).some(k => k.text === '📄 Моя бронь' && k.url.startsWith('https://domus.test/b/')), 'the link is a button');
+  const held = msgs.find(m => m.payload.text.includes(`№${h.no}`));
+  assert.ok(/удерживается за вами до/.test(held.payload.text) && !/Спасибо/.test(held.payload.text));
+  assert.ok(keys(held).some(k => k.text === '💳 Оплатить' && k.url.startsWith('https://domus.test/b/')));
 });
 
 test('10 §4.3: a sticker, a voice — «понимаю только текст», no turn', async () => {

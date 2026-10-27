@@ -76,6 +76,13 @@ export function createTelegramAgent({ db, turns, tools, env = process.env, core 
           out.push({ html: esc(t(lang, 'tg.apt_card', { no: a.no, rooms: a.rooms, area: areaText(a.area, lang), floor: a.floor,
             price: money(a.price), status: t(lang, `tg.apt_status.${a.status}`) })), kb });
         }
+      } else if (b.type === 'bookings') {
+        for (const c of (d.items ?? []).slice(0, 5)) {
+          const kb = new InlineKeyboard();
+          const u = siteUrl(c.url ?? '', lang);
+          if (u) kb.url(c.label, u).row();
+          out.push({ html: [`<b>${esc(c.title)}</b>`, ...(c.lines ?? []).map(esc), '', esc(c.note)].join('\n'), kb });
+        }
       } else if (b.type === 'table') {
         const tb = tableHtml(d, t, lang);
         out.push({ html: tb.html + (tb.more ? `\n${esc(t(lang, 'tg.table_more'))}` : '') });
