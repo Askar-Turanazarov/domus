@@ -48,9 +48,9 @@ test('static "/index.html" and "/building.html" are the Russian pages with produ
   assert.match(html, new RegExp(`<link rel="canonical" href="${base()}/">`));
 });
 
-test('vercel.json ships both pages with the function', () => {
+test('vercel.json ships the pages and the migrations with the function (16 §2)', () => {
   const v = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
-  for (const f of ['public/index.html', 'public/building.html']) assert.ok(v.functions['server.js'].includeFiles.includes(f), f);
+  for (const f of ['public/*.html', 'server/db/migrations/**']) assert.ok(v.functions['server.js'].includeFiles.includes(f), f);
   // Vercel refuses the whole deploy when a glob is longer than 256 characters
   for (const k of ['includeFiles', 'excludeFiles']) assert.ok(v.functions['server.js'][k].length <= 256, k);
 });
