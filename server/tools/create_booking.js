@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { defineTool } from './define.js';
 import { DomainError } from '../core/errors.js';
 import { previewHold, createHold } from '../core/bookings.js';
+import { getApartment } from '../core/apartments.js';
 import { aptNo, absolute } from './common.js';
 import { contactOf } from './contact.js';
 
@@ -21,7 +22,9 @@ export default defineTool({
     await contactOf(ctx);
     const p = await previewHold(ctx.db, { apartmentNo, clientId: ctx.actor.id }, ctx.core);
     if (!p.available) throw new DomainError(p.reason, { no: apartmentNo });
-    return { apartmentNo, price: p.price, deposit: p.deposit, holdMinutes: p.holdMinutes, bookingHours: p.bookingHours };
+    const a = await getApartment(ctx.db, apartmentNo, ctx.core);
+    return { apartmentNo, rooms: a.rooms, area: a.area, floor: a.floor, building: a.building, price: p.price, deposit: p.deposit,
+      holdMinutes: p.holdMinutes, bookingHours: p.bookingHours };
   },
   async run({ apartmentNo }, ctx) {
     const c = await contactOf(ctx);

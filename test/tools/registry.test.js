@@ -103,11 +103,14 @@ test('08 §6.1 step 1: a mutating tool returns the preview and writes nothing; t
   const c = await makeClient(db, { phone: '+998901234567', channel: 'telegram' });
   const ctx = { actor: asClient(c, 'telegram'), source: 'agent', lang: 'ru' };
   const r = await tools.run('create_booking', { apartmentNo: 41 }, ctx);
-  assert.equal(r.needsConfirmation, true);
-  assert.deepEqual(r.preview, { apartmentNo: 41, price: 1_024_500_000, deposit: 10_000_000, holdMinutes: 15, bookingHours: 72 });
+  assert.equal(r.pending, true);
+  assert.equal(r.model.pending, true);
+  assert.ok(!('preview' in r.model), 'the model gets no terms and no link');
+  assert.deepEqual(r.preview, { apartmentNo: 41, rooms: 3, area: 79.7, floor: 6, building: 'chinor-park', price: 1_024_500_000,
+    deposit: 10_000_000, holdMinutes: 15, bookingHours: 72 });
   assert.equal((await db.query('SELECT 1 FROM bookings')).length, 0);
   assert.equal((await db.one(`SELECT phase FROM tool_calls WHERE tool = 'create_booking'`)).phase, 'preview');
-  const x = await tools.execute('create_booking', { apartmentNo: 41 }, ctx);
+  const x = await tools.confirm(r.pendingActionId, ctx);
   assert.equal(x.ok, true);
   assert.match(x.out.link, /^https:\/\/x\.test\/b\/\d+-/);
   const other = await makeClient(db, { name: 'Борис', phone: '+998907654321', channel: 'telegram' });
@@ -120,7 +123,7 @@ test('07 §5.3: on the site without a phone create_booking → need_phone; the d
   const c = await makeClient(db);
   const ctx = { actor: asClient(c, 'web'), source: 'agent', lang: 'ru' };
   assert.equal((await tools.run('create_booking', { apartmentNo: 41 }, ctx)).error, 'need_phone');
-  assert.equal((await tools.run('create_booking', { apartmentNo: 41 }, { ...ctx, contactPhone: '+998901112233' })).needsConfirmation, true);
+  assert.equal((await tools.run('create_booking', { apartmentNo: 41 }, { ...ctx, contactPhone: '+998901112233' })).pending, true);
 });
 
 test('calc_installment / compare_finance: by apartment number, the paid deposit counted, first 3 payments and the last', async () => {
