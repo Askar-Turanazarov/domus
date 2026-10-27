@@ -172,9 +172,17 @@ export async function attachTelegram(db, { code, telegram }, opts = {}) {
     await q.query('UPDATE client_link_codes SET used_at = $2 WHERE code_hash = $1', [link.code_hash, at]);
     await emit(q, 'client.telegram_linked', { clientId: client.id, bookingId: link.booking_id }, { rule: 'R6' }, { ...actor, id: client.id }, ctx);
     if (link.booking_id) {
-      const b = await q.one('SELECT id, no, access_version FROM bookings WHERE id = $1', [link.booking_id]);
+      const b = await q.one('SELECT id, no, status, access_version FROM bookings WHERE id = $1', [link.booking_id]);
       await notify(q, fx, ctx, { template: 'link_telegram_done', audience: 'client', clientId: client.id, vars: { bookingNo: b.no, link: bookingPath(b, ctx.env) },
         dedupeKey: `link_telegram_done:${link.code_hash}` });
+      // The buyer paid before linking: «Бронь подтверждена» was skipped (no_telegram). The order of clicks must not matter, so it
+      // goes out right after «Готово!». A hold that has since expired or a cancelled booking is not announced.
+      const missed = b.status === 'booked' && await q.one(
+        `SELECT vars FROM outbox WHERE dedupe_key = $1 AND status = 'skipped' AND skip_reason = 'no_telegram'`, [`booking_confirmed:${b.id}`]);
+      if (missed) {
+        await notify(q, fx, ctx, { template: 'booking_confirmed', audience: 'client', clientId: client.id, vars: missed.vars,
+          dedupeKey: `booking_confirmed:${b.id}:linked` });
+      }
     }
     return { client, bookingId: link.booking_id };
   });

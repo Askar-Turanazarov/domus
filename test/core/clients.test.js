@@ -3,6 +3,7 @@ import { test, before, after, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeClock } from '../../server/core/clock.js';
 import { resolveClient, verifyPhone, issueLinkCode, attachTelegram, canonical } from '../../server/core/clients.js';
+import { enqueue } from '../../server/core/outbox.js';
 import { createTestDb, resetDb } from '../support/db.js';
 import { makeClient, makeBooking } from '../support/factories.js';
 
@@ -98,4 +99,26 @@ test('R6: a link code joins the site card to the Telegram card once; reused / ex
   assert.equal(r2.client.telegram_user_id, 88);
   const again = await db.tx(q => issueLinkCode(q, { clientId: web2.id }));
   await assert.rejects(attachTelegram(db, { code: again, telegram: { userId: 99 } }), { code: 'telegram_linked_elsewhere' });
+});
+
+// The buyer pays first and links Telegram after: «Бронь подтверждена» was skipped (no_telegram) and goes out with «Готово!».
+const skippedConfirmation = (b, clientId) => enqueue(db, { template: 'booking_confirmed', audience: 'client', clientId,
+  vars: { apt: 41, until: '2026-10-30T05:00:00.000Z', bookingNo: b.no, deposit: 10_000_000, link: '/booking.html' }, dedupeKey: `booking_confirmed:${b.id}` });
+const outboxOf = () => db.query("SELECT template, status, skip_reason, chat_id FROM outbox ORDER BY id");
+
+test('R6: a confirmation skipped before the link is sent right after «Готово!»; an expired hold is not announced', async () => {
+  const web = await site({ name: 'Аня', phone: PHONE });
+  const b = await makeBooking(db, { apartmentNo: 41, clientId: web.id, status: 'booked', minutes: 600 });
+  assert.equal((await skippedConfirmation(b, web.id)).status, 'skipped');
+  const code = await db.tx(q => issueLinkCode(q, { clientId: web.id, bookingId: b.id }));
+  await attachTelegram(db, { code, telegram: { userId: 77, chatId: 77 } });
+  assert.deepEqual((await outboxOf()).map(r => [r.template, r.status, r.chat_id == null ? null : Number(r.chat_id)]),
+    [['booking_confirmed', 'skipped', null], ['link_telegram_done', 'pending', 77], ['booking_confirmed', 'pending', 77]]);
+
+  const late = await site({ name: 'Борис', phone: '+998901112233' });
+  const gone = await makeBooking(db, { apartmentNo: 42, clientId: late.id, status: 'hold_expired', minutes: -10 });
+  await skippedConfirmation(gone, late.id);
+  const code2 = await db.tx(q => issueLinkCode(q, { clientId: late.id, bookingId: gone.id }));
+  await attachTelegram(db, { code: code2, telegram: { userId: 88, chatId: 88 } });
+  assert.equal((await outboxOf()).length, 5, 'only «Готово!» for the lost hold');
 });
