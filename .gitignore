@@ -22,3 +22,23 @@ order.json
 !.env.example
 .pglite/
 eval/reports/*.tmp
+
+# Tools and agents (not part of the project)
+AGENTS.md
+GEMINI.md
+CLAUDE.local.md
+.cursor/
+.codex/
+.windsurf/
+.gemini/
+.vscode/
+.idea/
+.history/
+
+# OS and local junk
+.DS_Store
+Thumbs.db
+desktop.ini
+coverage/
+*.tmp
+*.bak
