@@ -8,6 +8,7 @@ import { deliver } from '../core/outbox.js';
 import { sweepDue, bookingJobHandlers } from '../core/bookings.js';
 import { paymentJobHandlers } from '../core/payments.js';
 import { refundJobHandlers } from '../core/refunds.js';
+import { viewingJobHandlers } from '../core/viewingsDb.js';
 
 const WEEK = 7 * 24 * 3600e3;
 const HOUR = 3600e3;
@@ -18,12 +19,14 @@ function allHandlers(opts) {
   const { handlers, fx } = bookingJobHandlers(opts);
   const pay = paymentJobHandlers(opts, fx);
   const refund = refundJobHandlers(opts, fx);
+  const viewing = viewingJobHandlers(opts, fx);
   return {
     fx,
     handlers: {
       ...handlers,
       ...pay.handlers,
       ...refund.handlers,
+      ...viewing.handlers,
       'outbox.retry': async job => {
         if (!opts.send) return 'skipped';
         fx.outbox.push(job.payload.outboxId);

@@ -196,5 +196,9 @@
   "agent.hello": "Assalomu alaykum! Men Chinor Park TJM ning sun’iy intellekt maslahatchisiman: xonadon tanlayman, muddatli to‘lovni hisoblayman va bron qilishda yordam beraman.",
   "agent.thanks": "Arzimaydi!",
   "agent.bot": "Men Chinor Park TJM ning sun’iy intellekt maslahatchisiman. Menejerni chaqirishim mumkin.",
-  "agent.suggest.find": "Xonadon tanlash"
+  "agent.suggest.find": "Xonadon tanlash",
+  "tpl.staff_handoff.text": "🆘 Mijoz menejerni so‘ramoqda. {name}, {phoneMasked}. Kontekst: {context}",
+  "err.unknown_tool": "Bunday amal yo‘q.",
+  "err.one_action_per_turn": "Bir martada — bitta amal. Avval birinchisini tasdiqlang.",
+  "err.tool_timeout": "O‘z vaqtida bajarib bo‘lmadi. Yana urinib ko‘ring."
 }

@@ -196,5 +196,9 @@
   "agent.hello": "Hello! I am the AI consultant of Chinor Park: I’ll find an apartment, calculate installments and help with booking.",
   "agent.thanks": "You’re welcome!",
   "agent.bot": "I am the AI consultant of Chinor Park. I can call a manager.",
-  "agent.suggest.find": "Find an apartment"
+  "agent.suggest.find": "Find an apartment",
+  "tpl.staff_handoff.text": "🆘 The client asks for a manager. {name}, {phoneMasked}. Context: {context}",
+  "err.unknown_tool": "There is no such action.",
+  "err.one_action_per_turn": "One action at a time. Please confirm the first one.",
+  "err.tool_timeout": "It did not finish in time. Please try again."
 }

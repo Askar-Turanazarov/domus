@@ -50,6 +50,7 @@ export const TEMPLATES = {
   staff_viewing_created: staff(['apt', 'at', 'name', 'phoneMasked', 'clientId'], [take, admin]),
   staff_new_request: staff(['apt', 'name', 'phoneMasked', 'comment', 'clientId'], [take, admin]),
   staff_extend_requested: staff(['bookingNo', 'apt', 'until', 'hoursText'], [admin]),
+  staff_handoff: staff(['name', 'phoneMasked', 'context', 'clientId'], [take, admin]),
   // «Беру клиента»: the original message edited — vars carry `of` (its template) and its own vars, plus staffName.
   staff_lead_taken: staff(['of', 'staffName'], [], { composed: true })
 };

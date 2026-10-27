@@ -14,12 +14,16 @@ const WITH_STATUS = `
     FROM apartments a
     LEFT JOIN bookings b ON b.apartment_no = a.no AND b.status IN ('held', 'booked') AND b.expires_at > $1`;
 
-// filter — { rooms?, floorMin?, floorMax?, priceMax?, status? } → apartments with status, by number.
+// filter — { rooms?, floorMin?, floorMax?, priceMin?, priceMax?, areaMin?, areaMax?, building?, status? } → apartments
+// with status, by number.
 export async function listApartments(q, filter = {}, { now } = context()) {
   const rows = await q.query(`${WITH_STATUS} ORDER BY a.no`, [now()]);
-  return rows.filter(a => (filter.rooms == null || a.rooms === filter.rooms)
-    && (filter.floorMin == null || a.floor >= filter.floorMin) && (filter.floorMax == null || a.floor <= filter.floorMax)
-    && (filter.priceMax == null || a.price <= filter.priceMax) && (filter.status == null || a.status === filter.status));
+  const f = filter;
+  return rows.filter(a => (f.rooms == null || a.rooms === f.rooms)
+    && (f.floorMin == null || a.floor >= f.floorMin) && (f.floorMax == null || a.floor <= f.floorMax)
+    && (f.priceMin == null || a.price >= f.priceMin) && (f.priceMax == null || a.price <= f.priceMax)
+    && (f.areaMin == null || a.area >= f.areaMin) && (f.areaMax == null || a.area <= f.areaMax)
+    && (f.building == null || a.building === f.building) && (f.status == null || a.status === f.status));
 }
 
 export async function getApartment(q, no, { now } = context()) {

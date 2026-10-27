@@ -137,7 +137,8 @@ function holdResult(b, ctx) {
 // T1 (03 §4): one transaction. input — { apartmentNo, client: {id?, cookieId?, name?, phone?, telegram?}, consent: {version} | null,
 // channel, idempotencyKey? }. → { booking, link, holdSeconds }.
 export async function createHold(db, input, actor, opts = {}) {
-  const { apartmentNo, client: who = {}, consent = null, channel, idempotencyKey = null } = input;
+  // viaChat — made by a chat agent after «Да» (§4.1, §4.4): no form checkbox even on the site; consent on the payment page.
+  const { apartmentNo, client: who = {}, consent = null, channel, idempotencyKey = null, viaChat = false } = input;
   if (!Number.isInteger(apartmentNo) || !channel) throw new DomainError('invalid_input');
   const ctx = context(opts);
   const hash = crypto.createHash('sha256').update(JSON.stringify({ apartmentNo, who, consent, channel })).digest('hex');
@@ -150,7 +151,7 @@ export async function createHold(db, input, actor, opts = {}) {
       if (k) return holdResult(await q.one('SELECT * FROM bookings WHERE id = $1', [k.response.bookingId]), ctx);
     }
     if (consent && consent.version !== s.offer_version) throw new DomainError('consent_required');
-    if (BROWSER.includes(channel) && !consent) throw new DomainError('consent_required');
+    if (BROWSER.includes(channel) && !consent && !viaChat) throw new DomainError('consent_required');
     const client = await resolveClient(q, who, channel, actor, ctx);                            // 2
     await q.query('SELECT id FROM clients WHERE id = $1 FOR UPDATE', [client.id]);
     const apt = await q.one('SELECT * FROM apartments WHERE no = $1 FOR UPDATE', [apartmentNo]); // 3
@@ -395,4 +396,44 @@ export function bookingJobHandlers(opts = {}) {
     }
   };
   return { handlers, fx };
+}
+
+// The bookings of a client (my_bookings, 08 §3.1) with the cards merged into it (§9), newest first; statuses as reads
+// must see them (I12). Head filter (list_bookings, 08 §3.2): expiring within N hours.
+export async function listBookings(q, { clientId = null, status = null, expiringWithinHours = null, limit = 20 } = {}, opts = {}) {
+  const ctx = context(opts);
+  const at = ctx.now();
+  const soon = expiringWithinHours ? new Date(at.getTime() + expiringWithinHours * 3600e3) : null;
+  const rows = await q.query(`SELECT * FROM bookings b
+    WHERE ($1::uuid IS NULL OR b.client_id IN (SELECT id FROM clients WHERE id = $1 OR merged_into = $1))
+      AND ($2::timestamptz IS NULL OR (b.status IN ('held', 'booked') AND b.expires_at > $3 AND b.expires_at <= $2))
+    ORDER BY b.held_at DESC, b.no DESC LIMIT $4`, [clientId, soon, at, limit]);
+  const out = rows.map(b => ({ ...b, status: effectiveStatus(b, at), link: bookingPath(b, ctx.env) }));
+  return status ? out.filter(b => b.status === status) : out;
+}
+
+const DEDUPE_MS = 10 * 60e3;
+
+// «Продлите бронь» through the agent (03 §6, 08 §3.1): the agent cannot extend (PRD 4.2) — an event and a message to
+// the group; the booking itself does not change. Only the client's own live booking: someone else's number →
+// booking_not_found (08 §5). A repeat within 10 minutes → the same answer without a new message.
+export async function requestExtension(db, { bookingNo, hours = null, clientId }, actor, opts = {}) {
+  const ctx = context(opts);
+  return inTx(db, ctx, async (q, fx) => {
+    const at = ctx.now();
+    const b = await q.one(`SELECT * FROM bookings WHERE no = $1
+      AND client_id IN (SELECT id FROM clients WHERE id = $2 OR merged_into = $2)`, [bookingNo, clientId]);
+    if (!b) throw new DomainError('booking_not_found');
+    if (b.status !== 'booked' || b.expires_at <= at) throw new DomainError('booking_not_active');
+    const recent = await q.one(`SELECT id FROM events WHERE type = 'booking.extend_requested' AND booking_id = $1 AND at > $2 LIMIT 1`,
+      [b.id, new Date(at.getTime() - DEDUPE_MS)]);
+    const res = { requested: true, bookingNo: b.no, apartmentNo: b.apartment_no, until: iso(b.expires_at), repeated: Boolean(recent) };
+    if (recent) return res;
+    const ev = await emit(q, 'booking.extend_requested', { bookingId: b.id, apartmentNo: b.apartment_no, clientId: b.client_id },
+      { hours }, actor, ctx);
+    await notify(q, fx, ctx, { template: 'staff_extend_requested', audience: 'staff_group',
+      vars: { bookingNo: b.no, apt: b.apartment_no, until: iso(b.expires_at), hoursText: hours ? ` (+${hours} ч)` : '' },
+      eventId: ev, dedupeKey: `staff_extend_requested:${ev}` });
+    return res;
+  });
 }

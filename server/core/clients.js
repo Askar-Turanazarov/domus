@@ -3,7 +3,7 @@
 import crypto from 'node:crypto';
 import { DomainError } from './errors.js';
 import { emit } from './events.js';
-import { normalizePhone } from './phone.js';
+import { normalizePhone, maskPhone } from './phone.js';
 import { bookingPath } from './links.js';
 import { context, inTx, notify } from './tx.js';
 
@@ -224,5 +224,28 @@ export async function assignClient(db, { clientId, staffId }, opts = {}) {
         vars: { ...m.vars, of: m.template, staffName: staff.name }, eventId: ev, dedupeKey: `staff_lead_taken:${m.id}` });
     }
     return { taken: true, staff };
+  });
+}
+
+const HANDOFF_DEDUPE_MS = 10 * 60e3;
+
+// «Позвать человека» (07 §9, FR-AGT-10, S): the dialog goes to mode 'human', the group gets staff_handoff with
+// «Беру клиента». reason — question / complaint / booking / other; context — a short summary for the manager.
+// A repeat within 10 minutes → the same answer without a new message (08 §3.1).
+export async function requestHandoff(db, { clientId, conversationId = null, reason = 'other', context: about = '' }, actor, opts = {}) {
+  const ctx = context(opts);
+  return inTx(db, ctx, async (q, fx) => {
+    const at = ctx.now();
+    const c = await canonical(q, clientId);
+    if (!c) throw new DomainError('not_found');
+    if (conversationId) await q.query(`UPDATE conversations SET mode = 'human', updated_at = $2 WHERE id = $1`, [conversationId, at]);
+    const recent = await q.one(`SELECT id FROM events WHERE type = 'client.handoff_requested' AND client_id = $1 AND at > $2 LIMIT 1`,
+      [c.id, new Date(at.getTime() - HANDOFF_DEDUPE_MS)]);
+    if (recent) return { requested: true, repeated: true };
+    const ev = await emit(q, 'client.handoff_requested', { clientId: c.id }, { conversationId, reason }, actor, ctx);
+    await notify(q, fx, ctx, { template: 'staff_handoff', audience: 'staff_group',
+      vars: { name: c.name || '—', phoneMasked: c.phone ? maskPhone(c.phone) : '—', context: String(about).slice(0, 300), clientId: c.id },
+      eventId: ev, dedupeKey: `staff_handoff:${ev}` });
+    return { requested: true, repeated: false };
   });
 }
