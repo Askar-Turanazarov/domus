@@ -1,13 +1,14 @@
 // The one entry of the agents to the models (06 §2): chat() — one model step along the role's chain, embed().
 // Which model answers, how the request is translated and what an error means is decided here, never in an agent.
 // A failing model is passed over silently (§8, §10): the user sees a status, not an error, and never waits for a retry.
-import { MODELS, EMBED_MODEL, DEFAULT_MAX_OUTPUT, hasKey, KEY_VAR, timeouts } from './models.js';
+import { MODELS, EMBED_MODEL, DEFAULT_MAX_OUTPUT, hasKey, KEY_VAR, timeouts, dailyBudgetUsd } from './models.js';
+import { costOf } from './cost.js';
 import { candidates } from './chains.js';
 import { AiError } from './errors.js';
 import { createGemini } from './gemini.js';
 import { createAnthropic } from './anthropic.js';
 import { createHealth } from './health.js';
-import { createQuota } from './quota.js';
+import { createQuota, tashkentDayStart } from './quota.js';
 import { now as clockNow } from '../core/clock.js';
 
 const toolCallsIn = messages => messages.reduce((n, m) => n + m.parts.filter(p => p.type === 'tool_call').length, 0);
@@ -32,8 +33,9 @@ function deadlines(outer, { firstByteMs, totalMs }) {
 }
 
 // db — the base (ai_calls, ai_provider_state; null in scripts); env — keys; adapters — { gemini, anthropic }
-// (tests pass fakes; production builds the SDK ones from the keys); now — the clock.
-export function createAi({ db = null, env = process.env, adapters = null, now = clockNow, health = null, log = console } = {}) {
+// (tests pass fakes; production builds the SDK ones from the keys); now — the clock; settings — createSettings(db)
+// for the demo switches of §11 (null: none).
+export function createAi({ db = null, env = process.env, adapters = null, now = clockNow, health = null, settings = null, log = console } = {}) {
   const ad = adapters || {
     gemini: hasKey('gemini', env) ? createGemini({ apiKey: env[KEY_VAR.gemini] }) : null,
     anthropic: hasKey('anthropic', env) ? createAnthropic({ apiKey: env[KEY_VAR.anthropic] }) : null
@@ -43,6 +45,25 @@ export function createAi({ db = null, env = process.env, adapters = null, now = 
 
   // 06 §4 rule 1: no key, cooldown or disabled → skipped without a request.
   const skip = (model, provider) => (ad[provider] ? hl.skip(model, provider) : 'no_key');
+
+  // §11: «Отключить Gemini» skips every Gemini model, «Отключить основную» the first of each chain; ai_provider_state
+  // and the counters stay untouched, so unticking brings all back.
+  async function demo() {
+    if (!settings) return null;
+    try { return await settings.get('ai'); } catch { return null; }
+  }
+  const demoSkip = (sw, c) => (sw?.geminiDisabled && c.provider === 'gemini') || (sw?.primaryDisabled && c.index === 0);
+
+  // §14.4: Claude spending of the Tashkent day over AI_DAILY_BUDGET_USD → Anthropic off till midnight (D-21: only
+  // matters with a paid key).
+  async function checkBudget() {
+    if (!db) return;
+    try {
+      const r = await db.one("SELECT coalesce(sum(cost_usd), 0)::float AS usd FROM ai_calls WHERE provider = 'anthropic' AND at >= $1",
+        [tashkentDayStart(now())]);
+      if (r.usd > dailyBudgetUsd(env)) await hl.budget();
+    } catch { /* no sum → no guard this time */ }
+  }
 
   // One row per request to a model, ok or not (§8.1, §14): numbers and classes only — never a prompt or an answer.
   async function record(row) {
@@ -62,12 +83,13 @@ export function createAi({ db = null, env = process.env, adapters = null, now = 
     const t0 = performance.now();
     let firstEventMs = null;
     await hl.refresh();
+    const sw = await demo();
     const list = candidates(role, { from, skip });
     let badProvider = null;
     let lastError = null;
     for (const c of list) {
       // re-checked: an auth or billing of the previous model turns off its whole provider
-      if (c.skipped || skip(c.model, c.provider)) continue;
+      if (c.skipped || skip(c.model, c.provider) || demoSkip(sw, c)) continue;
       // bad_request is our bug: one jump to a model of the other provider, not along the same one (§8.1).
       if (badProvider && c.provider === badProvider) continue;
       const g = await quota.guard(c.model);
@@ -90,9 +112,11 @@ export function createAi({ db = null, env = process.env, adapters = null, now = 
           const r = await ad[c.provider].call({ model: c.model, cfg: MODELS[c.model], role, system, messages, tools, output, maxOutputTokens },
             { onEvent: emit, signal: d.signal, tick: d.tick, firstId: toolCallsIn(messages) + 1 });
           const ms = Math.round(performance.now() - s0);
-          await record({ turnId, agent, provider: c.provider, model: c.model, kind: 'chat', ok: true, usage: r.usage, ms });
+          const costUsd = costOf(c.model, r.usage);
+          await record({ turnId, agent, provider: c.provider, model: c.model, kind: 'chat', ok: true, usage: r.usage, costUsd, ms });
           await hl.ok(c.provider, c.model);
-          return finish(r, c, { t0, firstEventMs, output });
+          if (c.provider === 'anthropic') await checkBudget();
+          return finish(r, c, { t0, firstEventMs, output, costUsd });
         } catch (e0) {
           if (signal?.aborted) throw e0;
           const e = e0 instanceof AiError ? e0 : new AiError('server');
@@ -120,8 +144,8 @@ export function createAi({ db = null, env = process.env, adapters = null, now = 
       ms: Math.round(performance.now() - t0), firstEventMs, native: null };
   }
 
-  function finish(r, c, { t0, firstEventMs, output }) {
-    const res = { ...r, provider: c.provider, model: c.model, fallback: c.index > 0, costUsd: 0,
+  function finish(r, c, { t0, firstEventMs, output, costUsd }) {
+    const res = { ...r, provider: c.provider, model: c.model, fallback: c.index > 0, costUsd,
       ms: Math.round(performance.now() - t0), firstEventMs };
     if (output && r.stop === 'end') {
       const text = r.parts.filter(p => p.type === 'text').map(p => p.text).join('');
@@ -133,11 +157,11 @@ export function createAi({ db = null, env = process.env, adapters = null, now = 
   // 06 §13: vectors for texts; without Gemini → AiError (search falls back to words, 09 §5.4).
   async function embed({ texts, taskType = 'RETRIEVAL_QUERY', signal = null }) {
     const model = EMBED_MODEL;
-    if (!ad.gemini || hl.skip(model, 'gemini')) throw new AiError('auth', { reason: 'unavailable' });
+    if (!ad.gemini || hl.skip(model, 'gemini') || (await demo())?.geminiDisabled) throw new AiError('auth', { reason: 'unavailable' });
     const s0 = performance.now();
     try {
       const r = await ad.gemini.embed({ model, texts, taskType, dims: MODELS[model].dims }, { signal });
-      await record({ provider: 'gemini', model, kind: 'embed', ok: true, usage: r.usage, ms: Math.round(performance.now() - s0) });
+      await record({ provider: 'gemini', model, kind: 'embed', ok: true, usage: r.usage, costUsd: costOf(model, r.usage), ms: Math.round(performance.now() - s0) });
       return r;
     } catch (e0) {
       const e = e0 instanceof AiError ? e0 : new AiError('server');
