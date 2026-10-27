@@ -61,6 +61,7 @@
   <link rel="modulepreload" href="/js/icons.js">
   <link rel="modulepreload" href="/js/kits.js">
   <link rel="modulepreload" href="/js/lighting.js">
+  <link rel="modulepreload" href="/js/liveStatus.js">
   <link rel="modulepreload" href="/js/openings.js">
   <link rel="modulepreload" href="/js/passages.js">
   <link rel="modulepreload" href="/js/storage.js">
@@ -105,6 +106,7 @@
         <h2 data-i18n="bld.floors">Этажи</h2>
         <div class="bld-facade" id="bldFacade"></div>
         <div class="bld-legend" id="bldLegendSt"></div>
+        <p class="bld-live-stale" id="liveStale" role="status" hidden></p>
       </section>
     </aside>
 
@@ -171,9 +173,11 @@
       <div class="bld-info">
         <dl class="bld-meta" id="aptMeta"></dl>
         <table class="bld-rooms" id="aptRooms"></table>
+        <p class="bld-mine" id="aptMine" hidden></p>
         <div class="btn-row">
           <button type="button" class="btn" id="apt3d" data-i18n="bld.walk3d">🚶 Пройтись в 3D</button>
           <button type="button" class="btn" id="aptPlanner" data-i18n="bld.openPlanner">📐 Открыть в планировщике</button>
+          <a class="btn primary" id="aptContinue" data-i18n="bk.hold.continue" href="#" hidden>Продолжить оплату</a>
           <button type="button" class="btn primary" id="aptBook" data-i18n="bk.hold.open" hidden>🏠 Забронировать</button>
           <button type="button" class="btn" id="aptRequest" data-i18n="bld.request">✉ Оставить заявку</button>
         </div>

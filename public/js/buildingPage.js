@@ -10,16 +10,17 @@ import { DEPTH, TYPES, localRoomName } from './building.js';
 import { FILE_FORMAT, VERSION } from './storage.js';
 import { photoAuto } from './3d/perf.js';
 import { initTheme, getTheme, onThemeChange } from './theme.js';
-import { groupNum, phone as fmtPhone, linkParts } from './bkFormat.js';
+import { groupNum, phone as fmtPhone, linkParts, hhmm } from './bkFormat.js';
+import { createLiveStatus, recolorCells } from './liveStatus.js';
 
 const $ = id => document.getElementById(id);
 const BUILDING = new URLSearchParams(location.search).get('b') || 'chinor-park';
 export const HANDOFF = 'fsp3d.handoff';
-const STATUSES = ['free', 'booked', 'sold'];
+const STATUSES = ['free', 'held', 'booked', 'sold'];
 // Floor-plan colours per theme: muted statuses (sage / champagne / graphite) and room-count tints.
 const PALETTE = {
   dark: {
-    st: { free: '#4f6f5a', booked: '#8a7448', sold: '#34332f' },
+    st: { free: '#4f6f5a', held: '#a8702a', booked: '#8a7448', sold: '#34332f' },
     rooms: ['#4b4458', '#3e4c5a', '#3d5650', '#5a5240', '#584450'],
     floor: '#16161a', lobby: '#1d2428', shop: '#26221b', shopLine: '#4a463f', corridor: '#1f1f22', core: '#2c2b29',
     wall: '#d9cfbd', outer: '#ece6db', hover: '#e3c995', text: '#ece6db', textOff: '#7a756c', sub: '#b8b0a3',
@@ -27,7 +28,7 @@ const PALETTE = {
     gap: '#141416', label: 'rgba(20,20,22,.82)'
   },
   light: {
-    st: { free: '#bcd3c1', booked: '#e6d2ac', sold: '#dcd6cc' },
+    st: { free: '#bcd3c1', held: '#f0c17f', booked: '#e6d2ac', sold: '#dcd6cc' },
     rooms: ['#ddd6e6', '#d3dfe8', '#d1e4dc', '#ece2c6', '#ead6dd'],
     floor: '#f6f2ec', lobby: '#e6eef0', shop: '#f3e9d9', shopLine: '#b9ad9a', corridor: '#ebe5dc', core: '#d6cec2',
     wall: '#3a332a', outer: '#17140f', hover: '#8c6a43', text: '#17140f', textOff: '#9a9184', sub: '#5f574c',
@@ -42,6 +43,7 @@ const LOCALE = { ru: 'ru-RU', uz: 'uz-UZ', en: 'en-GB' };
 const ROOM_COUNTS = [...new Set(Object.values(TYPES).map(x => x.rooms))].sort();
 
 let b = null, floorN = 2, colorBy = 'status', hover = null, cardApt = null, view = null;
+let live = null, mine = {};       // the status poll and the holds of this visitor ({ aptNo: { link, expiresAt } })
 let ext = null, hover3d = null;   // the 3D facade and the apartment under the mouse there
 let tint3d = false;               // windows framed in the colour of status / rooms, or plain glass (remembered)
 const filter = { rooms: new Set(), areaMin: null, areaMax: null, priceMax: null, free: false };
@@ -115,12 +117,15 @@ function renderFacade() {
       }
       if (band.childElementCount) cells.append(band);
     }
-    const fit = f.apartments.filter(matches);
-    const cnt = Object.fromEntries(STATUSES.map(s => [s, fit.filter(a => a.status === s).length]));
     row.append(el('span', { className: 'bld-fl-n', textContent: f.n }), cells,
-      el('span', { className: 'bld-cnt', textContent: f.apartments.length ? t('bld.counts', cnt) : '' }));
+      el('span', { className: 'bld-cnt', textContent: countsText(f) }));
     return row;
   }));
+}
+
+function countsText(f) {
+  const fit = f.apartments.filter(matches);
+  return f.apartments.length ? t('bld.counts', Object.fromEntries(STATUSES.map(s => [s, fit.filter(a => a.status === s).length]))) : '';
 }
 
 function legend() {
@@ -323,12 +328,26 @@ function openCard(a) {
     el('td', { textContent: roomName(r) }),
     el('td', { className: 'num', textContent: `${num(r.room.L / 100, 2)} × ${num(r.room.W / 100, 2)}` }),
     el('td', { className: 'num', textContent: `${num(roomArea(r))} ${t('unit.m2')}` })))));
-  $('aptBook').hidden = a.status !== 'free';
-  $('aptRequest').classList.toggle('primary', a.status !== 'free');
-  $('aptRequest').disabled = a.status === 'sold';
-  $('aptRequest').title = a.status === 'sold' ? t('bld.soldNote') : '';
+  syncCard(a);
   if (!$('aptDlg').open) $('aptDlg').showModal();
   requestAnimationFrame(() => drawCard(a));
+}
+
+// What depends on the status in the open card: the badge and the buttons. The visitor's own hold turns "Book" into
+// "Continue to payment" (the link of the booking page).
+function syncCard(a) {
+  const badge = $('aptMeta').querySelector('.bld-st');
+  if (badge) { badge.className = 'bld-st st-' + a.status; badge.textContent = t('bld.st.' + a.status); }
+  const m = a.status === 'held' && mine[a.no];
+  const link = m && /^\/b\/[\w-]+$/.test(m.link ?? '') ? m.link : null;
+  $('aptBook').hidden = a.status !== 'free';
+  $('aptContinue').hidden = !link;
+  if (link) $('aptContinue').href = link;
+  $('aptMine').hidden = !link;
+  if (link) $('aptMine').textContent = t('bk.hold.mineUntil', { time: hhmm(m.expiresAt) });
+  $('aptRequest').classList.toggle('primary', a.status !== 'free' && !link);
+  $('aptRequest').disabled = a.status === 'sold';
+  $('aptRequest').title = a.status === 'sold' ? t('bld.soldNote') : '';
 }
 
 // A copy of the apartment for the planner: handed over through localStorage, the planner imports it on start.
@@ -414,6 +433,7 @@ async function sendRequest(e) {
     $('reqDlg').close();
     e.target.reset();
     toast(t('bld.reqOk', { id: data.id }));
+    live?.refresh();
   } catch {
     toast(t('order.fail'), true);
   }
@@ -486,9 +506,35 @@ async function sendHold(e) {
   }
   hold.busy = false;
   hold.key = crypto.randomUUID();
+  if (res.status === 409) live?.refresh();   // somebody was first: the showcase shows it
   $('holdErr').textContent = res.status === 429 ? t('bk.hold.tooMany')
     : ['apartment_held', 'apartment_not_free'].includes(data.error) ? t('bk.hold.taken') : (data.message || t('bk.hold.fail'));
   renderHold();
+}
+
+// ---------- live statuses (11 §3.2) ----------
+// Only the apartments whose status changed are touched: their cells, the counts, the plan, the 3D windows, the card.
+function onLive({ mine: m, changes }) {
+  mine = m;
+  const done = [];
+  for (const [no, st] of changes) {
+    const a = byNo(no);
+    if (a && a.status !== st) { a.status = st; done.push([no, st]); }
+  }
+  if (done.length) {
+    recolorCells($('bldFacade'), done, st => t('bld.st.' + st));
+    for (const [no] of done) $('bldFacade').querySelector(`[data-apt="${no}"]`)?.classList.toggle('dim', !matches(byNo(no)));
+    for (const row of $('bldFacade').querySelectorAll('[data-floor]')) row.querySelector('.bld-cnt').textContent = countsText(floorOf(Number(row.dataset.floor)));
+    renderFilters();
+    drawFloor();
+    paint3d();
+  }
+  if ($('aptDlg').open && cardApt) syncCard(cardApt);
+}
+
+function onStale(min) {
+  $('liveStale').hidden = min == null;
+  if (min != null) $('liveStale').textContent = t('bld.live.stale', { n: min });
 }
 
 // ---------- page ----------
@@ -752,6 +798,10 @@ async function start() {
   renderAll();
   init3d();
   openFromHash();
+  live = createLiveStatus({ onUpdate: onLive, onStale });
+  live.start();
+  // back from the booking or the payment page (the browser may show the page from its cache): ask at once
+  addEventListener('pageshow', e => { if (e.persisted) live.refresh(); });
 }
 
 start();

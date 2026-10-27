@@ -19,6 +19,14 @@ export function tashkent(iso, lang = 'ru') {
   return `${two(day)}.${two(month + 1)}, ${two(h)}:${two(m)}`;
 }
 
+// "15:00" in Tashkent (the end of a hold on the card).
+export function hhmm(iso) {
+  const ms = Date.parse(iso);
+  if (!Number.isFinite(ms)) return '';
+  const d = new Date(ms + TASHKENT_MS);
+  return `${two(d.getUTCHours())}:${two(d.getUTCMinutes())}`;
+}
+
 // The server's clock minus ours at the moment of the answer: the timer adds it to our clock (11 §6.1).
 export const skewOf = (serverNowIso, localNowMs) => {
   const server = Date.parse(serverNowIso);

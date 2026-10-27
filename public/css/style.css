@@ -86,6 +86,8 @@
   --st-booked-bg: rgba(201, 169, 110, .22);
   --st-sold: #5a5751;
   --st-sold-bg: rgba(120, 116, 108, .2);
+  --st-held: #d98a2b;
+  --st-held-bg: rgba(217, 138, 43, .24);
   /* legacy names still used by scripts and older rules */
   --panel: var(--surface);
   --panel-2: var(--surface-2);
@@ -156,6 +158,8 @@
   --st-booked-bg: rgba(196, 160, 103, .24);
   --st-sold: #c9c1b3;
   --st-sold-bg: rgba(160, 150, 135, .18);
+  --st-held: #e0952f;
+  --st-held-bg: rgba(224, 149, 47, .22);
 }
 
 * { box-sizing: border-box; }
@@ -805,7 +809,7 @@ dialog.compare-dlg { width: min(1100px, 96vw); }
 .bld-band { display: flex; gap: 2px; flex: 1; min-width: 0; }
 .bld-cell { height: 16px; min-width: 4px; border-radius: 1px; border: 1px solid rgba(0,0,0,.15); }
 .bld-cell.dim { opacity: .22; }
-.bld-cell.st-free { background: var(--st-free); } .bld-cell.st-booked { background: var(--st-booked); } .bld-cell.st-sold { background: var(--st-sold); }
+.bld-cell.st-free { background: var(--st-free); } .bld-cell.st-booked { background: var(--st-booked); } .bld-cell.st-sold { background: var(--st-sold); } .bld-cell.st-held { background: var(--st-held); }
 .bld-lobby { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); padding: 1px 6px; background: var(--gold-soft); border-radius: 2px; flex: 1; }
 .bld-cnt { font-size: 11px; color: var(--faint); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .bld-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 10px; font-size: 11px; color: var(--muted); letter-spacing: .04em; }
@@ -832,7 +836,10 @@ dialog.compare-dlg { width: min(1100px, 96vw); }
   font-size: 12px; display: flex; flex-direction: column; gap: 3px; box-shadow: var(--sh-2); border: 1px solid var(--hairline); z-index: 2; white-space: nowrap; }
 .bld-tip b { font: 500 17px/1.1 var(--f-display); }
 .bld-st { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; width: fit-content; }
-.bld-st.st-free { background: var(--st-free-bg); color: var(--st-free); } .bld-st.st-booked { background: var(--st-booked-bg); color: var(--st-booked); } .bld-st.st-sold { background: var(--st-sold-bg); color: var(--muted); }
+.bld-st.st-free { background: var(--st-free-bg); color: var(--st-free); } .bld-st.st-booked { background: var(--st-booked-bg); color: var(--st-booked); } .bld-st.st-sold { background: var(--st-sold-bg); color: var(--muted); } .bld-st.st-held { background: var(--st-held-bg); color: var(--st-held); }
+:root[data-theme="light"] .bld-st.st-held { color: #8a5210; }
+.bld-live-stale { margin: 8px 0 0; font-size: 11px; color: var(--faint); }
+.bld-mine { margin: 0 0 10px; padding: 8px 12px; border-radius: var(--r-s); background: var(--st-held-bg); font-size: 13px; }
 :root[data-theme="light"] .bld-st.st-free { color: #3f6a4c; }
 :root[data-theme="light"] .bld-st.st-booked { color: #7a5a2c; }
 dialog.bld-dlg { width: min(980px, 96vw); max-height: 94vh; overflow: auto; }
