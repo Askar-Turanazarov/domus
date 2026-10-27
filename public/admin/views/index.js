@@ -5,12 +5,14 @@ import * as bookings from './bookings.js';
 import * as payments from './payments.js';
 import * as clients from './clients.js';
 import * as outbox from './outbox.js';
+import * as ai from './ai.js';
 
 export const sections = [
   { id: 'units', title: 'nav.units', roles: ['manager', 'head'], mount: units.mount },
   { id: 'bookings', title: 'nav.bookings', roles: ['manager', 'head'], mount: bookings.mount },
   { id: 'payments', title: 'nav.payments', roles: ['manager', 'head'], mount: payments.mount },
   { id: 'clients', title: 'nav.clients', roles: ['manager', 'head'], mount: clients.mount },
+  { id: 'ai', title: 'nav.ai', roles: ['manager', 'head'], mount: ai.mount },
   { id: 'outbox', title: 'nav.outbox', roles: ['head'], mount: outbox.mount }
 ];
 export const defaultSection = 'units';
