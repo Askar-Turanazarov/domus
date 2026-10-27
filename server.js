@@ -6,6 +6,7 @@ import crypto from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { validateOrder } from './server/validateOrder.js';
 import { createDb } from './server/db/index.js';
+import { health } from './server/health.js';
 import { legacyStore } from './server/db/legacy.js';
 import { writeZip } from './server/zip.js';
 import { fetchSet, libraryStatus, readLibMap } from './server/textureFetch.js';
@@ -58,10 +59,11 @@ app.use('/vendor/three', express.static(path.join(__dirname, 'node_modules', 'th
 // Files of the deployment: the CDN may keep them (a new deployment starts with an empty cache).
 const SHARED_JSON = 'public, max-age=0, s-maxage=600, stale-while-revalidate=86400';
 
-// Is the server alive, which base does it use (neon / pglite). No database call, no secrets.
+// Statuses of the base and the services (server/health.js): 200 if the base is ok, else 503. No secrets.
 const { version } = JSON.parse(readFileSync(path.join(__dirname, 'package.json'), 'utf8'));
-app.get('/api/health', (req, res) => {
-  res.set('Cache-Control', 'no-store').json({ ok: true, db: db.kind, version });
+app.get('/api/health', async (req, res) => {
+  const { code, body } = await health(db, { version });
+  res.set('Cache-Control', 'no-store').status(code).json(body);
 });
 
 // The MCP server «Chinor Park» (server/mcp/) on the site: POST /mcp with `Authorization: Bearer <MCP_TOKEN>`.

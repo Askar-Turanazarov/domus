@@ -3,6 +3,7 @@
 import crypto from 'node:crypto';
 import { ruText } from '../tools/logText.js';
 import { PHONE } from '../validateOrder.js';
+import { now as clockNow } from './clock.js';
 
 export { PHONE };
 
@@ -29,7 +30,7 @@ export class BookingError extends Error {
 
 // addBooking(b) → b | null (the slot is taken). → the saved booking; throws BookingError when the apartment is unknown
 // or sold, the time is past or the slot is taken.
-export async function bookViewing(addBooking, apartments, { name, phone, datetime, no }, now = Date.now()) {
+export async function bookViewing(addBooking, apartments, { name, phone, datetime, no }, now = clockNow().getTime()) {
   const a = apartments.find(x => x.no === no);
   if (!a) throw new BookingError('notFound', { no, hint: true });
   if (a.status === 'sold') throw new BookingError('sold', { no });

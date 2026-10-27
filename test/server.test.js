@@ -18,11 +18,14 @@ test('PATCH /api/orders/:id: a non-numeric id is 404', async () => {
   }
 });
 
-test('GET /api/health: ok, base kind and version, not cached', async () => {
+test('GET /api/health: statuses by 16 §6, not cached', async () => {
   const res = await fetch(`${base()}/api/health`);
   assert.equal(res.status, 200);
   assert.equal(res.headers.get('cache-control'), 'no-store');
-  assert.deepEqual(await res.json(), { ok: true, db: 'pglite', version: pkg.version });
+  const h = await res.json();
+  assert.match(h.time, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+05:00$/);
+  assert.deepEqual({ ...h, time: 0 }, { status: 'ok', version: pkg.version, time: 0, db: 'ok', qstash: 'off', telegram: 'off',
+    stripe: 'off', click: 'emulator', ai: { gemini: { status: 'off' }, anthropic: { status: 'off' } } });
 });
 
 test('security headers on pages, static files and the API', async () => {
