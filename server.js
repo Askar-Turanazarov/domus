@@ -17,6 +17,7 @@ import { loadEnv } from './server/env.js';
 import { mountJobs, background } from './server/events/routes.js';
 import { mountPayments, mountStripeWebhook } from './server/http/payments.js';
 import { mountBookings } from './server/http/bookings.js';
+import { mountTelegram } from './server/telegram/webhook.js';
 import { mountPersonalPages } from './server/http/personalPages.js';
 import { requestId, noStore, apiErrors } from './server/http/common.js';
 import { afterCommit } from './server/events/runner.js';
@@ -50,6 +51,7 @@ app.use(requestId);
 app.use('/api', noStore);
 mountJobs(app, db);                        // deadlines: tick, /api/jobs/run (raw body for the QStash signature), /api/cron/daily
 mountStripeWebhook(app, db);               // the raw body for the Stripe signature — before the JSON parser (05 §6.4)
+mountTelegram(app, db, { core: coreOpts });  // Telegram webhook (10 §3): the secret, the answer at once, the bot in waitUntil
 mountBookings(app, db, coreOpts);          // booking: hold, personal link (13 §4); own 64 KB JSON parser
 mountPayments(app, db, coreOpts);          // payments: start, emulators (05 §12); own 64 KB JSON parser
 mountPersonalPages(app, { publicDir: path.join(__dirname, 'public'), legalDir: path.join(__dirname, 'legal') });   // /b/…, /pay/card|click/…, /legal/…

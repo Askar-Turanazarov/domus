@@ -6,6 +6,7 @@ import { createHold, recordConsent, releaseHold, cancel, effectiveStatus, settin
 import { getApartment, statusMap } from '../core/apartments.js';
 import { normalizePhone } from '../core/phone.js';
 import { parseRef, checkSig, bookingPath } from '../core/links.js';
+import { issueLinkCode } from '../core/clients.js';
 import { context } from '../core/tx.js';
 import { failureText, t } from '../i18n/index.js';
 import { handler, jsonBody, parseBody, z, langOf, idempotencyKey, limit, ipKey, hashKey, readDcl, setDcl, tz, HOUR } from './common.js';
@@ -121,6 +122,18 @@ export function mountBookings(app, db, opts = {}) {
     const b = await bookingByRef(db, req.params.ref, env);
     const r = await recordConsent(db, { bookingId: b.id, version }, holderOf(b), opts);
     res.json({ consentAt: tz(r.consent_at) });
+  }));
+
+  // 13 §4, 03 §9.1 R6: a one-time code (7 days) in a t.me link; the bot joins the site card with the Telegram user (/start lk_<code>).
+  app.post('/api/bookings/by-ref/:ref/telegram-link', handler(async (req, res) => {
+    parseBody({}, req.body);
+    const ctx = context(opts);
+    const bot = String(env.TELEGRAM_BOT_USERNAME ?? '').replace(/^@/, '');
+    if (!bot || !env.TELEGRAM_BOT_TOKEN) throw new DomainError('feature_disabled');
+    const b = await bookingByRef(db, req.params.ref, env);
+    await limit(db, `tglink:booking:${b.id}`, 5, HOUR, ctx);
+    const code = await db.tx(q => issueLinkCode(q, { clientId: b.client_id, bookingId: b.id }, ctx));
+    res.json({ url: `https://t.me/${bot}?start=lk_${code}` });
   }));
 
   app.post('/api/bookings/by-ref/:ref/release', handler(async (req, res) => {

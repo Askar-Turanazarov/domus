@@ -178,3 +178,14 @@ export async function attachTelegram(db, { code, telegram }, opts = {}) {
     return { client, bookingId: link.booking_id };
   });
 }
+
+// The client wrote to the bot, so it is not blocked any more (10 §9).
+export async function unblockTelegram(q, clientId) {
+  await q.query('UPDATE clients SET tg_blocked_at = NULL WHERE id = $1', [clientId]);
+}
+
+// The language chosen in the bot: the card and the open dialogue follow it (10 §4.1).
+export async function setLang(q, clientId, lang) {
+  await q.query('UPDATE conversations SET lang = $2 WHERE client_id = $1', [clientId, lang]);
+  return q.one('UPDATE clients SET lang = $2 WHERE id = $1 RETURNING *', [clientId, lang]);
+}

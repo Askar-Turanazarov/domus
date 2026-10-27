@@ -184,6 +184,9 @@ function bookedBlocks() {
       t('bk.page.paidBy', { method: `${methodName(p.provider)}${p.mask ? ` ${p.mask}` : ''}` })].join(' · ') }))];
   out.push(el('section', { className: 'bkp-card' }, el('h3', { textContent: t('bk.page.next') }),
     el('ol', { className: 'bkp-steps' }, ...['next1', 'next2', 'next3'].map(k => el('li', { textContent: t(`bk.page.${k}`) })))));
+  out.push(el('div', { className: 'bkp-row' }, data.telegramLinked
+    ? el('p', { className: 'hint', textContent: t('bk.page.tgOn') })
+    : el('button', { type: 'button', className: 'btn', textContent: t('bk.page.tg'), onclick: e => telegramLink(e.currentTarget) })));
   out.push(el('div', { className: 'bkp-row' }, el('button', { type: 'button', className: 'btn ghost danger', textContent: t('bk.page.cancelBooked'),
     onclick: cancelBooked })));
   return out;
@@ -261,6 +264,15 @@ async function otherMethod(btn, paymentId) {
   const r = await api('POST', `/api/payments/${encodeURIComponent(paymentId)}/cancel`, {}).catch(() => null);
   if (r && r.status >= 400 && r.body.error !== 'payment_closed') toast(failText(r), true);
   await load();
+}
+
+// 11 §6.1, 03 §9.1 R6: a one-time t.me link; the bot joins this booking's client card with the Telegram user.
+async function telegramLink(btn) {
+  btn.disabled = true;
+  const r = await api('POST', `/api/bookings/by-ref/${encodeURIComponent(ref)}/telegram-link`, {}).catch(() => null);
+  btn.disabled = false;
+  if (r?.status !== 200 || !r.body.url) return toast(r ? failText(r) : t('bk.page.fail'), true);
+  if (!window.open(r.body.url, '_blank', 'noopener')) location.assign(r.body.url);
 }
 
 async function releaseHold() {
