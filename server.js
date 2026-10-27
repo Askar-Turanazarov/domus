@@ -17,6 +17,7 @@ import { mountAdminBookings } from './server/http/adminBookings.js';
 import { mountAdminClients } from './server/http/adminClients.js';
 import { mountAdminOutbox } from './server/http/adminOutbox.js';
 import { mountAdminAi } from './server/http/adminAi.js';
+import { mountAdminSystem } from './server/http/adminSystem.js';
 import * as pages from './server/pages.js';
 import { loadEnv } from './server/env.js';
 import { mountJobs, background } from './server/events/routes.js';
@@ -82,6 +83,7 @@ mountAdminBookings(app, db, staffAuth, coreOpts);   // bookings and payments: li
 mountAdminClients(app, db, staffAuth, coreOpts);    // clients, dialogs, the Telegram link of the staff member (12 §5, §12.3)
 mountAdminOutbox(app, db, staffAuth, coreOpts);      // the Outbox window (12 §6)
 mountAdminAi(app, db, staffAuth, { ...coreOpts, ai });   // AI journals, costs, the knowledge base (12 §8)
+mountAdminSystem(app, db, staffAuth, { ...coreOpts, ai, settings });   // settings, services, AI providers (12 §10)
 mountPersonalPages(app, { publicDir: path.join(__dirname, 'public'), legalDir: path.join(__dirname, 'legal') });   // /b/…, /pay/card|click/…, /legal/…
 app.use(express.json({ limit: '4mb' }));   // the order carries the drawing PNG and a 3D picture (≤ 1.5 MB each); Vercel takes ≤ 4.5 MB
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));   // "/" is rendered below

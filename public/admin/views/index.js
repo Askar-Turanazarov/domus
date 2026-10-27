@@ -6,6 +6,7 @@ import * as payments from './payments.js';
 import * as clients from './clients.js';
 import * as outbox from './outbox.js';
 import * as ai from './ai.js';
+import * as system from './system.js';
 
 export const sections = [
   { id: 'units', title: 'nav.units', roles: ['manager', 'head'], mount: units.mount },
@@ -13,6 +14,7 @@ export const sections = [
   { id: 'payments', title: 'nav.payments', roles: ['manager', 'head'], mount: payments.mount },
   { id: 'clients', title: 'nav.clients', roles: ['manager', 'head'], mount: clients.mount },
   { id: 'ai', title: 'nav.ai', roles: ['manager', 'head'], mount: ai.mount },
-  { id: 'outbox', title: 'nav.outbox', roles: ['head'], mount: outbox.mount }
+  { id: 'outbox', title: 'nav.outbox', roles: ['head'], mount: outbox.mount },
+  { id: 'system', title: 'nav.system', roles: ['head'], mount: system.mount }
 ];
 export const defaultSection = 'units';
