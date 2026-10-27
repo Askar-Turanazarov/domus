@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 import { DomainError } from './errors.js';
 import { emit } from './events.js';
 import { normalizePhone } from './phone.js';
+import { bookingPath } from './links.js';
 import { context, inTx, notify } from './tx.js';
 
 const LINK_DAYS = 7;
@@ -171,8 +172,8 @@ export async function attachTelegram(db, { code, telegram }, opts = {}) {
     await q.query('UPDATE client_link_codes SET used_at = $2 WHERE code_hash = $1', [link.code_hash, at]);
     await emit(q, 'client.telegram_linked', { clientId: client.id, bookingId: link.booking_id }, { rule: 'R6' }, { ...actor, id: client.id }, ctx);
     if (link.booking_id) {
-      const b = await q.one('SELECT no FROM bookings WHERE id = $1', [link.booking_id]);
-      await notify(q, fx, ctx, { template: 'link_telegram_done', audience: 'client', clientId: client.id, vars: { bookingNo: b.no },
+      const b = await q.one('SELECT id, no, access_version FROM bookings WHERE id = $1', [link.booking_id]);
+      await notify(q, fx, ctx, { template: 'link_telegram_done', audience: 'client', clientId: client.id, vars: { bookingNo: b.no, link: bookingPath(b, ctx.env) },
         dedupeKey: `link_telegram_done:${link.code_hash}` });
     }
     return { client, bookingId: link.booking_id };

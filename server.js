@@ -15,6 +15,7 @@ import * as auth from './server/adminAuth.js';
 import * as pages from './server/pages.js';
 import { loadEnv } from './server/env.js';
 import { mountJobs, background } from './server/events/routes.js';
+import { createNotify } from './server/notify/index.js';
 import { mountPayments, mountStripeWebhook } from './server/http/payments.js';
 import { mountBookings } from './server/http/bookings.js';
 import { mountTelegram } from './server/telegram/webhook.js';
@@ -39,7 +40,9 @@ const store = legacyStore(db);
 const buildings = createBuildings(path.join(__dirname, 'buildings'), { read: () => store.statuses() }, APARTMENTS);
 
 // What the core hands over after COMMIT (Outbox rows, jobs): delivered and published after the answer (03 §1 step 4).
-const coreOpts = { onCommit: fx => background(afterCommit(db, fx, {}), 'after commit') };
+// render writes the message into the Outbox row; send exists only with a bot token (without it rows wait in the Outbox window).
+const notifyOpts = createNotify(process.env);
+const coreOpts = { render: notifyOpts.render, onCommit: fx => background(afterCommit(db, fx, notifyOpts), 'after commit') };
 
 app.set('trust proxy', 1);                 // the client's IP behind the Vercel / reverse proxy
 // Basic security headers: no MIME sniffing, frames only from this site (the floor 3D iframe), short Referer.
@@ -49,7 +52,7 @@ app.use((req, res, next) => {
 });
 app.use(requestId);
 app.use('/api', noStore);
-mountJobs(app, db);                        // deadlines: tick, /api/jobs/run (raw body for the QStash signature), /api/cron/daily
+mountJobs(app, db, { ...notifyOpts });                      // deadlines: tick, /api/jobs/run (raw body for the QStash signature), /api/cron/daily
 mountStripeWebhook(app, db);               // the raw body for the Stripe signature — before the JSON parser (05 §6.4)
 mountTelegram(app, db, { core: coreOpts });  // Telegram webhook (10 §3): the secret, the answer at once, the bot in waitUntil
 mountBookings(app, db, coreOpts);          // booking: hold, personal link (13 §4); own 64 KB JSON parser
