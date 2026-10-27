@@ -802,6 +802,18 @@ async function start() {
   live.start();
   // back from the booking or the payment page (the browser may show the page from its cache): ask at once
   addEventListener('pageshow', e => { if (e.persisted) live.refresh(); });
+  // The consultant (11 §5): loaded in the background. An apartment from the chat is shown here: its floor, the card, the hold form.
+  (window.requestIdleCallback || (f => setTimeout(f, 1500)))(() => import('./chat/widget.js').then(m => m.mountChat({
+    page: 'building',
+    getApartmentNo: () => ($('aptDlg').open ? cardApt?.no ?? null : null),
+    onOpen: (no, { book }) => {
+      const a = byNo(no);
+      if (!a) return;
+      setFloor(a.floor);
+      openCard(a);
+      if (book && a.status === 'free') openHold(a);
+    }
+  })), { timeout: 4000 });
 }
 
 start();

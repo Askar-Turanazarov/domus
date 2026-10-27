@@ -317,3 +317,8 @@ async function start() {
 start();
 // The 3D code comes in the background once the planner is up: «3D» then opens without waiting for it.
 if (!embed) (window.requestIdleCallback || (f => setTimeout(f, 2000)))(() => window.preload3d?.(), { timeout: 4000 });
+// The consultant of the site (11 §5): loaded in the background, the planner does not wait for it. An apartment from the chat opens in the showcase.
+if (!embed) (window.requestIdleCallback || (f => setTimeout(f, 2500)))(() => import('./chat/widget.js').then(m => m.mountChat({
+  page: 'planner',
+  onOpen: (no, { book }) => { location.href = `/building.html#apt=${no}${book ? '&book=1' : ''}`; }
+})), { timeout: 5000 });

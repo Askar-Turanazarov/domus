@@ -193,6 +193,8 @@
   "agent.status.kb_consultant": "Bilimlar bazasidan qidiryapman…",
   "agent.status.smalltalk": "Javob beryapman…",
   "agent.status.handoff": "Menejerni chaqiryapman…",
+  "agent.status.thinking": "O‘ylayapman…",
+  "agent.phone_saved": "Rahmat, raqamingizni yozib oldim. Menejer siz bilan bog‘lana oladi.",
   "agent.hello": "Assalomu alaykum! Men Chinor Park TJM ning sun’iy intellekt maslahatchisiman: xonadon tanlayman, muddatli to‘lovni hisoblayman va bron qilishda yordam beraman.",
   "agent.thanks": "Arzimaydi!",
   "agent.bot": "Men Chinor Park TJM ning sun’iy intellekt maslahatchisiman. Menejerni chaqirishim mumkin.",

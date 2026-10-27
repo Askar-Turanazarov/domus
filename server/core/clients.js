@@ -41,6 +41,32 @@ async function create(q, fields, channel, actor, ctx) {
   return c;
 }
 
+
+// A site visitor who has not left a name or a number yet: the card of the chat (13 §6.1); the cookie `dcl` names it.
+export async function anonymousClient(db, { lang = 'ru', channel = 'web' } = {}, opts = {}) {
+  const ctx = context(opts);
+  return inTx(db, ctx, q => create(q, { lang }, channel, { type: 'system' }, ctx));
+}
+
+// The form «Оставить телефон» (07 §9, 11 §5.6): a card without a number gets the name and the number (not verified). A number
+// that another card has verified is never taken (R3): the dialog keeps it in its memory, the card stays as it was.
+// → { phone, saved }.
+export async function leaveContact(db, { clientId, name = null, phone }, opts = {}) {
+  const ctx = context(opts);
+  const p = phoneOf(phone);
+  const n = name == null ? null : nameOf(name);
+  return inTx(db, ctx, async q => {
+    const c = await canonical(q, clientId);
+    if (!c) throw new DomainError('not_found');
+    const owner = await q.one('SELECT id FROM clients WHERE phone = $1 AND phone_verified AND merged_into IS NULL AND id <> $2', [p, c.id]);
+    const savePhone = !c.phone && !owner;
+    if (!(savePhone || (n && !c.name))) return { phone: p, saved: false };
+    await q.query('UPDATE clients SET name = COALESCE(name, $2), phone = COALESCE(phone, $3), updated_at = $4 WHERE id = $1',
+      [c.id, n, savePhone ? p : null, ctx.now()]);
+    return { phone: p, saved: savePhone };
+  });
+}
+
 // The card was seen again: add the channel; a Telegram visit refreshes username and chat.
 const touch = (q, c, channel, at, tg = {}) => q.one(
   `UPDATE clients SET channels = CASE WHEN $2 = ANY(channels) THEN channels ELSE array_append(channels, $2) END,

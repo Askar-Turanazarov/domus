@@ -1,5 +1,6 @@
 // RU / UZ / EN dictionaries. t('key', {param}) substitutes {param}.
 import { bookingTexts } from './i18nBooking.js';
+import { chatTexts } from './chat/texts.js';
 export const dict = {
   ru: {
     'apt.rooms': 'Комнат: {n}', 'apt.variants': 'Варианты', 'apt.room': 'Активная комната', 'apt.layout': 'Планировка', 'apt.layoutOn': 'Планировка: перетаскивайте комнаты, они прилипают к соседним через перегородку. Esc — выход', 'apt.movedTo': 'Перенесено в «{name}»', 'apt.overlap': 'Комнаты «{a}» и «{b}» пересекаются', 'apt.overlapShort': 'комнаты пересекаются', 'drw.apartment': 'Квартира', 'drw.area': 'Площадь', 'drw.overview': 'общий план', 'drw.roomSize': 'Размеры Д×Ш×В, см',
@@ -333,6 +334,7 @@ export const dict = {
   }
 };
 
+for (const l of Object.keys(chatTexts)) Object.assign(dict[l], chatTexts[l]);   // the chat widget
 for (const l of Object.keys(bookingTexts)) Object.assign(dict[l], bookingTexts[l]);   // booking, payment emulators, legal stub
 
 const LANGS = ['ru', 'uz', 'en'];

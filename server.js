@@ -19,6 +19,11 @@ import { createNotify } from './server/notify/index.js';
 import { mountPayments, mountStripeWebhook } from './server/http/payments.js';
 import { mountBookings } from './server/http/bookings.js';
 import { mountTelegram } from './server/telegram/webhook.js';
+import { mountChat } from './server/http/chat.js';
+import { createAi } from './server/ai/index.js';
+import { createTools } from './server/tools/registry.js';
+import { createTurns } from './server/agents/turn.js';
+import { createSettings } from './server/core/settings.js';
 import { mountPersonalPages } from './server/http/personalPages.js';
 import { requestId, noStore, apiErrors } from './server/http/common.js';
 import { afterCommit } from './server/events/runner.js';
@@ -44,6 +49,12 @@ const buildings = createBuildings(path.join(__dirname, 'buildings'), { read: () 
 const notifyOpts = createNotify(process.env);
 const coreOpts = { render: notifyOpts.render, onCommit: fx => background(afterCommit(db, fx, notifyOpts), 'after commit') };
 
+// The consultant: the models (Gemini → Claude → scripts), the tools of the registry, the turn (07). One stack for the site chat.
+const settings = createSettings(db);
+const ai = createAi({ db, env: process.env, settings });
+const tools = createTools({ db, settings, env: process.env });
+const turns = createTurns({ db, ai, tools, env: process.env, settings, waitUntil: p => background(p, 'chat summary') });
+
 app.set('trust proxy', 1);                 // the client's IP behind the Vercel / reverse proxy
 // Basic security headers: no MIME sniffing, frames only from this site (the floor 3D iframe), short Referer.
 app.use((req, res, next) => {
@@ -56,6 +67,7 @@ mountJobs(app, db, { ...notifyOpts });                      // deadlines: tick, 
 mountStripeWebhook(app, db);               // the raw body for the Stripe signature — before the JSON parser (05 §6.4)
 mountTelegram(app, db, { core: coreOpts });  // Telegram webhook (10 §3): the secret, the answer at once, the bot in waitUntil
 mountBookings(app, db, coreOpts);          // booking: hold, personal link (13 §4); own 64 KB JSON parser
+mountChat(app, db, { turns, tools }, coreOpts);   // the site chat: POST /api/chat (SSE), confirm, feedback, messages (13 §6)
 mountPayments(app, db, coreOpts);          // payments: start, emulators (05 §12); own 64 KB JSON parser
 mountPersonalPages(app, { publicDir: path.join(__dirname, 'public'), legalDir: path.join(__dirname, 'legal') });   // /b/…, /pay/card|click/…, /legal/…
 app.use(express.json({ limit: '4mb' }));   // the order carries the drawing PNG and a 3D picture (≤ 1.5 MB each); Vercel takes ≤ 4.5 MB

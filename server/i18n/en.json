@@ -193,6 +193,8 @@
   "agent.status.kb_consultant": "Searching the knowledge base…",
   "agent.status.smalltalk": "Answering…",
   "agent.status.handoff": "Calling a manager…",
+  "agent.status.thinking": "Thinking…",
+  "agent.phone_saved": "Thanks, I have your number. A manager will be able to reach you.",
   "agent.hello": "Hello! I am the AI consultant of Chinor Park: I’ll find an apartment, calculate installments and help with booking.",
   "agent.thanks": "You’re welcome!",
   "agent.bot": "I am the AI consultant of Chinor Park. I can call a manager.",

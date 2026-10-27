@@ -193,6 +193,8 @@
   "agent.status.kb_consultant": "Ищу в базе знаний ЖК…",
   "agent.status.smalltalk": "Отвечаю…",
   "agent.status.handoff": "Зову менеджера…",
+  "agent.status.thinking": "Думаю…",
+  "agent.phone_saved": "Спасибо, номер записал. Менеджер сможет связаться с вами.",
   "agent.hello": "Здравствуйте! Я ИИ-консультант ЖК Chinor Park: подберу квартиру, посчитаю рассрочку и помогу с бронью.",
   "agent.thanks": "Пожалуйста!",
   "agent.bot": "Я ИИ-консультант ЖК Chinor Park. Могу позвать менеджера.",
