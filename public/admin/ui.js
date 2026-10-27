@@ -83,3 +83,6 @@ export function askForm({ title, lead, hint, fields = [], submit, danger = false
     form.querySelector('input:not([type=radio]), textarea')?.focus?.();
   });
 }
+
+// «14:05:30» in the building's time zone (the demo shift tells the exact second a deadline will pass).
+export const clock = ms => new Intl.DateTimeFormat(LOCALE[getLang()] || 'en-GB', { timeStyle: 'medium', timeZone: TZ }).format(new Date(ms));

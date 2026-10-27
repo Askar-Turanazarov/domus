@@ -139,3 +139,19 @@ body.adm2-card-open .adm2-split.list { grid-template-columns: minmax(0, 1fr) min
 .adm2-ok { color: var(--st-free); font-weight: 600; }
 .adm2-warn .adm2-link { margin-left: 6px; }
 button.adm2-link { background: none; border: 0; padding: 0; font: inherit; cursor: pointer; text-align: left; }
+
+/* outbox (12 §6) and the demo shift (12 §7) */
+.adm2-badge.ob-sent { border-color: var(--st-free); background: var(--st-free-bg); }
+.adm2-badge.ob-pending, .adm2-badge.ob-sending, .adm2-badge.ob-retry { border-color: var(--st-held); background: var(--st-held-bg); }
+.adm2-badge.ob-failed { border-color: var(--danger); color: var(--danger); }
+.adm2-badge.ob-skipped, .adm2-badge.ob-cancelled { color: var(--muted); }
+.adm2-chat { display: grid; gap: 6px; margin: 8px 0; max-width: 340px; }
+.adm2-bubble { padding: 8px 12px; border-radius: 14px 14px 14px 4px; background: var(--st-booked-bg); border: 1px solid var(--line-2); font-size: 13px; line-height: 1.4; }
+.adm2-bubble-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.adm2-bubble code, .adm2-bubble pre { font-family: ui-monospace, monospace; background: color-mix(in srgb, var(--text) 8%, transparent); border-radius: 4px; padding: 0 3px; }
+.adm2-bubble pre { padding: 4px 6px; white-space: pre-wrap; }
+.adm2-bubble a { color: var(--gold-2); }
+.adm2-attach { margin-top: 6px; color: var(--muted); font-size: 12px; }
+.adm2-tgbuttons { display: grid; gap: 4px; }
+.adm2-tgbtn { text-align: center; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line-2); background: color-mix(in srgb, var(--text) 6%, transparent); font-size: 12px; }
+.adm2-demo { border: 1px dashed var(--line-2); border-radius: 10px; padding: 8px 10px; }

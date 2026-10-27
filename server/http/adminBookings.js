@@ -4,7 +4,7 @@
 import crypto from 'node:crypto';
 import { DomainError } from '../core/errors.js';
 import { bookingsList, bookingCard, paymentsList, paymentCard } from '../core/adminLists.js';
-import { extend, cancel } from '../core/bookings.js';
+import { extend, cancel, shiftDeadline, SHIFT_TARGETS } from '../core/bookings.js';
 import { refundManual, retryRefund } from '../core/refunds.js';
 import { bookingPath } from '../core/links.js';
 import { now as clockNow } from '../core/clock.js';
@@ -101,6 +101,18 @@ export function mountAdminBookings(app, db, staffAuth, opts = {}) {
       const card = await bookingCard(db, no, req.actor, ctx);
       const refund = card.payments.find(p => p.refund)?.refund ?? null;
       return { status: 200, body: { booking: card.booking, ...(body.initiator === 'developer' && refund ? { refund } : {}) } };
+    }));
+    res.status(out.status).json(out.body);
+  }));
+
+  // 03 §10, 12 §7, D-14: the demo — one booking's deadline moves, the clock does not. The head only (the core checks the role again).
+  app.post('/api/admin/bookings/:no/shift', staffAuth.gate('head'), handler(async (req, res) => {
+    const no = bookingNo(req.params.no);
+    const key = idempotencyKey(req);
+    const body = parseBody({ target: z.enum(SHIFT_TARGETS), expectedVersion: z.number().int().min(1) }, req.body);
+    const out = await once(db, ctx, 'admin.shift', key, { no, body }, async () => fresh(no, req, async () => {
+      await shiftDeadline(db, { bookingId: await idOf(no), ...body }, req.actor, ctx);
+      return { status: 200, body: { booking: (await bookingCard(db, no, req.actor, ctx)).booking } };
     }));
     res.status(out.status).json(out.body);
   }));

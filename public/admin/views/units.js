@@ -4,6 +4,7 @@
 import { api, ApiError } from '../api.js';
 import { el, toast, money, dateTime, left } from '../ui.js';
 import { t, addTexts } from '../i18n.js';
+import { shiftBlock } from './shift.js';
 
 addTexts({
   ru: { 'apt.openBooking': 'Открыть бронь', 'apt.client': 'Клиент', 'apt.term': 'Срок', 'apt.soldLabel': 'Продана', 'ev.booking.held': 'Удержание начато', 'ev.booking.hold_expired': 'Удержание истекло', 'ev.booking.paid': 'Депозит оплачен',
@@ -35,7 +36,7 @@ const STATUSES = ['free', 'held', 'booked', 'sold'];
 export const evLabel = type => { const s = t('ev.' + type); return s === 'ev.' + type ? type : s; };
 export const roomsLabel = n => (n === 0 ? t('units.studio') : t('units.roomsN', { n }));
 
-export function mount(root, { params }) {
+export function mount(root, { staff, params }) {
   const filter = { status: new Set(), rooms: '', floor: '', soon: false };
   let units = [], offset = 0, updatedAt = null, failed = false;
   let selected = Number(params[0]) || null, card = null, cardSig = '', cardToken = 0;
@@ -136,6 +137,7 @@ export function mount(root, { params }) {
         a.soldNote && el('p', { class: 'adm2-muted' }, t('apt.soldNote', { note: a.soldNote }))),
       el('section', { class: 'adm2-sec' }, el('h3', {}, t('apt.current')),
         card.booking ? bookingBlock(card.booking) : el('p', { class: 'adm2-muted' }, t('apt.noCurrent'))),
+      staff?.role === 'head' && card.booking && shiftBlock(card.booking, () => { cardSig = ''; return poll(); }),
       section(t('apt.bookings'), card.bookings.map(bookingRow)),
       section(t('apt.viewings'), card.viewings.map(viewingRow)),
       section(t('apt.history'), card.history.map(eventRow)));

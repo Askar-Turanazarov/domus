@@ -6,6 +6,7 @@ import { el, toast, money, dateTime, left, askForm } from '../ui.js';
 import { t, addTexts } from '../i18n.js';
 import { evLabel, roomsLabel } from './units.js';
 import { label, payBadge, refundBadge, method, isStale } from './common.js';
+import { shiftBlock } from './shift.js';
 
 addTexts({
   ru: { 'nav.bookings': 'Брони', 'bks.title': 'Брони', 'bks.tab.active': 'Активные', 'bks.tab.held': 'Ждут оплаты', 'bks.tab.soon': 'Сгорают скоро', 'bks.tab.closed': 'Закрытые',
@@ -56,7 +57,7 @@ const POLL_MS = 5000;
 const TABS = ['active', 'held', 'soon', 'closed'];
 const HOURS = ['24', '48', '72'];
 
-export function mount(root, { params }) {
+export function mount(root, { staff, params }) {
   const S = { tab: 'active', q: '', items: [], next: null, counts: null, loaded: false, failed: false };
   let selected = Number(params[0]) || null, card = null, cardSig = '', cardToken = 0, listToken = 0;
   let offset = 0, timer = null, searchTimer = null, dead = false;
@@ -159,6 +160,7 @@ export function mount(root, { params }) {
         b.canCancel && el('button', { type: 'button', class: 'btn danger sm', dataset: { act: 'cancel' }, on: { click: askCancel } }, t('bks.cancel')),
         el('button', { type: 'button', class: 'btn sm', dataset: { act: 'link' }, on: { click: copyLink } }, t('bks.copyLink')),
         el('a', { class: 'btn ghost sm', href: `#/units/${a.no}` }, t('bks.openApt'))),
+      staff.role === 'head' && shiftBlock(b, () => refreshAfter()),
       section(t('bks.payments'), card.payments.map(paymentRow)),
       section(t('bks.history'), card.history.map(eventRow)));
   }

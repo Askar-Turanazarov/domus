@@ -319,6 +319,40 @@ export async function extend(db, { bookingId, hours, until, reason, expectedVers
   });
 }
 
+// Time shift for the demo (03 §10, FR-DEMO-01, D-14): the deadline of ONE booking moves to «now + N», the clock of the system does not.
+// Jobs are set again from the new deadline; the ones whose time has already passed are not set (booking_1m has no reminders).
+const SHIFTS = {
+  hold_1m: { status: 'held', ms: 60e3 },
+  booking_1m: { status: 'booked', ms: 60e3 },
+  booking_3h1m: { status: 'booked', ms: 3 * 3600e3 + 60e3 },
+  booking_24h1m: { status: 'booked', ms: 24 * 3600e3 + 60e3 }
+};
+export const SHIFT_TARGETS = Object.keys(SHIFTS);
+
+// { bookingId, target, expectedVersion } → the booking. Head only; a live booking in the status the target is for.
+export async function shiftDeadline(db, { bookingId, target, expectedVersion }, actor, opts = {}) {
+  need(actor, 'head');
+  const spec = SHIFTS[target];
+  if (!spec) throw new DomainError('invalid_input', { fields: ['target'] });
+  const ctx = context(opts);
+  return inTx(db, ctx, async (q, fx) => {
+    const at = ctx.now();
+    const s = await settingsOf(q, ctx);
+    const b = await lockBooking(q, bookingId);
+    if (!live(b, at)) throw new DomainError('booking_closed');
+    if (b.status !== spec.status) throw new DomainError('booking_not_active');
+    if (expectedVersion != null && expectedVersion !== b.version) throw new DomainError('stale');
+    const to = new Date(at.getTime() + spec.ms);
+    const r = await q.one(`UPDATE bookings SET expires_at = $2, updated_at = $3, version = version + 1 WHERE id = $1 RETURNING *`, [b.id, to, at]);
+    for (const type of ['hold.expire', 'booking.remind', 'booking.expire']) await cancelJobs(q, { type, bookingId: b.id }, ctx);
+    if (b.status === 'held') await later(q, fx, ctx, 'hold.expire', to, { bookingId: b.id, expectedExpiresAt: iso(to) }, `hold.expire:${b.id}:${iso(to)}`);
+    else await scheduleBookingJobs(q, fx, ctx, r, s);
+    await emit(q, 'demo.time_shifted', { bookingId: b.id, apartmentNo: b.apartment_no, clientId: b.client_id, staffId: staffIdOf(actor) },
+      { target, from: iso(b.expires_at), to: iso(to) }, actor, ctx);
+    return r;
+  });
+}
+
 // T5 / T8 (03 §7): initiator client — the deposit stays (BR-11); developer — full refund at once (BR-12).
 // A hold can be cancelled only as developer (nothing paid). A client may cancel only their own booked booking.
 export async function cancel(db, { bookingId, initiator, reason, expectedVersion }, actor, opts = {}) {
