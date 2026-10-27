@@ -80,7 +80,7 @@ export function stripeProvider(env = process.env, opts = {}) {
       const back = `${origin}/pay/return?payment=${payment.id}`;
       const s = await (await client()).checkout.sessions.create({
         mode: 'payment',
-        payment_method_types: ['card'],
+        allowed_payment_method_types: ['card'],          // 05 §6.2: cards only; payment_method_types is gone since API 2026-09-30
         client_reference_id: payment.id,
         locale: LOCALE[lang] ?? 'auto',
         line_items: [{ quantity: 1, price_data: { currency: String(payment.currency).toLowerCase(),

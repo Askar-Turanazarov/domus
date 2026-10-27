@@ -4,6 +4,9 @@ import assert from 'node:assert/strict';
 import pkg from '../package.json' with { type: 'json' };
 
 process.env.ADMIN_TOKEN = 'server-test-token-123';
+// The keys /api/health looks at: set empty here, so the author's local .env does not change what the test expects.
+for (const k of ['QSTASH_TOKEN', 'TELEGRAM_BOT_TOKEN', 'STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'CLICK_MODE', 'GEMINI_API_KEY',
+  'ANTHROPIC_API_KEY', 'VERCEL_GIT_COMMIT_SHA']) process.env[k] = '';
 const { default: app } = await import('../server.js');
 const server = app.listen(0);
 after(() => server.close());

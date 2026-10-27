@@ -157,9 +157,11 @@ test('P6: after an emulator payment no 16 digits in a row anywhere — tables or
     await confirm(paymentId, (await card(paymentId)).body.sms.code);
   } finally { Object.assign(console, orig); }
   const CARD = /\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}/;
-  assert.ok(!logs.some(l => CARD.test(l)));
+  const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;    // an all-digit run of a uuid is no card
+  const clean = s => s.replace(UUID, '<uuid>');
+  assert.ok(!logs.some(l => CARD.test(clean(l))));
   for (const t of ['payments', 'payment_challenges', 'events', 'outbox', 'idempotency_keys', 'jobs']) {
     const rows = await db.query(`SELECT * FROM ${t}`);
-    assert.ok(!CARD.test(JSON.stringify(rows)), t);
+    assert.ok(!CARD.test(clean(JSON.stringify(rows))), t);
   }
 });

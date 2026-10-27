@@ -18,7 +18,7 @@ const { currency, providerAmount } = stripeMoney(10_000_000, cfg);
 const base = process.env.PUBLIC_URL || 'https://example.com';
 try {
   const s = await stripe.checkout.sessions.create({
-    mode: 'payment', payment_method_types: ['card'],
+    mode: 'payment', allowed_payment_method_types: ['card'],
     line_items: [{ quantity: 1, price_data: { currency: currency.toLowerCase(), unit_amount: providerAmount,
       product_data: { name: 'stripe:check — Domus Estate' } } }],
     success_url: `${base}/?stripe_check=ok`, cancel_url: `${base}/?stripe_check=cancel`

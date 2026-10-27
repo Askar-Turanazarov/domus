@@ -108,7 +108,8 @@ test('money (D-05): uzs ×100, usd by the training rate; a live key or no webhoo
 test('begin: a card-only Checkout session for 1 000 000 000 uzs, 31 minutes, the session id kept', async () => {
   const { booking, r, payment } = await pay(41, 'uz');
   const { params, options } = stripe.calls[0];
-  assert.deepEqual(params.payment_method_types, ['card']);
+  assert.deepEqual(params.allowed_payment_method_types, ['card']);
+  assert.equal('payment_method_types' in params, false, 'Stripe refuses it since API 2026-09-30');
   assert.deepEqual([params.line_items[0].price_data.currency, params.line_items[0].price_data.unit_amount], ['uzs', 1_000_000_000]);
   assert.equal(params.locale, 'auto');
   assert.match(params.line_items[0].price_data.product_data.name, /№41/);
