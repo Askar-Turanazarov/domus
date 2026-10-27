@@ -17,3 +17,8 @@ public/vendor/
 .vercel/
 booking.json*
 mcp-calls.jsonl*
+order.json
+.env.*
+!.env.example
+.pglite/
+eval/reports/*.tmp
