@@ -86,3 +86,39 @@ body.adm2-card-open .adm2-split { grid-template-columns: minmax(0, 1fr) minmax(3
   .adm2-floor { grid-template-columns: 1fr; }
   .adm2-floor-n { text-align: left; }
 }
+
+/* lists (bookings, payments) */
+.adm2-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.adm2-tabs .adm2-chip b { font-weight: 600; margin-left: 4px; }
+.adm2-search { min-width: 220px; flex: 1 1 220px; max-width: 360px; }
+.adm2-tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+.adm2-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.adm2-table th { text-align: left; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.adm2-table td { padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.adm2-table tr:last-child td { border-bottom: 0; }
+.adm2-table tbody tr { cursor: pointer; }
+.adm2-table tbody tr:hover { background: var(--surface-hi); }
+.adm2-table tr.sel { outline: 2px solid var(--gold-2); outline-offset: -2px; }
+.adm2-table tr.soon td:first-child { box-shadow: inset 3px 0 0 var(--danger); }
+.adm2-table small { display: block; color: var(--muted); font-size: 11.5px; }
+.adm2-more { margin: 12px 0; text-align: center; }
+.adm2-total { margin: 10px 2px 0; font-size: 13px; }
+.adm2-badge.pay-succeeded, .adm2-badge.rf-succeeded, .adm2-badge.pay-refunded { border-color: var(--st-free); background: var(--st-free-bg); }
+.adm2-badge.pay-pending, .adm2-badge.pay-processing, .adm2-badge.rf-pending, .adm2-badge.pay-refund_due { border-color: var(--st-held); background: var(--st-held-bg); }
+.adm2-badge.pay-failed, .adm2-badge.rf-failed { border-color: var(--danger); color: var(--danger); }
+.adm2-badge.pay-cancelled { color: var(--muted); }
+.adm2-actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0 0; }
+body.adm2-card-open .adm2-split.list { grid-template-columns: minmax(0, 1fr) minmax(320px, 400px); }
+.adm2-link { color: var(--gold-2); text-decoration: none; }
+.adm2-link:hover { text-decoration: underline; }
+
+/* dialogs */
+.adm2-modal { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 16px; background: rgba(0, 0, 0, .55); }
+.adm2-modal-box { display: grid; gap: 12px; width: min(440px, 100%); max-height: calc(100vh - 32px); overflow: auto; padding: 22px 22px 18px; background: var(--card-bg); border: 1px solid var(--hairline); border-radius: 14px; box-shadow: var(--sh-2); }
+.adm2-modal-box h2 { margin: 0; font: 600 22px/1.1 var(--f-display, serif); }
+.adm2-modal-box p { margin: 0; font-size: 13px; }
+.adm2-field { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+.adm2-field[hidden] { display: none; }
+.adm2-radios { display: grid; gap: 6px; }
+.adm2-radio { display: flex; align-items: center; gap: 6px; color: var(--text); font-size: 13px; }
+.adm2-modal-actions { display: flex; justify-content: flex-end; gap: 8px; }

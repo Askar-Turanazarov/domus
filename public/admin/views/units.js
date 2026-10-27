@@ -6,21 +6,21 @@ import { el, toast, money, dateTime, left } from '../ui.js';
 import { t, addTexts } from '../i18n.js';
 
 addTexts({
-  ru: { 'apt.term': 'Срок', 'apt.soldLabel': 'Продана', 'ev.booking.held': 'Удержание начато', 'ev.booking.hold_expired': 'Удержание истекло', 'ev.booking.paid': 'Депозит оплачен',
+  ru: { 'apt.openBooking': 'Открыть бронь', 'apt.client': 'Клиент', 'apt.term': 'Срок', 'apt.soldLabel': 'Продана', 'ev.booking.held': 'Удержание начато', 'ev.booking.hold_expired': 'Удержание истекло', 'ev.booking.paid': 'Депозит оплачен',
     'ev.booking.extended': 'Бронь продлена', 'ev.booking.extend_requested': 'Клиент просит продлить', 'ev.booking.expired': 'Бронь сгорела',
     'ev.booking.cancelled': 'Бронь отменена', 'ev.booking.released': 'Клиент снял удержание', 'ev.apartment.sold': 'Квартира продана',
     'ev.apartment.unsold': 'Продажа отменена', 'ev.payment.started': 'Оплата начата', 'ev.payment.succeeded': 'Оплата прошла',
     'ev.payment.failed': 'Оплата не прошла', 'ev.payment.cancelled': 'Оплата отменена', 'ev.payment.late': 'Оплата после срока',
     'ev.refund.requested': 'Возврат запрошен', 'ev.refund.succeeded': 'Возврат выполнен', 'ev.refund.failed': 'Возврат не удался',
     'ev.viewing.created': 'Запись на показ', 'ev.demo.time_shifted': 'Демо: срок сдвинут' },
-  en: { 'apt.term': 'Deadline', 'apt.soldLabel': 'Sold', 'ev.booking.held': 'Hold started', 'ev.booking.hold_expired': 'Hold expired', 'ev.booking.paid': 'Deposit paid',
+  en: { 'apt.openBooking': 'Open the booking', 'apt.client': 'Client', 'apt.term': 'Deadline', 'apt.soldLabel': 'Sold', 'ev.booking.held': 'Hold started', 'ev.booking.hold_expired': 'Hold expired', 'ev.booking.paid': 'Deposit paid',
     'ev.booking.extended': 'Booking extended', 'ev.booking.extend_requested': 'Client asks to extend', 'ev.booking.expired': 'Booking expired',
     'ev.booking.cancelled': 'Booking cancelled', 'ev.booking.released': 'Client released the hold', 'ev.apartment.sold': 'Apartment sold',
     'ev.apartment.unsold': 'Sale undone', 'ev.payment.started': 'Payment started', 'ev.payment.succeeded': 'Payment succeeded',
     'ev.payment.failed': 'Payment failed', 'ev.payment.cancelled': 'Payment cancelled', 'ev.payment.late': 'Payment after the deadline',
     'ev.refund.requested': 'Refund requested', 'ev.refund.succeeded': 'Refund done', 'ev.refund.failed': 'Refund failed',
     'ev.viewing.created': 'Viewing booked', 'ev.demo.time_shifted': 'Demo: deadline shifted' },
-  uz: { 'apt.term': 'Muddat', 'apt.soldLabel': 'Sotilgan', 'ev.booking.held': 'Ushlab turish boshlandi', 'ev.booking.hold_expired': 'Ushlab turish tugadi', 'ev.booking.paid': 'Depozit to‘landi',
+  uz: { 'apt.openBooking': 'Bronni ochish', 'apt.client': 'Mijoz', 'apt.term': 'Muddat', 'apt.soldLabel': 'Sotilgan', 'ev.booking.held': 'Ushlab turish boshlandi', 'ev.booking.hold_expired': 'Ushlab turish tugadi', 'ev.booking.paid': 'Depozit to‘landi',
     'ev.booking.extended': 'Bron uzaytirildi', 'ev.booking.extend_requested': 'Mijoz uzaytirishni so‘ramoqda', 'ev.booking.expired': 'Bron muddati tugadi',
     'ev.booking.cancelled': 'Bron bekor qilindi', 'ev.booking.released': 'Mijoz ushlab turishni bekor qildi', 'ev.apartment.sold': 'Kvartira sotildi',
     'ev.apartment.unsold': 'Sotuv bekor qilindi', 'ev.payment.started': 'To‘lov boshlandi', 'ev.payment.succeeded': 'To‘lov o‘tdi',
@@ -32,8 +32,8 @@ addTexts({
 const POLL_MS = 5000;
 const STATUSES = ['free', 'held', 'booked', 'sold'];
 
-const evLabel = type => { const s = t('ev.' + type); return s === 'ev.' + type ? type : s; };
-const roomsLabel = n => (n === 0 ? t('units.studio') : t('units.roomsN', { n }));
+export const evLabel = type => { const s = t('ev.' + type); return s === 'ev.' + type ? type : s; };
+export const roomsLabel = n => (n === 0 ? t('units.studio') : t('units.roomsN', { n }));
 
 export function mount(root, { params }) {
   const filter = { status: new Set(), rooms: '', floor: '', soon: false };
@@ -102,7 +102,8 @@ export function mount(root, { params }) {
       row(t('apt.client'), `${b.client.name || '—'} · ${b.client.phone || '—'}`),
       row('Telegram', b.client.telegramLinked ? t('apt.tgLinked') : t('apt.noTg')),
       row(t('apt.deposit'), money(b.deposit)),
-      row(t('apt.term'), `${dateTime(b.expiresAt)} · ${rest ? t('apt.leftOf', { left: rest }) : t('apt.overdue')}`));
+      row(t('apt.term'), `${dateTime(b.expiresAt)} · ${rest ? t('apt.leftOf', { left: rest }) : t('apt.overdue')}`),
+      el('a', { class: 'adm2-link', href: `#/bookings/${b.no}` }, t('apt.openBooking')));
   }
   function bookingRow(b) {
     return el('li', {}, el('b', {}, `№${b.no}`), ' ', el('span', { class: `adm2-badge bk-${b.status}` }, t('bk.' + b.status)), ' ',
