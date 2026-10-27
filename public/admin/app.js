@@ -4,6 +4,7 @@ import { api, onSignedOut, ApiError } from './api.js';
 import { el, toast } from './ui.js';
 import { t, setLang, getLang, onLangChange, hasSavedLang, LANGS } from './i18n.js';
 import { sections, defaultSection } from './views/index.js';
+import { openTelegramDialog } from './telegram.js';
 
 const app = document.getElementById('app');
 let staff = null;
@@ -23,6 +24,8 @@ const route = () => {
 };
 
 function stop() { if (stopView) { stopView(); stopView = null; } }
+
+const linkTelegram = () => openTelegramDialog({ staff, onChange: me => { staff = me; renderShell(); } });
 
 function renderLogin(message = '') {
   stop();
@@ -69,10 +72,11 @@ function renderShell() {
     el('div', { class: 'adm2-brand' }, el('b', {}, 'Chinor Park'), el('span', {}, 'admin')),
     el('div', { class: 'adm2-who' }, el('span', { class: 'adm2-name' }, staff.name), el('span', { class: 'adm2-role' }, t('role.' + staff.role))),
     langButtons(),
+    el('button', { type: 'button', class: 'btn ghost sm', dataset: { act: 'telegram' }, on: { click: linkTelegram } }, t(staff.telegramLinked ? 'tgl.buttonLinked' : 'tgl.button')),
     el('button', { type: 'button', class: 'btn ghost sm', title: t('nav.theme'), on: { click: toggleTheme } }, '◐'),
     el('button', { type: 'button', class: 'btn ghost sm', on: { click: logout } }, t('nav.logout')));
   const view = el('main', { class: 'adm2-view', id: 'view' });
-  app.replaceChildren(head, !staff.telegramLinked && el('div', { class: 'adm2-warn' }, t('tg.warn')), el('div', { class: 'adm2-body' }, nav, view));
+  app.replaceChildren(head, !staff.telegramLinked && el('div', { class: 'adm2-warn' }, t('tg.warn'), ' ', el('button', { type: 'button', class: 'adm2-link', on: { click: linkTelegram } }, t('tgl.link'))), el('div', { class: 'adm2-body' }, nav, view));
   if (!section) { view.append(el('p', { class: 'adm2-empty' }, t('nav.notfound'))); return; }
   stopView = section.mount(view, { staff, params, go });
 }

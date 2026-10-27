@@ -14,6 +14,7 @@ import { BUILDING_ID, createBuildings } from './server/buildings.js';
 import { mountAdmin } from './server/http/admin.js';
 import { mountAdminBoard } from './server/http/adminBoard.js';
 import { mountAdminBookings } from './server/http/adminBookings.js';
+import { mountAdminClients } from './server/http/adminClients.js';
 import * as pages from './server/pages.js';
 import { loadEnv } from './server/env.js';
 import { mountJobs, background } from './server/events/routes.js';
@@ -76,6 +77,7 @@ mountPayments(app, db, coreOpts);          // payments: start, emulators (05 §1
 const staffAuth = mountAdmin(app, db, { env: process.env });   // /api/admin/login|logout|me and the gate on /api/admin/*, /api/dashboard/* (12 §2)
 mountAdminBoard(app, db);                  // the chessboard and the apartment card (12 §3)
 mountAdminBookings(app, db, staffAuth, coreOpts);   // bookings and payments: lists, cards, extend, cancel, refunds (12 §4)
+mountAdminClients(app, db, staffAuth, coreOpts);    // clients, dialogs, the Telegram link of the staff member (12 §5, §12.3)
 mountPersonalPages(app, { publicDir: path.join(__dirname, 'public'), legalDir: path.join(__dirname, 'legal') });   // /b/…, /pay/card|click/…, /legal/…
 app.use(express.json({ limit: '4mb' }));   // the order carries the drawing PNG and a 3D picture (≤ 1.5 MB each); Vercel takes ≤ 4.5 MB
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));   // "/" is rendered below

@@ -34,6 +34,17 @@ export async function attachStaffTelegram(db, { code, telegram }, opts = {}) {
   });
 }
 
+// «Отвязать» (12 §12.3): the Telegram account and any unused code go away; «Беру клиента» stops finding the person.
+export async function detachStaffTelegram(db, { staffId }, opts = {}) {
+  const ctx = context(opts);
+  return inTx(db, ctx, async q => {
+    const s = await q.one(`UPDATE staff SET telegram_user_id = NULL, telegram_username = NULL, tg_link_code_hash = NULL,
+      tg_link_expires_at = NULL WHERE id = $1 RETURNING id, role`, [staffId]);
+    if (!s) throw new DomainError('not_found');
+    await emit(q, 'staff.telegram_unlinked', { staffId: s.id }, {}, { type: 'staff', id: s.id, role: s.role, channel: 'admin' }, ctx);
+  });
+}
+
 // «Беру клиента» looks the person up by the Telegram account that pressed the button (10 §6.2). → the active staff row | null.
 export const staffByTelegram = (q, userId) => q.one('SELECT * FROM staff WHERE telegram_user_id = $1 AND active', [userId]);
 
