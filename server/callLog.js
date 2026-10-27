@@ -1,6 +1,6 @@
 // The MCP call log in a file (mcp-calls.jsonl): one JSON line per tool call or refused request.
 // Never holds the token, a name or a phone; a failed write is only reported and never breaks a tool.
-const fs = require('fs/promises');
+import fs from 'node:fs/promises';
 
 const MAX_BYTES = 1 << 20;   // past 1 MB the log keeps its last KEEP lines
 const KEEP = 1000;
@@ -40,4 +40,4 @@ async function readCalls(file, limit = 200) {
   return events.slice(-limit).reverse();
 }
 
-module.exports = { logEvent, readCalls, KEEP };
+export { logEvent, readCalls, KEEP };

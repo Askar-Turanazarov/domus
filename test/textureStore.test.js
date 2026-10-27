@@ -1,9 +1,7 @@
 // Downloaded library sets in Vercel Blob (server/textureFetch.js blobStore) — with a fake SDK, no network.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
-
-const { blobStore, readLibMap } = createRequire(import.meta.url)('../server/textureFetch.js');
+import { blobStore, readLibMap } from '../server/textureFetch.js';
 
 function fakeSdk() {
   const files = new Map(), calls = { list: 0 };

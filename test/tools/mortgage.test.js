@@ -1,7 +1,7 @@
 // calc_mortgage: the annuity at the monthly rate against hand-made references, zero rate, bounds.
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { annuity } from '../mortgage.js';
+import { annuity } from '../../server/core/finance.js';
 import { list, start } from './helpers.js';
 
 const s = await start();

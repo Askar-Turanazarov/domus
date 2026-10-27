@@ -5,12 +5,12 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
-const server = fileURLToPath(new URL('../server.js', import.meta.url));
+const server = new URL('../server.js', import.meta.url).href;
 // Start the server with the given token, GET /api/orders with that token, print the status.
-const statusWith = token => Number(execFileSync(process.execPath, ['-e', `
-  const s = require(${JSON.stringify(server)}).listen(0, async () => {
+const statusWith = token => Number(execFileSync(process.execPath, ['--input-type=module', '-e', `
+  const { default: app } = await import(${JSON.stringify(server)});
+  const s = app.listen(0, async () => {
     const r = await fetch('http://127.0.0.1:' + s.address().port + '/api/orders', { headers: { Authorization: 'Bearer ' + process.env.ADMIN_TOKEN } });
     console.log(r.status); s.close();
   });`], { env: { ...process.env, ADMIN_TOKEN: token, ADMIN_PASSWORD_HASH: '', DATA_DIR: mkdtempSync(join(tmpdir(), 'fsp3d-')) }, encoding: 'utf8' }).trim());

@@ -1,19 +1,18 @@
 # MCP-сервер «Новостройка»
 
-Квартиры из `../apartments.json`, записи на показ и журнал вызовов по MCP (Streamable HTTP):
-- **на сайте** — `POST https://<адрес сайта>/mcp` (маршрут в `../server.js`, работает и на Vercel; без `MCP_TOKEN` в переменных окружения — `503`);
-- **отдельно, для разработки** — `http://127.0.0.1:3001/mcp` (`npm start` здесь).
+Квартиры из `apartments.json` (корень проекта), записи на показ и журнал вызовов по MCP (Streamable HTTP):
+- **на сайте** — `POST https://<адрес сайта>/mcp` (маршрут в `server.js`, работает и на Vercel; без `MCP_TOKEN` в переменных окружения — `503`);
+- **отдельно, для разработки** — `http://127.0.0.1:3001/mcp` (`node server/mcp/index.js` из корня проекта).
 
-Данные — в хранилище сайта (`../server/db.js`): с `DATABASE_URL` — Postgres (записи — таблица `bookings`, журнал — `mcp_calls`), без него — файлы `../booking.json` и `../mcp-calls.jsonl`. Статусы квартир — с учётом изменений менеджера в `/admin.html`, как на витрине.
-Все цены в сумах (целые). Зависимости: только `@modelcontextprotocol/sdk` и `zod`.
+Данные — в хранилище сайта (`server/db.js`): с `DATABASE_URL` — Postgres (записи — таблица `bookings`, журнал — `mcp_calls`), без него — файлы `booking.json` и `mcp-calls.jsonl` в корне. Статусы квартир — с учётом изменений менеджера в `/admin.html`, как на витрине.
+Все цены в сумах (целые). Зависимости — в корневом `package.json` (`@modelcontextprotocol/sdk`, `zod`).
 
 ## Запуск
 ```bash
-cd mcp-server && npm install
-# в ../.env строка MCP_TOKEN=<32–64 символа>:
+# из корня проекта; в .env строка MCP_TOKEN=<32–64 символа>:
 #   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-npm start          # MCP «Новостройка»: http://127.0.0.1:3001/mcp
-npm test
+node server/mcp/index.js          # MCP «Новостройка»: http://127.0.0.1:3001/mcp
+node --test "test/tools/*.test.js"
 ```
 Без `MCP_TOKEN` (или короче 32 символов) сервер не запускается. Каждый запрос — с заголовком `Authorization: Bearer <MCP_TOKEN>`, иначе `401`.
 

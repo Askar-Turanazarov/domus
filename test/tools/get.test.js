@@ -1,7 +1,7 @@
 // get_apartment: one card by number, an unknown number is a clear error.
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { getApartment } from '../tools.js';
+import { getApartment } from '../../server/tools/index.js';
 import { list, start } from './helpers.js';
 
 const s = await start();

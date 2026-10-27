@@ -1,9 +1,8 @@
 // The call log for the site's «Журнал вызовов»: mcp-calls.jsonl locally, Postgres on Vercel (server/db.js logCall).
 // Never holds the token, a name or a phone.
-import { createRequire } from 'node:module';
 
 // the file log (one queue per file, trimmed past 1 MB) lives with the site's storage
-export const { logEvent } = createRequire(import.meta.url)('../server/callLog.js');
+export { logEvent } from '../callLog.js';
 
 // book_viewing carries a name and a phone: only the apartment and the time go to the log. Pure.
 export function safeArgs(tool, args = {}) {

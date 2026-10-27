@@ -1,17 +1,21 @@
 // The new-building apartments (apartments.json): a sound list that matches the plans, and the server reads it.
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
 import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { applyListing, APT_STATUSES } from '../server/buildings.js';
 
-const require = createRequire(import.meta.url);
-const { applyListing, APT_STATUSES } = require('../server/buildings.js');
 const read = f => JSON.parse(readFileSync(new URL('../' + f, import.meta.url), 'utf8'));
 const list = read('apartments.json').apartments;
 const bld = read('buildings/novostroyka-12.json');
 const planned = bld.floorsData.flatMap(f => f.apartments.map(a => ({ ...a, floor: f.n })));
+// the server is loaded before the tests are declared: a top-level await between them would let the runner start early
+const dataDir = mkdtempSync(join(tmpdir(), 'fsp3d-'));
+process.env.DATA_DIR = dataDir;
+const { default: app } = await import('../server.js');
+const server = app.listen(0);
+after(() => server.close());
 
 test('apartments.json: every apartment of the plans once, with sane fields', () => {
   assert.deepEqual(list.map(x => x.no).sort((a, b) => a - b), planned.map(a => a.no).sort((a, b) => a - b));
@@ -40,12 +44,6 @@ test('applyListing: the list wins; other buildings, wrong floors and bad values 
   assert.deepEqual(b.floorsData[0].apartments.map(a => [a.area, a.price, a.status]),
     [[41.5, 6e8, 'sold'], [60, 7e8, 'free'], [80, 9e8, 'free']]);
 });
-
-const dataDir = mkdtempSync(join(tmpdir(), 'fsp3d-'));
-process.env.DATA_DIR = dataDir;
-const app = require('../server.js');
-const server = app.listen(0);
-after(() => server.close());
 
 test('GET /api/buildings/:id shows the values from apartments.json', async () => {
   const b = await (await fetch(`http://127.0.0.1:${server.address().port}/api/buildings/${bld.id}`)).json();

@@ -1,11 +1,8 @@
 // The modulepreload lists in the pages match the imports (after a new import: npm run preload).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
 import fs from 'node:fs';
-
-const require = createRequire(import.meta.url);
-const { update, lists } = require('../scripts/preload.js');
+import { update, lists } from '../scripts/preload.js';
 
 test('the preload lists in index.html and building.html are up to date', () => {
   for (const [page, r] of Object.entries(update(false))) assert.ok(r.same, `${page}: run npm run preload`);

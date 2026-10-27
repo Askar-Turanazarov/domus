@@ -3,10 +3,10 @@
 //   npm run admin-password -- --save       also writes it into .env (replaces an old line)
 //   npm run admin-password -- --vercel     also sets it in Vercel (production); then redeploy
 // The password can also come from stdin (echo … | npm run admin-password), e.g. in scripts.
-const fs = require('fs');
-const path = require('path');
-const { execFileSync } = require('child_process');
-const { hashPassword } = require('../server/adminAuth');
+import fs from 'node:fs';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { hashPassword } from '../server/adminAuth.js';
 
 const MIN = 10;
 const has = flag => process.argv.includes(flag);
@@ -45,7 +45,7 @@ function ask(question) {
   console.log(line);
 
   if (has('--save')) {
-    const file = path.join(__dirname, '..', '.env');
+    const file = path.join(import.meta.dirname, '..', '.env');
     const old = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
     const kept = old.split(/\r?\n/).filter(l => !/^ADMIN_PASSWORD_HASH=/.test(l)).join('\n').replace(/\n*$/, '\n');
     fs.writeFileSync(file, (kept.trim() ? kept : '') + line + '\n');

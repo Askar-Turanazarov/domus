@@ -1,13 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
 import { mkdtempSync, readFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-
-const require = createRequire(import.meta.url);
-const { validateOrder } = require('../server/validateOrder.js');
-const { createStore, createRateLimit } = require('../server/orderStore.js');
+import { validateOrder } from '../server/validateOrder.js';
+import { createStore, createRateLimit } from '../server/orderStore.js';
 
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13]);
 const png = buf => 'data:image/png;base64,' + buf.toString('base64');

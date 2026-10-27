@@ -1,7 +1,7 @@
 // order.json storage: one write at a time (promise queue), each via a temp file + rename,
 // so parallel orders never overwrite each other and a crash never leaves half a file.
-const fs = require('fs/promises');
-const path = require('path');
+import fs from 'node:fs/promises';
+import path from 'node:path';
 
 // empty() — the value of a missing file (a list of orders by default).
 function createStore(file, empty = () => []) {
@@ -46,4 +46,4 @@ function createRateLimit({ max = 5, windowMs = 10 * 60 * 1000, now = Date.now } 
   };
 }
 
-module.exports = { createStore, createRateLimit };
+export { createStore, createRateLimit };

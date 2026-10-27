@@ -4,6 +4,10 @@
   "description": "Domus — apartments and furniture in 3D, by Askar",
   "main": "server.js",
   "private": true,
+  "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
     "start": "node server.js",
     "test": "node --test \"test/**/*.test.js\"",
@@ -19,5 +23,8 @@
     "express": "^4.21.2",
     "three": "^0.170.0",
     "zod": "^4.6.7"
+  },
+  "overrides": {
+    "zod": "$zod"
   }
 }

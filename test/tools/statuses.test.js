@@ -4,8 +4,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { createRequire } from 'node:module';
-import { FILES, applyStatuses } from '../tools.js';
+import { createDb } from '../../server/db.js';
+import { FILES, applyStatuses } from '../../server/tools/index.js';
 import { list, start } from './helpers.js';
 
 const free = list.find(a => a.status === 'free');
@@ -43,7 +43,6 @@ test('book_viewing: sold by the manager is refused, released by the manager is b
 });
 
 test('the site file storage (data/building-status.json) is read as is', async () => {
-  const { createDb } = createRequire(import.meta.url)('../../server/db.js');
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mcp-data-'));
   const db = createDb({ url: '', root: dataDir, dataDir });
   await db.setStatus(free.building, free.no, 'booked');

@@ -1,12 +1,23 @@
-const express = require('express');
-const fs = require('fs/promises');
-const path = require('path');
-const crypto = require('crypto');
+import express from 'express';
+import fs from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import { pathToFileURL } from 'node:url';
+import { validateOrder } from './server/validateOrder.js';
+import { createDb } from './server/db.js';
+import { writeZip } from './server/zip.js';
+import { fetchSet, libraryStatus, readLibMap } from './server/textureFetch.js';
+import { APT_STATUSES, BUILDING_ID, createBuildings } from './server/buildings.js';
+import * as auth from './server/adminAuth.js';
+import * as pages from './server/pages.js';
+
+const __dirname = import.meta.dirname;
 
 // .env.local (`vercel env pull`) and .env (KEY=value lines) without extra dependencies; real environment variables win.
 for (const file of ['.env.local', '.env']) {
   try {
-    for (const line of require('fs').readFileSync(path.join(__dirname, file), 'utf8').split(/\r?\n/)) {
+    for (const line of readFileSync(path.join(__dirname, file), 'utf8').split(/\r?\n/)) {
       const m = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*?)\s*$/);
       if (m && !(m[1] in process.env)) process.env[m[1]] = m[2].replace(/^(['"])(.*)\1$/, '$2');
     }
@@ -19,12 +30,6 @@ const CATALOG = path.join(__dirname, 'catalog.json');
 const TEMPLATES = path.join(__dirname, 'templates.json');
 const APT_TEMPLATES = path.join(__dirname, 'apartment-templates.json');
 const APARTMENTS = path.join(__dirname, 'apartments.json');   // the new-building apartments: rooms, area, price, status
-const { validateOrder } = require('./server/validateOrder');
-const { createDb } = require('./server/db');
-const { writeZip } = require('./server/zip');
-const { fetchSet, libraryStatus, readLibMap } = require('./server/textureFetch');
-const { APT_STATUSES, BUILDING_ID, createBuildings } = require('./server/buildings');
-const auth = require('./server/adminAuth');
 const DATA = process.env.DATA_DIR || path.join(__dirname, 'data');
 // Orders, apartment statuses, viewing bookings and the MCP call log: files locally
 // (booking.json / mcp-calls.jsonl, or BOOKING_FILE / CALLS_FILE), Postgres (Neon) with DATABASE_URL (server/db.js).
@@ -42,7 +47,6 @@ app.use(express.static(path.join(__dirname, 'public'), { index: false }));   // 
 app.get('/favicon.ico', (req, res) => res.redirect(301, '/favicon.svg'));
 // Vercel serves public/ from its CDN but sends "/" to the function: the planner page from here.
 // The pages with the language in the address (and "/" = Russian): link previews (Open Graph) and the interface in that language.
-const pages = require('./server/pages');
 const sendPage = (page, self) => (req, res) => {
   const ua = req.get('user-agent') || '';
   if (/bot|telegram|whatsapp|facebookexternalhit|preview/i.test(ua)) console.log('preview fetch', req.method, req.originalUrl, ua);   // which messengers come for the preview
@@ -61,21 +65,21 @@ app.use('/vendor/three', express.static(path.join(__dirname, 'node_modules', 'th
 const SHARED_JSON = 'public, max-age=0, s-maxage=600, stale-while-revalidate=86400';
 
 // Is the server alive, which storage does it use (files / postgres). No database call, no secrets.
-const { version } = require('./package.json');
+const { version } = JSON.parse(readFileSync(path.join(__dirname, 'package.json'), 'utf8'));
 app.get('/api/health', (req, res) => {
   res.set('Cache-Control', 'no-store').json({ ok: true, db: db.kind, version });
 });
 
-// The MCP server «Новостройка» (mcp-server/) on the site: POST /mcp with `Authorization: Bearer <MCP_TOKEN>`.
+// The MCP server «Новостройка» (server/mcp/) on the site: POST /mcp with `Authorization: Bearer <MCP_TOKEN>`.
 // Bookings and the call log go to the site's storage, the tools see the manager's statuses. No MCP_TOKEN — off.
-const MCP_MIN_TOKEN = 32;   // as mcp-server/index.js MIN_TOKEN
+const MCP_MIN_TOKEN = 32;   // as server/mcp/index.js MIN_TOKEN
 let mcp = null;
 app.all('/mcp', async (req, res) => {
   res.set('Cache-Control', 'no-store');
   const token = process.env.MCP_TOKEN || '';
   if (token.length < MCP_MIN_TOKEN) return res.status(503).json({ error: 'mcp_disabled' });
   try {
-    mcp ||= import('./mcp-server/index.js').then(m => ({ handle: m.handleMcp, ctx: m.dbContext(db) }));
+    mcp ||= import('./server/mcp/index.js').then(m => ({ handle: m.handleMcp, ctx: m.dbContext(db) }));
     const { handle, ctx } = await mcp;
     // req._body: express.json has read the body; otherwise the MCP code reads (and checks) it itself
     await handle(req, res, { token, ctx, parsed: req._body ? req.body : undefined });
@@ -260,11 +264,11 @@ app.get('/api/bookings', admin, async (req, res) => {
 });
 
 // The MCP call log: the last 200 events, newest first; none yet = an empty list.
-// msgs — the result line in ru / uz / en; lines logged before it hold Russian only and are read back (mcp-server/logText.js).
+// msgs — the result line in ru / uz / en; lines logged before it hold Russian only and are read back (server/tools/logText.js).
 let logText;
 app.get('/api/calls', admin, async (req, res) => {
   try {
-    logText ||= import('./mcp-server/logText.js');
+    logText ||= import('./server/tools/logText.js');
     const { fromLegacy } = await logText;
     const events = await db.listCalls(200);
     res.json(events.map(({ at, type, tool, ok, ms, args, msg, msgs, reason }) =>
@@ -352,6 +356,6 @@ app.post('/api/textures/fetch/:id', async (req, res) => {
 // Any other /api path: JSON, not the HTML "Cannot GET" page.
 app.use('/api', (req, res) => res.status(404).json({ error: 'not_found' }));
 
-if (require.main === module) app.listen(PORT, () => console.log(`Domus: http://localhost:${PORT}`));
+if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) app.listen(PORT, () => console.log(`Domus: http://localhost:${PORT}`));
 
-module.exports = app;
+export default app;

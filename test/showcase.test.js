@@ -1,14 +1,19 @@
 // New-building showcase on the server: a request with apartmentRef, statuses by the manager (PATCH, Bearer token).
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
 import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { validateOrder } from '../server/validateOrder.js';
+import { applyStatuses } from '../server/buildings.js';
 
-const require = createRequire(import.meta.url);
-const { validateOrder } = require('../server/validateOrder.js');
-const { applyStatuses } = require('../server/buildings.js');
+// The routes on a real server (port 0) with a temporary data folder (loaded before the tests are declared).
+const dataDir = mkdtempSync(join(tmpdir(), 'fsp3d-'));
+process.env.DATA_DIR = dataDir;
+process.env.ADMIN_TOKEN = 'showcase-test-token';
+const { default: app } = await import('../server.js');
+const server = app.listen(0);
+after(() => server.close());
 
 const ref = { building: 'novostroyka-12', floor: 2, apt: 1 };
 const request = (patch = {}) => ({ name: 'Askar', phone: '+998 90 123 45 67', comment: '', lang: 'ru', apartmentRef: ref, ...patch });
@@ -36,13 +41,6 @@ test('applyStatuses: the manager\'s status wins, unknown values are ignored', ()
   assert.deepEqual(b.floorsData[0].apartments.map(a => a.status), ['sold', 'free', 'sold']);
 });
 
-// The routes on a real server (port 0) with a temporary data folder.
-const dataDir = mkdtempSync(join(tmpdir(), 'fsp3d-'));
-process.env.DATA_DIR = dataDir;
-process.env.ADMIN_TOKEN = 'showcase-test-token';
-const app = require('../server.js');
-const server = app.listen(0);
-after(() => server.close());
 const base = () => `http://127.0.0.1:${server.address().port}`;
 const patch = (apt, body, token = process.env.ADMIN_TOKEN, id = 'novostroyka-12') => fetch(`${base()}/api/buildings/${id}/apartments/${apt}`, {
   method: 'PATCH', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) },

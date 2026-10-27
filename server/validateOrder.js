@@ -173,4 +173,4 @@ function validateOrder(body) {
   }
 }
 
-module.exports = { validateOrder, LIMITS, PHONE };
+export { validateOrder, LIMITS, PHONE };

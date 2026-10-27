@@ -1,10 +1,10 @@
 // Viewing bookings: the checks here, the saving in the site's storage (server/db.js addBooking — booking.json or Postgres).
 // Times are Tashkent time, stored as "YYYY-MM-DDTHH:MM+05:00". A booking never changes the apartment status.
 import crypto from 'node:crypto';
-import { createRequire } from 'node:module';
-import { ruText } from './logText.js';
+import { ruText } from '../tools/logText.js';
+import { PHONE } from '../validateOrder.js';
 
-export const { PHONE } = createRequire(import.meta.url)('../server/validateOrder.js');
+export { PHONE };
 
 const TZ = '+05:00';
 const TZ_MS = 5 * 3600e3;

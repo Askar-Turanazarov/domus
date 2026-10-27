@@ -3,8 +3,8 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { createHttpServer } from '../index.js';
-import { FILES } from '../tools.js';
+import { createHttpServer } from '../../server/mcp/index.js';
+import { FILES } from '../../server/tools/index.js';
 
 export const TOKEN = 'test-token-'.padEnd(40, 'x');
 export const list = JSON.parse(fs.readFileSync(FILES.apartments, 'utf8')).apartments;

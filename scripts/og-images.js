@@ -3,17 +3,17 @@
 // Chrome / Edge in headless mode — no extra npm packages. `npm run og`; `npm run og -- --serve` only serves the poster
 // (http://localhost:<port>/__og?page=planner&lang=ru) to look at it in a browser.
 // The browser: OG_BROWSER=<path>, otherwise the usual Chrome / Edge locations.
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
-const { execFile } = require('child_process');
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { execFile } from 'node:child_process';
 const run = (cmd, args) => new Promise((ok, fail) => execFile(cmd, args, { timeout: 60000 }, e => (e ? fail(e) : ok())));   // async: the server answers meanwhile
 
 process.env.DATA_DIR ||= fs.mkdtempSync(path.join(os.tmpdir(), 'fsp3d-og-'));   // nothing is written to the project
-const app = require('../server.js');
-app.get('/__og', (req, res) => res.sendFile(path.join(__dirname, 'og-poster.html')));
+const { default: app } = await import('../server.js');
+app.get('/__og', (req, res) => res.sendFile(path.join(import.meta.dirname, 'og-poster.html')));
 
-const OUT = path.join(__dirname, '..', 'public', 'og');
+const OUT = path.join(import.meta.dirname, '..', 'public', 'og');
 const CANDIDATES = [
   process.env.OG_BROWSER,
   'C:/Program Files/Google/Chrome/Application/chrome.exe',   // headless Edge on Windows may exit without a picture

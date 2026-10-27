@@ -1,7 +1,7 @@
 // Manager sign-in by password. Only a hash is stored: ADMIN_PASSWORD_HASH = "scrypt:<salt hex>:<hash hex>"
 // (npm run admin-password). A good password gives a signed session cookie; the cookie is keyed by the hash itself,
 // so a new password ends every open session. No server-side session table: works the same on Vercel.
-const crypto = require('crypto');
+import crypto from 'node:crypto';
 
 const COOKIE = 'fsp_adm';
 const TTL_MS = 12 * 3600e3;
@@ -53,4 +53,4 @@ function cookieHeader(value, secure) {
     .filter(Boolean).join('; ');
 }
 
-module.exports = { COOKIE, TTL_MS, hashPassword, parseHash, verifyPassword, newSession, validSession, readCookie, cookieHeader };
+export { COOKIE, TTL_MS, hashPassword, parseHash, verifyPassword, newSession, validSession, readCookie, cookieHeader };

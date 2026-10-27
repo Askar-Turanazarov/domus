@@ -1,7 +1,6 @@
 // GET /api/bookings: the viewing bookings from booking.json for the manager page (ADMIN_TOKEN), newest first.
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
 import { mkdtempSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -11,7 +10,7 @@ const file = join(dir, 'booking.json');
 process.env.DATA_DIR = dir;
 process.env.BOOKING_FILE = file;
 process.env.ADMIN_TOKEN = 'bookings-test-token';
-const app = createRequire(import.meta.url)('../server.js');
+const { default: app } = await import('../server.js');
 const server = app.listen(0);
 after(() => server.close());
 const get = (token = process.env.ADMIN_TOKEN) => fetch(`http://127.0.0.1:${server.address().port}/api/bookings`,

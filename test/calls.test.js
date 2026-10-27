@@ -1,7 +1,6 @@
 // GET /api/calls: the MCP call log for the manager page (ADMIN_TOKEN), newest first, at most 200.
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
 import { mkdtempSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -11,7 +10,7 @@ const file = join(dir, 'mcp-calls.jsonl');
 process.env.DATA_DIR = dir;
 process.env.CALLS_FILE = file;
 process.env.ADMIN_TOKEN = 'calls-test-admin-token';
-const app = createRequire(import.meta.url)('../server.js');
+const { default: app } = await import('../server.js');
 const server = app.listen(0);
 after(() => server.close());
 const get = (token = process.env.ADMIN_TOKEN) => fetch(`http://127.0.0.1:${server.address().port}/api/calls`,
@@ -35,7 +34,7 @@ test('newest first, a broken line skipped, denied events kept, only known fields
   const list = await (await get()).json();
   assert.deepEqual(list.map(e => e.type + (e.msg || e.reason)), ['callНайдено: 2', 'deniedno_token', 'callНайдено: 1']);
   assert.equal('extra' in list[1], false);
-  // lines logged in Russian only come with the uz / en texts read back (mcp-server/logText.js)
+  // lines logged in Russian only come with the uz / en texts read back (server/tools/logText.js)
   assert.deepEqual(list[0].msgs, { ru: 'Найдено: 2', uz: 'Topildi: 2', en: 'Found: 2' });
   assert.equal(list[1].msgs, undefined);
 });

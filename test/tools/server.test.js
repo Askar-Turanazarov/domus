@@ -2,7 +2,7 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import net from 'node:net';
-import { createHttpServer, checkToken } from '../index.js';
+import { createHttpServer, checkToken } from '../../server/mcp/index.js';
 import { TOKEN, start } from './helpers.js';
 
 const s = await start();

@@ -1,11 +1,9 @@
 // Routes when the database is down: a JSON error, not a hanging request.
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
 
-const require = createRequire(import.meta.url);
 process.env.DATABASE_URL = 'postgres://u:p@127.0.0.1:1/none';   // nothing listens on port 1
-const app = require('../server.js');
+const { default: app } = await import('../server.js');
 const server = app.listen(0);
 after(() => server.close());
 const base = () => `http://127.0.0.1:${server.address().port}`;

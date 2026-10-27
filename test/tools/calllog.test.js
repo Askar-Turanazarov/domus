@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { safeArgs, logEvent } from '../calllog.js';
+import { safeArgs, logEvent } from '../../server/tools/journal.js';
 import { TOKEN, list, start } from './helpers.js';
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mcp-log-'));

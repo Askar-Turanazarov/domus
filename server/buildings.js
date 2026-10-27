@@ -1,8 +1,8 @@
 // New-building data for the showcase: generated buildings (buildings/<id>.json, the plans), the apartment list
 // (apartments.json: rooms, area, price, status) and the manager's apartment statuses on top
 // (server/db.js: { [building id]: { [apartment no]: 'free' | 'booked' | 'sold' } }).
-const fs = require('fs/promises');
-const path = require('path');
+import fs from 'node:fs/promises';
+import path from 'node:path';
 
 const APT_STATUSES = ['free', 'booked', 'sold'];
 const BUILDING_ID = /^[a-z0-9-]{1,60}$/;
@@ -64,4 +64,4 @@ function createBuildings(dir, statusStore, listFile) {
   return { get, list, setStatus, apartment: async (id, no) => { const b = await get(id); return b && findApartment(b, no); } };
 }
 
-module.exports = { APT_STATUSES, BUILDING_ID, applyListing, applyStatuses, findApartment, createBuildings };
+export { APT_STATUSES, BUILDING_ID, applyListing, applyStatuses, findApartment, createBuildings };

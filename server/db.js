@@ -8,15 +8,16 @@
 //   statuses() → { [building]: { [apt]: status } }
 //   setStatus(building, apt, status)
 //   allowOrder(ip) → bool               at most 5 orders per IP in 10 minutes
-//   addBooking(b) → b | null            a viewing booking (mcp-server/); null — that apartment and minute are taken
+//   addBooking(b) → b | null            a viewing booking (server/core/viewings.js); null — that apartment and minute are taken
 //   listBookings() → [booking]          newest first
 //   logCall(event)                      the MCP call log; a failed write is only reported
 //   listCalls(limit) → [event]          newest first, at most limit (200)
-const fs = require('fs/promises');
-const path = require('path');
-const crypto = require('crypto');
-const { createStore, createRateLimit } = require('./orderStore');
-const { logEvent, readCalls, KEEP } = require('./callLog');
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import { createStore, createRateLimit } from './orderStore.js';
+import { logEvent, readCalls, KEEP } from './callLog.js';
+import { neon } from '@neondatabase/serverless';
 
 const LIMIT = { max: 5, windowMs: 10 * 60 * 1000 };
 
@@ -106,7 +107,6 @@ const SCHEMA = [
 // batch(texts) runs several statements in one request (the schema: one round trip per function instance, not four).
 function pgDb(url, { query, batch } = {}) {
   if (!query) {
-    const { neon } = require('@neondatabase/serverless');
     const sql = neon(url);
     query = (text, params = []) => sql.query(text, params);
     batch = texts => sql.transaction(texts.map(t => sql.query(t)));
@@ -206,4 +206,4 @@ function createDb({ url = process.env.DATABASE_URL, root, dataDir } = {}) {
   });
 }
 
-module.exports = { createDb, fileDb, pgDb, fileBookings, fileCalls };
+export { createDb, fileDb, pgDb, fileBookings, fileCalls };

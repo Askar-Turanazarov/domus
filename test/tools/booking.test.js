@@ -4,8 +4,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { FILES } from '../tools.js';
-import { parseTime } from '../bookings.js';
+import { FILES } from '../../server/tools/index.js';
+import { parseTime } from '../../server/core/viewings.js';
 import { list, start } from './helpers.js';
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mcp-booking-'));

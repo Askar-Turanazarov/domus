@@ -3,8 +3,9 @@
 // e.g. after `vercel env pull`).
 // Usage: npm run textures [-- --kind floor|wall|rough|furniture] [-- --id oakPlanks] [-- --blob]
 // The facade and site sets are bundled in the project (public/textures/sets/), nothing to download for them.
-const fs = require('fs');
-const path = require('path');
+import fs from 'node:fs';
+import path from 'node:path';
+import { fetchSet, libraryStatus } from '../server/textureFetch.js';
 
 function arg(name) {
   const i = process.argv.indexOf('--' + name);
@@ -13,7 +14,7 @@ function arg(name) {
 
 if (process.argv.includes('--blob')) {
   for (const f of ['.env.local', '.env']) {
-    const p = path.join(__dirname, '..', f);
+    const p = path.join(import.meta.dirname, '..', f);
     if (fs.existsSync(p)) process.loadEnvFile(p);
   }
   if (!process.env.BLOB_READ_WRITE_TOKEN && !process.env.BLOB_STORE_ID) {
@@ -24,8 +25,6 @@ if (process.argv.includes('--blob')) {
   delete process.env.BLOB_READ_WRITE_TOKEN;
   delete process.env.BLOB_STORE_ID;
 }
-
-const { fetchSet, libraryStatus } = require('../server/textureFetch');
 
 (async () => {
   const kind = arg('kind'), id = arg('id');

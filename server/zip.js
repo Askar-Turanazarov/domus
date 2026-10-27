@@ -1,5 +1,5 @@
 // Minimal ZIP reader (no dependencies): reads the central directory and unpacks stored / deflated entries.
-const zlib = require('zlib');
+import zlib from 'node:zlib';
 
 const EOCD = 0x06054b50, CEN = 0x02014b50, LOC = 0x04034b50;
 
@@ -77,4 +77,4 @@ function readEntry(buf, entry, maxSize = 64 * 1024 * 1024) {
   throw new Error('unsupported method ' + entry.method);
 }
 
-module.exports = { listZip, readEntry, writeZip, crc32 };
+export { listZip, readEntry, writeZip, crc32 };

@@ -1,8 +1,8 @@
 // Pages with a language in the address (/ru, /uz, /en, /en/building): the same HTML with <html lang>, <title> and the
 // Open Graph block (link previews in Telegram, WhatsApp, Facebook…) in that language. The static files carry the Russian
 // block with production URLs, so "/" and "/building.html" are the Russian pages; each names itself in og:url.
-const fs = require('fs');
-const path = require('path');
+import fs from 'node:fs';
+import path from 'node:path';
 
 const LANGS = ['ru', 'uz', 'en'];
 const STATIC = { planner: '/', building: '/building.html' };   // the addresses without a language
@@ -62,7 +62,7 @@ function ogBlock(page, lang, origin = SITE, self = `/${lang}${PAGES[page].path}`
 }
 
 const cache = new Map();   // on Vercel the files never change; locally an edited page is read again
-function render(page, lang, origin = SITE, self = undefined, publicDir = path.join(__dirname, '..', 'public')) {
+function render(page, lang, origin = SITE, self = undefined, publicDir = path.join(import.meta.dirname, '..', 'public')) {
   const file = path.join(publicDir, PAGES[page].file);
   if (!cache.has(file) || !process.env.VERCEL) cache.set(file, fs.readFileSync(file, 'utf8'));
   return cache.get(file)
@@ -71,4 +71,4 @@ function render(page, lang, origin = SITE, self = undefined, publicDir = path.jo
     .replace(/<!--og-->[\s\S]*?<!--\/og-->/, ogBlock(page, lang, origin, self));
 }
 
-module.exports = { LANGS, SITE, STATIC, PAGES, TEXT, ogBlock, render };
+export { LANGS, SITE, STATIC, PAGES, TEXT, ogBlock, render };

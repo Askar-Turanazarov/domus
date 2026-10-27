@@ -1,7 +1,7 @@
 // search_apartments: the filters against apartments.json.
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { searchApartments } from '../tools.js';
+import { searchApartments } from '../../server/tools/index.js';
 import { list, start } from './helpers.js';
 
 const s = await start();

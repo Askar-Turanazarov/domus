@@ -6,7 +6,7 @@
     "server.js": {
       "maxDuration": 60,
       "excludeFiles": "{public/vendor/**,public/js/**,public/css/**,public/textures/sets/**,public/textures/lib/**}",
-      "includeFiles": "{public/index.html,public/building.html,catalog.json,templates.json,apartment-templates.json,apartments.json,mcp-server/*.js,buildings/**,public/textures/{library.json,README.md,floor/**,wall/**,wood/**,fabric/**}}"
+      "includeFiles": "{public/index.html,public/building.html,catalog.json,templates.json,apartment-templates.json,apartments.json,buildings/**,public/textures/{library.json,README.md,floor/**,wall/**,wood/**,fabric/**}}"
     }
   },
   "headers": [

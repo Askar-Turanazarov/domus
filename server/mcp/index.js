@@ -1,14 +1,14 @@
 // MCP server «Новостройка» over Streamable HTTP: on the site as POST /mcp (server.js, also on Vercel),
-// or on its own at http://127.0.0.1:3001/mcp (node index.js, for development).
-// Every request needs `Authorization: Bearer <MCP_TOKEN>` (MCP_TOKEN from ../.env); otherwise 401.
+// or on its own at http://127.0.0.1:3001/mcp (node server/mcp/index.js, for development).
+// Every request needs `Authorization: Bearer <MCP_TOKEN>` (MCP_TOKEN from the project's .env); otherwise 401.
 import http from 'node:http';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { createRequire } from 'node:module';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { registerTools, context, dbContext } from './tools.js';
-import { logTexts, ruText } from './logText.js';
+import { registerTools, context, dbContext } from '../tools/index.js';
+import { createDb } from '../db.js';
+import { logTexts, ruText } from '../tools/logText.js';
 
 export { dbContext };
 
@@ -37,7 +37,7 @@ async function readBody(req) {
   }
 }
 
-// files — the tools' context (tools.js context(): paths, or the site's storage via dbContext).
+// files — the tools' context (server/tools/index.js context(): paths, or the site's storage via dbContext).
 export function createHttpServer({ token, files }) {
   if (!token || token.length < MIN_TOKEN) throw new Error(`MCP_TOKEN is missing or shorter than ${MIN_TOKEN} characters (see .env)`);
   const ctx = context(files);
@@ -82,11 +82,10 @@ export async function handleMcp(req, res, { token, ctx, parsed }) {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  try { process.loadEnvFile(fileURLToPath(new URL('../.env', import.meta.url))); } catch { /* no .env: real environment variables only */ }
+  try { process.loadEnvFile(fileURLToPath(new URL('../../.env', import.meta.url))); } catch { /* no .env: real environment variables only */ }
   // the site's storage: statuses, bookings and the call log in Postgres with DATABASE_URL, in files otherwise
-  const { createDb } = createRequire(import.meta.url)('../server/db.js');
-  const root = fileURLToPath(new URL('..', import.meta.url));
-  const db = createDb({ root, dataDir: process.env.DATA_DIR || fileURLToPath(new URL('../data', import.meta.url)) });
+  const root = fileURLToPath(new URL('../..', import.meta.url));
+  const db = createDb({ root, dataDir: process.env.DATA_DIR || fileURLToPath(new URL('../../data', import.meta.url)) });
   const port = Number(process.env.MCP_PORT) || 3001;
   const host = '127.0.0.1';
   createHttpServer({ token: process.env.MCP_TOKEN, files: dbContext(db) }).listen(port, host, () => console.log(`MCP «Новостройка»: http://${host}:${port}/mcp`));

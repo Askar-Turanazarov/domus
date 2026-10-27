@@ -2,7 +2,6 @@
 // on the manager's /api/bookings, the call log on /api/calls without the client's name and phone.
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -11,7 +10,7 @@ const dir = mkdtempSync(join(tmpdir(), 'fsp3d-mcp-'));
 const TOKEN = 'site-mcp-test-token-'.padEnd(40, 'x');
 Object.assign(process.env, { DATA_DIR: dir, BOOKING_FILE: join(dir, 'booking.json'), CALLS_FILE: join(dir, 'mcp-calls.jsonl'),
   ADMIN_TOKEN: 'mcp-site-test-admin-token', MCP_TOKEN: TOKEN, DATABASE_URL: '' });
-const app = createRequire(import.meta.url)('../server.js');
+const { default: app } = await import('../server.js');
 const server = app.listen(0);
 after(() => server.close());
 const base = () => `http://127.0.0.1:${server.address().port}`;

@@ -2,18 +2,16 @@
 // the Bearer token for scripts, changes from another site.
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import * as auth from '../server/adminAuth.js';
 
-const require = createRequire(import.meta.url);
-const auth = require('../server/adminAuth.js');
 const PASSWORD = 'correct horse battery';
 process.env.DATA_DIR = mkdtempSync(join(tmpdir(), 'fsp3d-'));
 process.env.ADMIN_TOKEN = 'login-test-token-1234567';
 process.env.ADMIN_PASSWORD_HASH = await auth.hashPassword(PASSWORD);
-const app = require('../server.js');
+const { default: app } = await import('../server.js');
 const server = app.listen(0);
 after(() => server.close());
 const base = () => `http://127.0.0.1:${server.address().port}`;

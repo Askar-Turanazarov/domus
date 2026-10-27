@@ -1,21 +1,20 @@
-// The tools of «Новостройка»: apartments from ../apartments.json. Prices in sum (integers), area in m², rooms 0 = studio.
+// The tools of «Новостройка»: apartments from the project's apartments.json. Prices in sum (integers), area in m², rooms 0 = studio.
 import fs from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { createRequire } from 'node:module';
 import { z } from 'zod';
-import { annuity } from './mortgage.js';
-import { bookViewing, BookingError } from './bookings.js';
+import { annuity } from '../core/finance.js';
+import { bookViewing, BookingError } from '../core/viewings.js';
 import { logTexts, ruText } from './logText.js';
-import { safeArgs } from './calllog.js';
+import { safeArgs } from './journal.js';
+import { fileBookings, fileCalls } from '../db.js';
 
-const root = f => fileURLToPath(new URL('../' + f, import.meta.url));
+const root = f => fileURLToPath(new URL('../../' + f, import.meta.url));
 export const FILES = { apartments: root('apartments.json'), bookings: root('booking.json'), calls: root('mcp-calls.jsonl') };
 
 // What the tools work with: { apartments — path, statuses() — the manager's statuses (optional), addBooking(b), logCall(e) }.
 // files — either that, or the paths { apartments, bookings, calls } (tests, the local run without the site's storage).
 export function context(files = FILES) {
   if (files.addBooking) return files;
-  const { fileBookings, fileCalls } = createRequire(import.meta.url)('../server/db.js');
   return { ...files, ...fileBookings(files.bookings), logCall: files.calls ? fileCalls(files.calls).logCall : async () => {} };
 }
 
@@ -74,7 +73,7 @@ export function applyStatuses(list, overrides) {
   });
 }
 
-// files.statuses — optional async () → the manager's statuses (index.js passes the site's storage, server/db.js).
+// files.statuses — optional async () → the manager's statuses (server/mcp/index.js passes the site's storage, server/db.js).
 const apartmentsOf = async files => applyStatuses(await readApartments(files.apartments), files.statuses ? await files.statuses() : {});
 
 // Pure: the filters, free only by default, cheapest first.
@@ -93,7 +92,7 @@ export function getApartment(list, no) {
 
 const APT = z.object({ no: z.number(), floor: z.number(), rooms: z.number(), area: z.number(), price: z.number(), status: z.string() });
 
-// seen.logged — set once a tool ran and wrote its line (index.js logs the calls the SDK refused before any tool ran).
+// seen.logged — set once a tool ran and wrote its line (server/mcp/index.js logs the calls the SDK refused before any tool ran).
 // files — the context (see context() above).
 export function registerTools(server, files = context(), seen = {}) {
   const wrap = (tool, handler) => safe(files, tool, handler, seen);

@@ -1,15 +1,14 @@
 // Server routes on a real server (port 0) with a temporary data folder.
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import pkg from '../package.json' with { type: 'json' };
 
-const require = createRequire(import.meta.url);
 process.env.DATA_DIR = mkdtempSync(join(tmpdir(), 'fsp3d-'));
 process.env.ADMIN_TOKEN = 'server-test-token-123';
-const app = require('../server.js');
+const { default: app } = await import('../server.js');
 const server = app.listen(0);
 after(() => server.close());
 const base = () => `http://127.0.0.1:${server.address().port}`;
@@ -27,7 +26,7 @@ test('GET /api/health: ok, storage kind and version, not cached', async () => {
   const res = await fetch(`${base()}/api/health`);
   assert.equal(res.status, 200);
   assert.equal(res.headers.get('cache-control'), 'no-store');
-  assert.deepEqual(await res.json(), { ok: true, db: 'files', version: require('../package.json').version });
+  assert.deepEqual(await res.json(), { ok: true, db: 'files', version: pkg.version });
 });
 
 test('security headers on pages, static files and the API', async () => {

@@ -1,7 +1,7 @@
 // The call log's result line in ru / uz / en, and reading back the lines logged in Russian only.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { logTexts, fromLegacy } from '../logText.js';
+import { logTexts, fromLegacy } from '../../server/tools/logText.js';
 
 const VARS = { n: 2, no: 28, rooms: 2, area: 70.7, floor: 5, price: 873_900_000, status: 'free', perM2: 12_360_679,
   monthly: 9_879_714, overpay: 1_298_348_431, when: '2026-10-22 15:00', hint: true };

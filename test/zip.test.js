@@ -1,11 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
 import { styleOf, surfacesOf } from '../public/js/style.js';
-
-const require = createRequire(import.meta.url);
-const { listZip, readEntry, writeZip, crc32 } = require('../server/zip.js');
-const { mapsFromZip, downloadable } = require('../server/textureFetch.js');
+import { listZip, readEntry, writeZip, crc32 } from '../server/zip.js';
+import { mapsFromZip, downloadable } from '../server/textureFetch.js';
 
 const files = [
   { name: 'a.txt', data: Buffer.from('hello hello hello hello') },

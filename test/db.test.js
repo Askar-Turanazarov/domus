@@ -2,14 +2,11 @@
 // the test writes orders and statuses there).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
-
-const require = createRequire(import.meta.url);
-const { fileDb, pgDb } = require('../server/db.js');
+import { fileDb, pgDb } from '../server/db.js';
 
 function contract(name, make, opts = {}) {
   test(`db (${name}): orders, pictures, statuses, limit`, opts, async () => {

@@ -3,11 +3,12 @@
 // leaves: color / opacity) — into public/textures/lib/<id>/, or into Vercel Blob (textures/lib/<id>/) when
 // the project has a Blob store (BLOB_READ_WRITE_TOKEN or BLOB_STORE_ID): functions there have no disk that lasts. Blob files are served through our own
 // /textures/lib/:id/:file (same origin, cached by the CDN), so the pages load them from the same address either way.
-const fs = require('fs/promises');
-const path = require('path');
-const { listZip, readEntry } = require('./zip');
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { listZip, readEntry } from './zip.js';
+import * as blobSdk from '@vercel/blob';
 
-const ROOT = path.join(__dirname, '..', 'public', 'textures');
+const ROOT = path.join(import.meta.dirname, '..', 'public', 'textures');
 const LIB_DIR = path.join(ROOT, 'lib');
 const MAX_ZIP = 40 * 1024 * 1024;
 const TIMEOUT = 50 * 1000;   // below the 60 s function limit on Vercel
@@ -41,7 +42,7 @@ const diskStore = {
 
 // Vercel Blob: one list of textures/lib/ (cached for 15 minutes: a list is an "advanced operation" of the plan's
 // quota; the sets written here are added to it at once) tells which maps are there.
-function blobStore(token, sdk = require('@vercel/blob')) {
+function blobStore(token, sdk = blobSdk) {
   const PREFIX = 'textures/lib/';
   let names = null, at = 0;
   async function list() {
@@ -173,4 +174,4 @@ async function fetchSet(id, { log = () => {} } = {}) {
   return run;
 }
 
-module.exports = { fetchSet, libraryStatus, readLibMap, mapsFromZip, downloadable, blobStore, LIB_DIR };
+export { fetchSet, libraryStatus, readLibMap, mapsFromZip, downloadable, blobStore, LIB_DIR };

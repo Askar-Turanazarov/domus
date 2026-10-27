@@ -2,10 +2,11 @@
 // Without it the browser finds the modules one level of imports at a time: on a slow line (≈ 1 s a request)
 // the planner waited for ~8 such waves before anything ran; with the list all of them load in one wave.
 // test/preload.test.js checks that the lists in the pages match the imports.
-const fs = require('fs');
-const path = require('path');
+import fs from 'node:fs';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
-const PUBLIC = path.join(__dirname, '..', 'public');
+const PUBLIC = path.join(import.meta.dirname, '..', 'public');
 // Per page: the modules to preload at once (the entry's imports and what it imports on start), and the 3D modules
 // the planner imports later (window.preload3d() — at once in the embedded floor view, on idle or on «3D» otherwise).
 const PAGES = {
@@ -15,7 +16,7 @@ const PAGES = {
 const MAP = { three: '/vendor/three/build/three.module.js', 'three/addons/': '/vendor/three/examples/jsm/' };
 
 function fileOf(url) {
-  return url.startsWith('/vendor/three/') ? path.join(__dirname, '..', 'node_modules', 'three', url.slice(14)) : path.join(PUBLIC, url);
+  return url.startsWith('/vendor/three/') ? path.join(import.meta.dirname, '..', 'node_modules', 'three', url.slice(14)) : path.join(PUBLIC, url);
 }
 
 function resolve(spec, from) {
@@ -74,5 +75,5 @@ function update(write = true) {
   return out;
 }
 
-module.exports = { graph, lists, update, PAGES };
-if (require.main === module) console.log(update());
+export { graph, lists, update, PAGES };
+if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) console.log(update());
