@@ -1,0 +1,88 @@
+/* Admin (12 §1): the tokens, buttons, inputs and toast come from /css/style.css; here only the layout of the admin. */
+body.adm2 { display: block; min-height: 100%; }
+.adm2-center { min-height: 100vh; display: grid; place-content: center; gap: 18px; padding: 24px 16px; justify-items: center; }
+.adm2-login { display: grid; gap: 12px; width: min(380px, 100%); padding: 28px 24px; background: var(--card-bg); border: 1px solid var(--hairline); border-radius: 14px; box-shadow: var(--sh-2); }
+.adm2-login h1 { margin: 0; font: 600 28px/1.1 var(--f-display, serif); letter-spacing: .01em; }
+.adm2-login h2 { margin: 0 0 6px; font-size: 13px; font-weight: 500; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
+.adm2-login label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+.adm2-err { color: var(--danger); margin: 0; min-height: 1.2em; font-size: 13px; }
+.adm2-empty, .adm2-muted { color: var(--muted); }
+.adm2-empty { padding: 32px 16px; text-align: center; }
+
+.adm2-top { display: flex; align-items: center; gap: 12px; padding: 10px 18px; border-bottom: 1px solid var(--line); background: var(--surface); position: sticky; top: 0; z-index: 20; flex-wrap: wrap; }
+.adm2-brand { display: flex; align-items: baseline; gap: 8px; margin-right: auto; }
+.adm2-brand b { font: 600 20px/1 var(--f-display, serif); }
+.adm2-brand span { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); }
+.adm2-who { display: grid; text-align: right; line-height: 1.2; }
+.adm2-name { font-weight: 600; }
+.adm2-role { font-size: 11px; color: var(--muted); }
+.adm2-warn { background: color-mix(in srgb, var(--st-held) 20%, transparent); border-bottom: 1px solid var(--st-held); padding: 8px 18px; font-size: 13px; }
+
+.adm2-body { display: grid; grid-template-columns: 180px minmax(0, 1fr); min-height: calc(100vh - 56px); }
+.adm2-nav { display: flex; flex-direction: column; gap: 2px; padding: 14px 10px; border-right: 1px solid var(--line); background: var(--bg-2); }
+.adm2-nav a { padding: 8px 12px; border-radius: 8px; color: var(--muted); text-decoration: none; font-size: 13px; }
+.adm2-nav a:hover { color: var(--text); background: var(--surface-hi); }
+.adm2-nav a.active { color: var(--gold-2); background: var(--gold-soft, rgba(201, 169, 110, .12)); }
+.adm2-view { padding: 18px 20px 40px; min-width: 0; }
+.adm2-h1 { margin: 0 0 12px; font: 600 26px/1.1 var(--f-display, serif); }
+
+/* chessboard */
+.adm2-filters { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: end; margin-bottom: 8px; }
+.adm2-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.adm2-chip { border: 1px solid var(--line-2); background: transparent; color: var(--text); border-radius: 999px; padding: 5px 12px; font: inherit; font-size: 12px; cursor: pointer; }
+.adm2-chip:hover { border-color: var(--gold); }
+.adm2-chip.on { background: var(--gold-soft, rgba(201, 169, 110, .15)); border-color: var(--gold); color: var(--gold-2); }
+.adm2-chip.st-free.on { background: var(--st-free-bg); border-color: var(--st-free); color: var(--text); }
+.adm2-chip.st-held.on { background: var(--st-held-bg); border-color: var(--st-held); color: var(--text); }
+.adm2-chip.st-booked.on { background: var(--st-booked-bg); border-color: var(--st-booked); color: var(--text); }
+.adm2-chip.st-sold.on { background: var(--st-sold-bg); border-color: var(--st-sold); color: var(--text); }
+.adm2-chip.soon.on { border-color: var(--danger); color: var(--danger); background: color-mix(in srgb, var(--danger) 14%, transparent); }
+.adm2-sel { display: grid; gap: 2px; font-size: 11px; color: var(--muted); }
+.adm2-sel select { min-width: 110px; }
+.adm2-info { margin: 0 0 10px; font-size: 12px; }
+.adm2-split { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-items: start; }
+body.adm2-card-open .adm2-split { grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); }
+.adm2-board { display: grid; gap: 6px; }
+.adm2-floor { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 8px; align-items: center; }
+.adm2-floor-n { font-size: 11px; color: var(--muted); text-align: right; }
+.adm2-cells { display: grid; grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); gap: 5px; }
+.adm2-cell { display: grid; place-items: center; gap: 0; min-height: 54px; padding: 4px 2px; border-radius: 8px; border: 1px solid transparent; color: var(--text); font: inherit; cursor: pointer; line-height: 1.15; }
+.adm2-cell b { font-size: 15px; }
+.adm2-cell small { font-size: 10.5px; color: var(--muted); }
+.adm2-cell em { font-size: 10px; font-style: normal; color: var(--text); opacity: .85; }
+.adm2-cell.st-free { background: var(--st-free-bg); border-color: var(--st-free); }
+.adm2-cell.st-held { background: var(--st-held-bg); border-color: var(--st-held); }
+.adm2-cell.st-booked { background: var(--st-booked-bg); border-color: var(--st-booked); }
+.adm2-cell.st-sold { background: var(--st-sold-bg); border-color: var(--st-sold); color: var(--muted); }
+.adm2-cell.soon { box-shadow: 0 0 0 2px var(--danger); }
+.adm2-cell.dim { opacity: .22; }
+.adm2-cell.sel { outline: 2px solid var(--gold-2); outline-offset: 1px; }
+.adm2-cell:hover { filter: brightness(1.15); }
+
+/* card */
+.adm2-side { background: var(--card-bg); border: 1px solid var(--hairline); border-radius: 12px; padding: 14px 16px; position: sticky; top: 70px; max-height: calc(100vh - 90px); overflow: auto; }
+.adm2-side-head { display: flex; align-items: center; gap: 8px; }
+.adm2-side-head h2 { margin: 0 auto 0 0; font: 600 20px/1.1 var(--f-display, serif); }
+.adm2-badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line-2); white-space: nowrap; }
+.adm2-badge.st-free { border-color: var(--st-free); background: var(--st-free-bg); }
+.adm2-badge.st-held, .adm2-badge.bk-held { border-color: var(--st-held); background: var(--st-held-bg); }
+.adm2-badge.st-booked, .adm2-badge.bk-booked { border-color: var(--st-booked); background: var(--st-booked-bg); }
+.adm2-badge.st-sold, .adm2-badge.bk-converted { border-color: var(--st-sold); background: var(--st-sold-bg); }
+.adm2-facts, .adm2-booking { display: grid; gap: 4px; margin: 10px 0; }
+.adm2-kv { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
+.adm2-kv span { color: var(--muted); }
+.adm2-kv b { font-weight: 600; text-align: right; }
+.adm2-booking { padding: 10px; border: 1px solid var(--line-2); border-radius: 8px; }
+.adm2-booking-head { display: flex; justify-content: space-between; align-items: center; }
+.adm2-sec { margin-top: 14px; }
+.adm2-sec h3 { margin: 0 0 6px; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.adm2-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 13px; }
+
+@media (max-width: 900px) {
+  .adm2-body { grid-template-columns: minmax(0, 1fr); }
+  .adm2-nav { flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+  body.adm2-card-open .adm2-split { grid-template-columns: minmax(0, 1fr); }
+  .adm2-side { position: static; max-height: none; }
+  .adm2-floor { grid-template-columns: 1fr; }
+  .adm2-floor-n { text-align: left; }
+}

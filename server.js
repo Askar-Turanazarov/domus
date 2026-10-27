@@ -12,6 +12,7 @@ import { writeZip } from './server/zip.js';
 import { fetchSet, libraryStatus, readLibMap } from './server/textureFetch.js';
 import { BUILDING_ID, createBuildings } from './server/buildings.js';
 import { mountAdmin } from './server/http/admin.js';
+import { mountAdminBoard } from './server/http/adminBoard.js';
 import * as pages from './server/pages.js';
 import { loadEnv } from './server/env.js';
 import { mountJobs, background } from './server/events/routes.js';
@@ -72,9 +73,13 @@ mountBookings(app, db, coreOpts);          // booking: hold, personal link (13 �
 mountChat(app, db, { turns, tools }, coreOpts);   // the site chat: POST /api/chat (SSE), confirm, feedback, messages (13 §6)
 mountPayments(app, db, coreOpts);          // payments: start, emulators (05 §12); own 64 KB JSON parser
 const staffAuth = mountAdmin(app, db, { env: process.env });   // /api/admin/login|logout|me and the gate on /api/admin/*, /api/dashboard/* (12 §2)
+mountAdminBoard(app, db);                  // the chessboard and the apartment card (12 §3)
 mountPersonalPages(app, { publicDir: path.join(__dirname, 'public'), legalDir: path.join(__dirname, 'legal') });   // /b/…, /pay/card|click/…, /legal/…
 app.use(express.json({ limit: '4mb' }));   // the order carries the drawing PNG and a 3D picture (≤ 1.5 MB each); Vercel takes ≤ 4.5 MB
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));   // "/" is rendered below
+// The admin app (12 §1): a static shell; Vercel serves public/admin/ itself, the function only answers the bare /admin.
+app.get('/admin', (req, res, next) => (req.originalUrl.split('?')[0] === '/admin' ? res.redirect(302, '/admin/') : next()));   // routing is not strict: "/admin/" matches too
+app.get('/admin/', (req, res) => res.set({ 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' }).sendFile(path.join(__dirname, 'public', 'admin', 'index.html')));
 app.get('/favicon.ico', (req, res) => res.redirect(301, '/favicon.svg'));
 // Vercel serves public/ from its CDN but sends "/" to the function: the showcase from here (D-27; the planner is /:lang/planner/).
 // The pages with the language in the address (and "/" = Russian): link previews (Open Graph) and the interface in that language.
