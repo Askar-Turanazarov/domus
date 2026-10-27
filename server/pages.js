@@ -1,16 +1,16 @@
-// Pages with a language in the address (/ru, /uz, /en, /en/building): the same HTML with <html lang>, <title> and the
-// Open Graph block (link previews in Telegram, WhatsApp, Facebook…) in that language. The static files carry the Russian
-// block with production URLs, so "/" and "/building.html" are the Russian pages; each names itself in og:url.
+// Pages with a language in the address (/ru, /uz, /en — the showcase, D-27; /en/planner): the same HTML with <html lang>,
+// <title> and the Open Graph block (link previews in Telegram, WhatsApp, Facebook…) in that language. The static files
+// carry the Russian block with production URLs, so "/" and "/index.html" are the Russian pages; each names itself in og:url.
 import fs from 'node:fs';
 import path from 'node:path';
 
 const LANGS = ['ru', 'uz', 'en'];
-const STATIC = { planner: '/', building: '/building.html' };   // the addresses without a language
+const STATIC = { planner: '/index.html', building: '/' };   // the addresses without a language
 const SITE = 'https://3d-furniture-studio-mcp.vercel.app';
 const LOCALE = { ru: 'ru_RU', uz: 'uz_UZ', en: 'en_US' };
 const PAGES = {
-  planner: { file: 'index.html', path: '', image: 'planner' },
-  building: { file: 'building.html', path: '/building', image: 'building' }
+  planner: { file: 'index.html', path: '/planner', image: 'planner' },
+  building: { file: 'building.html', path: '', image: 'building' }
 };
 const TEXT = {
   planner: {
@@ -45,7 +45,7 @@ function ogBlock(page, lang, origin = SITE, self = `/${lang}${PAGES[page].path}`
     meta('name', 'description', description),
     `  <link rel="canonical" href="${esc(url)}">`,
     ...LANGS.map(l => `  <link rel="alternate" hreflang="${l}" href="${esc(`${origin}/${l}${p.path}`)}">`),
-    `  <link rel="alternate" hreflang="x-default" href="${esc(origin + (p.path ? '/building.html' : '/'))}">`,
+    `  <link rel="alternate" hreflang="x-default" href="${esc(origin + STATIC[page])}">`,
     meta('property', 'og:type', 'website'),
     meta('property', 'og:site_name', 'Domus'),
     meta('property', 'og:title', title),

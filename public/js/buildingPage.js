@@ -354,7 +354,7 @@ function openInPlanner(a) {
     btn.innerHTML = was;
     ext?.pause(['aptDlg', 'floor3dDlg', 'reqDlg'].some(id => $(id).open));
   }, { once: true });
-  location.assign(langPath(''));
+  location.assign(langPath('/planner'));
 }
 
 // From the street through the doors: a short fade, then the lobby in the floor dialog (the walker at the doors).
@@ -369,7 +369,7 @@ async function enterLobby() {
   await new Promise(r => setTimeout(r, 320));
   ext?.endWalk();
   sync3dHud();
-  showFloor3d(`${t('bld.lobbyFloor')} · 3D`, `/?embed=building&b=${encodeURIComponent(b.id)}&floor=1&from=street&lang=${getLang()}`, t('bld.entering'));
+  showFloor3d(`${t('bld.lobbyFloor')} · 3D`, `/index.html?embed=building&b=${encodeURIComponent(b.id)}&floor=1&from=street&lang=${getLang()}`, t('bld.entering'));
   fade.remove();
   entering = false;
 }
@@ -377,7 +377,7 @@ async function enterLobby() {
 // The floor in 3D: the planner's 3D view embedded (temporary project, nothing saved), walking from the entrance.
 function open3d(a) {
   showFloor3d(`${t('bld.apt', { no: a.no })} · ${t('bld.floor', { n: a.floor })} · 3D`,
-    `/?embed=floor&b=${encodeURIComponent(b.id)}&apt=${a.no}&lang=${getLang()}`, t('bld.loading3d'));
+    `/index.html?embed=floor&b=${encodeURIComponent(b.id)}&apt=${a.no}&lang=${getLang()}`, t('bld.loading3d'));
 }
 
 // The dialog shows "loading" over the frame until the scene inside reports it is ready to walk.

@@ -40,7 +40,7 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '4mb' }));   // the order carries the drawing PNG and a 3D picture (≤ 1.5 MB each); Vercel takes ≤ 4.5 MB
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));   // "/" is rendered below
 app.get('/favicon.ico', (req, res) => res.redirect(301, '/favicon.svg'));
-// Vercel serves public/ from its CDN but sends "/" to the function: the planner page from here.
+// Vercel serves public/ from its CDN but sends "/" to the function: the showcase from here (D-27; the planner is /:lang/planner/).
 // The pages with the language in the address (and "/" = Russian): link previews (Open Graph) and the interface in that language.
 const sendPage = (page, self) => (req, res) => {
   const ua = req.get('user-agent') || '';
@@ -48,9 +48,10 @@ const sendPage = (page, self) => (req, res) => {
   res.set('Cache-Control', 'public, max-age=0, s-maxage=3600').type('html')
     .send(pages.render(page, req.params.lang ?? 'ru', `${req.protocol}://${req.get('host')}`, self));
 };
-app.get('/', sendPage('planner', pages.STATIC.planner));
-app.get('/:lang(ru|uz|en)/?', sendPage('planner'));
-app.get('/:lang(ru|uz|en)/building/?', sendPage('building'));
+app.get('/', sendPage('building', pages.STATIC.building));
+app.get('/:lang(ru|uz|en)/?', sendPage('building'));
+app.get('/:lang(ru|uz|en)/building/?', sendPage('building'));   // the old Domus address, same page (its canonical is /:lang)
+app.get('/:lang(ru|uz|en)/planner/?', sendPage('planner'));
 // three.js from the package (on Vercel this runs in the function: let the CDN keep the files, the version is pinned)
 app.use('/vendor/three', express.static(path.join(__dirname, 'node_modules', 'three'), {
   setHeaders: res => res.set('Cache-Control', 'public, max-age=604800, s-maxage=31536000')

@@ -335,7 +335,7 @@ export const dict = {
 const LANGS = ['ru', 'uz', 'en'];
 // The language of the page: /en… in the address, ?lang= (the embedded 3D), "/" and the showcase without a language are
 // Russian, other pages (print, admin) keep the last choice.
-const PAGE_PATH = /^\/(?:(ru|uz|en)(?=\/|$))?\/?(building(?:\.html)?|index\.html)?\/?$/;
+const PAGE_PATH = /^\/(?:(ru|uz|en)(?=\/|$))?\/?(building(?:\.html)?|index\.html|planner)?\/?$/;
 const page = typeof location === 'undefined' ? null : location;
 let lang = 'ru';
 try {
@@ -348,7 +348,7 @@ try {
   else if (LANGS.includes(saved)) lang = saved;
 } catch { /* storage unavailable */ }
 
-// The address of a page in the current language: langPath('') → /en, langPath('/building') → /en/building.
+// The address of a page in the current language: langPath('') → /en (the showcase), langPath('/planner') → /en/planner.
 export function langPath(p = '') { return `/${lang}${p}`; }
 
 // After a switch, the address of the planner / showcase shows the language, so a copied link opens the same one.
@@ -356,7 +356,7 @@ function syncAddress() {
   if (!page || new URLSearchParams(page.search).has('embed')) return;
   const m = page.pathname.match(PAGE_PATH);
   if (!m) return;
-  const target = langPath(m[2]?.startsWith('building') ? '/building' : '');
+  const target = langPath(m[2] === 'planner' || m[2] === 'index.html' ? '/planner' : '');
   if (target !== page.pathname) history.replaceState(history.state, '', target + page.search + page.hash);
 }
 

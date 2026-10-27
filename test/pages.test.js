@@ -1,4 +1,5 @@
-// Pages with the language in the address (/ru, /uz, /en, …/building): <html lang>, title and the Open Graph block.
+// Pages with the language in the address (/ru — the showcase, /ru/planner, the old /ru/building): <html lang>, title and
+// the Open Graph block (11 §2, D-27).
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -10,9 +11,9 @@ after(() => server.close());
 const base = () => `http://127.0.0.1:${server.address().port}`;
 const og = (html, key) => html.match(new RegExp(`<meta property="${key}" content="([^"]*)">`))?.[1];
 
-test('/ru, /uz/, /en, /en/building: the page in that language with its preview', async () => {
-  const cases = [['/ru', 'ru', 'planner', ''], ['/uz/', 'uz', 'planner', ''], ['/en', 'en', 'planner', ''],
-    ['/en/building', 'en', 'building', '/building'], ['/uz/building/', 'uz', 'building', '/building']];
+test('/ru, /uz/, /en: the showcase; /en/planner: the planner; the old /uz/building/ still the showcase', async () => {
+  const cases = [['/ru', 'ru', 'building', ''], ['/uz/', 'uz', 'building', ''], ['/en', 'en', 'building', ''],
+    ['/en/planner', 'en', 'planner', '/planner'], ['/ru/planner/', 'ru', 'planner', '/planner'], ['/uz/building/', 'uz', 'building', '']];
   for (const [url, lang, page, p] of cases) {
     const res = await fetch(base() + url);
     assert.equal(res.status, 200, url);
@@ -25,14 +26,15 @@ test('/ru, /uz/, /en, /en/building: the page in that language with its preview',
     assert.equal(og(html, 'og:locale'), { ru: 'ru_RU', uz: 'uz_UZ', en: 'en_US' }[lang]);
     assert.match(html, /<meta name="twitter:card" content="summary_large_image">/);
     assert.match(html, /href="\/css\/style\.css"/, 'assets are absolute: /en/ does not break them');
+    assert.match(html, page === 'building' ? /id="bldName"/ : /id="buildingLink"/, `${url}: the right page`);
   }
 });
 
 test('an unknown language is not a page', async () => {
-  for (const url of ['/de', '/xx/building', '/en/nope']) assert.notEqual((await fetch(base() + url)).status, 200, url);
+  for (const url of ['/de', '/xx/building', '/en/nope', '/xx/planner']) assert.notEqual((await fetch(base() + url)).status, 200, url);
 });
 
-test('static "/" and "/building.html" are the Russian pages with production URLs', async () => {
+test('static "/index.html" and "/building.html" are the Russian pages with production URLs; "/" is the showcase', async () => {
   for (const [file, page] of [['index.html', 'planner'], ['building.html', 'building']]) {
     const html = readFileSync(new URL(`../public/${file}`, import.meta.url), 'utf8');
     assert.ok(html.includes(pages.ogBlock(page, 'ru', pages.SITE, pages.STATIC[page])), `${file}: run the block from server/pages.js again`);
@@ -40,6 +42,7 @@ test('static "/" and "/building.html" are the Russian pages with production URLs
   }
   // "/" names itself, not /ru: with a foreign og:url / canonical Telegram showed no preview for the bare address.
   const html = await (await fetch(base() + '/')).text();
+  assert.equal(og(html, 'og:title'), pages.TEXT.building.ru[0].replace(/"/g, '&quot;'));
   assert.equal(og(html, 'og:locale'), 'ru_RU');
   assert.equal(og(html, 'og:url'), base() + '/');
   assert.match(html, new RegExp(`<link rel="canonical" href="${base()}/">`));
@@ -61,4 +64,13 @@ test('preview pictures: one per page and language, PNG 1200×630, small enough f
       assert.ok(png.length < 1024 * 1024, `${page}-${lang}: ${png.length} bytes`);
     }
   }
+});
+
+test('links from the showcase lead to the planner at /:lang/planner, the embedded 3D to /index.html (D-27)', () => {
+  const read = f => readFileSync(new URL(`../public/${f}`, import.meta.url), 'utf8');
+  assert.match(read('building.html'), /href="\/index\.html" data-lang-href="\/planner"/);
+  assert.match(read('index.html'), /href="\/" data-lang-href="" id="buildingLink"/);
+  const js = read('js/buildingPage.js');
+  assert.match(js, /location\.assign\(langPath\('\/planner'\)\)/);
+  assert.doesNotMatch(js, /`\/\?embed=/, 'the bare "/" is the showcase now');
 });

@@ -1,5 +1,5 @@
-// Floor view embedded in the showcase (building.html → iframe /?embed=floor&b=<id>&apt=<no>, or
-// /?embed=building&b=<id>&floor=<n> for a floor without an apartment, floor 1 = the lobby): the chosen apartment,
+// Floor view embedded in the showcase (building.html → iframe /index.html?embed=floor&b=<id>&apt=<no>, or
+// /index.html?embed=building&b=<id>&floor=<n> for a floor without an apartment, floor 1 = the lobby): the chosen apartment,
 // the floor corridor (or the lobby) are a temporary project (full detail, never saved), the other apartments
 // a low-detail shell around them. From the corridor the doors of the neighbours lead in: free and booked ones
 // open (the detailed apartment is swapped behind a short fade), sold ones stay locked. The lift goes to any
