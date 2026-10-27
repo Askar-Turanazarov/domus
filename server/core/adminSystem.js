@@ -68,13 +68,30 @@ function stateOf(rows, key, at) {
 // 06 §9.3 for the staff: the key, the status and the demo switch of each provider, the models with the counters of the day,
 // «who answers now» for the roles, the spent money. ai_provider_state is read from the base (the copies in memory of other
 // instances are up to 10 s late).
-export async function aiPanel(q, actor, opts = {}) {
-  need(actor, 'head');
+// The first model of each chain that has a key, is not switched off by hand and is not in cooldown / disabled (06 §4, §11):
+// { tools, fast } → { model, mode: 'primary' | 'reserve' | 'scripts' }. No role check: the dashboard banner shows it to every staff member.
+export async function aiState(q, opts = {}) {
   const ctx = context(opts);
   const at = ctx.now().getTime();
   const env = ctx.env;
   const rows = new Map((await q.query('SELECT key, status, cooldown_until, reason FROM ai_provider_state')).map(r => [r.key, r]));
   const sw = (await q.one("SELECT value FROM settings WHERE key = 'ai'"))?.value ?? DEFAULT_SETTINGS.ai;
+  const answering = {};
+  for (const [role, chain] of Object.entries(CHAINS)) {
+    const at0 = chain.findIndex((name, i) => {
+      const p = MODELS[name].provider;
+      return hasKey(p, env) && !(sw.geminiDisabled && p === 'gemini') && !(sw.primaryDisabled && i === 0)
+        && !stateOf(rows, p, at) && !stateOf(rows, `${p}:${name}`, at);
+    });
+    answering[role] = at0 < 0 ? { model: null, mode: 'scripts' } : { model: chain[at0], mode: at0 === 0 ? 'primary' : 'reserve' };
+  }
+  return { rows, sw, answering, at, env };
+}
+
+export async function aiPanel(q, actor, opts = {}) {
+  need(actor, 'head');
+  const ctx = context(opts);
+  const { rows, sw, answering, at, env } = await aiState(q, ctx);
   const costs = await aiCosts(q, { days: 1 }, actor, ctx);
   const used = new Map(costs.today.gemini.map(g => [g.model, g.used]));
 
@@ -88,16 +105,6 @@ export async function aiPanel(q, actor, opts = {}) {
     providers[p] = { key: hasKey(p, env), status: whole?.status ?? 'ok', ...(whole ?? {}), ...(p === 'gemini' ? { demoDisabled: Boolean(sw.geminiDisabled) } : {}), models };
   }
 
-  // The first model of a chain that has a key, is not switched off by hand and is not in cooldown / disabled.
-  const answering = {};
-  for (const [role, chain] of Object.entries(CHAINS)) {
-    const at0 = chain.findIndex((name, i) => {
-      const p = MODELS[name].provider;
-      return hasKey(p, env) && !(sw.geminiDisabled && p === 'gemini') && !(sw.primaryDisabled && i === 0)
-        && !stateOf(rows, p, at) && !stateOf(rows, `${p}:${name}`, at);
-    });
-    answering[role] = at0 < 0 ? { model: null, mode: 'scripts' } : { model: chain[at0], mode: at0 === 0 ? 'primary' : 'reserve' };
-  }
   return {
     providers, answering, embeddings: hasKey('gemini', env) && !sw.geminiDisabled && !stateOf(rows, 'gemini', at) ? 'ok' : 'keywords',
     switches: { geminiDisabled: Boolean(sw.geminiDisabled), primaryDisabled: Boolean(sw.primaryDisabled), geminiTier: sw.geminiTier },
