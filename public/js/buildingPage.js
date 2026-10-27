@@ -10,6 +10,7 @@ import { DEPTH, TYPES, localRoomName } from './building.js';
 import { FILE_FORMAT, VERSION } from './storage.js';
 import { photoAuto } from './3d/perf.js';
 import { initTheme, getTheme, onThemeChange } from './theme.js';
+import { groupNum, phone as fmtPhone, linkParts } from './bkFormat.js';
 
 const $ = id => document.getElementById(id);
 const BUILDING = new URLSearchParams(location.search).get('b') || 'chinor-park';
@@ -322,6 +323,8 @@ function openCard(a) {
     el('td', { textContent: roomName(r) }),
     el('td', { className: 'num', textContent: `${num(r.room.L / 100, 2)} × ${num(r.room.W / 100, 2)}` }),
     el('td', { className: 'num', textContent: `${num(roomArea(r))} ${t('unit.m2')}` })))));
+  $('aptBook').hidden = a.status !== 'free';
+  $('aptRequest').classList.toggle('primary', a.status !== 'free');
   $('aptRequest').disabled = a.status === 'sold';
   $('aptRequest').title = a.status === 'sold' ? t('bld.soldNote') : '';
   if (!$('aptDlg').open) $('aptDlg').showModal();
@@ -414,6 +417,78 @@ async function sendRequest(e) {
   } catch {
     toast(t('order.fail'), true);
   }
+}
+
+// ---------- the hold (11 §7.1, 03 §4): the form over the card → POST /api/bookings/hold → the personal page ----------
+
+let hold = null;   // { apt, key, openedAt, terms, busy } of the open form
+
+// The Idempotency-Key is made when the form opens and stays through retries of a lost answer; a refusal gets a new one.
+async function openHold(a) {
+  hold = { apt: a, key: crypto.randomUUID(), openedAt: Date.now(), terms: null, busy: false };
+  $('holdForm').reset();
+  $('holdErr').textContent = '';
+  renderHold();
+  $('holdDlg').showModal();
+  try {
+    const res = await fetch('/api/apartments/status');
+    if (!res.ok) throw new Error(res.status);
+    hold.terms = (await res.json()).terms;
+  } catch {
+    $('holdErr').textContent = t('bk.hold.termsFail');
+  }
+  renderHold();
+}
+
+function renderHold() {
+  if (!hold) return;
+  const { apt, terms } = hold;
+  $('holdTitle').textContent = t('bk.hold.title', { no: apt.no });
+  $('holdSum').textContent = terms ? t('bk.hold.summary', { price: groupNum(apt.price), deposit: groupNum(terms.depositAmount) }) : '';
+  $('holdNote').textContent = terms ? t('bk.hold.note', { min: terms.holdMinutes, deposit: groupNum(terms.depositAmount) }) : '';
+  const words = (key, href) => linkParts(t(key)).map(p => (p.link
+    ? el('a', { href: `${href}?lang=${getLang()}`, target: '_blank', rel: 'noopener noreferrer', textContent: p.text })
+    : document.createTextNode(p.text)));
+  $('holdOffer').replaceChildren(...words('bk.hold.offer', '/legal/offer'));
+  $('holdPrivacy').replaceChildren(...words('bk.hold.privacy', '/legal/privacy'));
+  $('holdGo').textContent = hold.busy ? t('bk.hold.sending') : t('bk.hold.submit');
+  syncHold();
+}
+
+// The button waits for the terms, both ticks, a name and a phone (the server checks them all again).
+function syncHold() {
+  const f = $('holdForm').elements;
+  $('holdGo').disabled = hold.busy || !hold.terms || !f.offer.checked || !f.privacy.checked
+    || f.name.value.trim().length < 2 || f.phone.value.replace(/\D/g, '').length < 9;
+}
+
+async function sendHold(e) {
+  e.preventDefault();
+  if (!hold || hold.busy || $('holdGo').disabled) return;
+  const f = e.target.elements, a = hold.apt;
+  hold.busy = true;
+  $('holdErr').textContent = '';
+  renderHold();
+  let res, data;
+  try {
+    res = await fetch('/api/bookings/hold', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': hold.key },
+      body: JSON.stringify({ apartmentNo: a.no, name: f.name.value, phone: f.phone.value, lang: getLang(), website: f.website.value,
+        consent: { version: hold.terms.offerVersion, privacy: true }, openedAt: new Date(hold.openedAt).toISOString() }) });
+    data = await res.json().catch(() => ({}));
+  } catch {
+    hold.busy = false;
+    $('holdErr').textContent = t('bk.hold.fail');   // no answer: the same key goes again, the server repeats its answer
+    return renderHold();
+  }
+  if (res.status === 201 && /^\/b\/[\w-]+$/.test(data.link ?? '')) {
+    location.assign(data.link);
+    return;
+  }
+  hold.busy = false;
+  hold.key = crypto.randomUUID();
+  $('holdErr').textContent = res.status === 429 ? t('bk.hold.tooMany')
+    : ['apartment_held', 'apartment_not_free'].includes(data.error) ? t('bk.hold.taken') : (data.message || t('bk.hold.fail'));
+  renderHold();
 }
 
 // ---------- page ----------
@@ -622,6 +697,11 @@ function bind() {
   $('aptRequest').addEventListener('click', () => openRequest(cardApt));
   $('reqCancel').addEventListener('click', () => $('reqDlg').close());
   $('reqForm').addEventListener('submit', sendRequest);
+  $('aptBook').addEventListener('click', () => openHold(cardApt));
+  $('holdCancel').addEventListener('click', () => $('holdDlg').close());
+  $('holdForm').addEventListener('submit', sendHold);
+  $('holdForm').addEventListener('input', () => hold && syncHold());
+  $('holdForm').elements.phone.addEventListener('change', e => { e.target.value = fmtPhone(e.target.value) || e.target.value; syncHold(); });
   new ResizeObserver(() => drawFloor()).observe($('planWrap'));
   $('bldHeroPick').addEventListener('click', () => $('bldPlan').closest('.card').scrollIntoView({ behavior: 'smooth', block: 'start' }));
   $('bldHeroWalk').addEventListener('click', () => $('bld3dWalk').click());
@@ -637,7 +717,18 @@ function bind() {
     renderAll();
     if ($('aptDlg').open) openCard(cardApt);
     if ($('reqDlg').open) $('reqTitle').textContent = t('bld.reqTitle', { no: cardApt.no });
+    if ($('holdDlg').open) renderHold();
   });
+}
+
+// #apt=41 opens the card of the apartment (a link from the chat, the booking page); #apt=41&book=1 goes on to the hold form.
+function openFromHash() {
+  const p = new URLSearchParams(location.hash.slice(1));
+  const a = byNo(Number(p.get('apt')));
+  if (!a) return;
+  setFloor(a.floor);
+  openCard(a);
+  if (p.get('book') && a.status === 'free') openHold(a);
 }
 
 async function start() {
@@ -660,6 +751,7 @@ async function start() {
   bind();
   renderAll();
   init3d();
+  openFromHash();
 }
 
 start();

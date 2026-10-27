@@ -3,9 +3,9 @@
 import crypto from 'node:crypto';
 import { DomainError } from '../core/errors.js';
 import { createHold, recordConsent, releaseHold, cancel, effectiveStatus, settingsOf } from '../core/bookings.js';
-import { getApartment } from '../core/apartments.js';
+import { getApartment, statusMap } from '../core/apartments.js';
 import { normalizePhone } from '../core/phone.js';
-import { parseRef, checkSig } from '../core/links.js';
+import { parseRef, checkSig, bookingPath } from '../core/links.js';
 import { context } from '../core/tx.js';
 import { failureText, t } from '../i18n/index.js';
 import { handler, jsonBody, parseBody, z, langOf, idempotencyKey, limit, ipKey, hashKey, readDcl, setDcl, tz, HOUR } from './common.js';
@@ -74,6 +74,21 @@ export function mountBookings(app, db, opts = {}) {
       depositAmount: Number(r.booking.deposit_amount) });
   }));
 
+  // 13 §3 (03 §2, 11 §3.2): the showcase map — no client, no deadline of others; `mine` — the holds of the client of the cookie.
+  // `terms` — what the hold form shows and sends (the offer version must match, 03 §4.4).
+  app.get('/api/apartments/status', handler(async (req, res) => {
+    const ctx = context(opts);
+    const dcl = readDcl(req, env);
+    const at = ctx.now();
+    const [statuses, s, held] = await Promise.all([
+      statusMap(db, ctx), settingsOf(db, ctx),
+      dcl ? db.query(`SELECT * FROM bookings WHERE client_id = $1 AND status = 'held' AND expires_at > $2`, [dcl, at]) : []
+    ]);
+    const mine = Object.fromEntries(held.map(b => [b.apartment_no, { link: bookingPath(b, env), expiresAt: tz(b.expires_at) }]));
+    res.json({ statuses, ...(held.length ? { mine } : {}), at: tz(at),
+      terms: { offerVersion: s.offer_version, depositAmount: Number(s.deposit_amount), holdMinutes: s.hold_minutes, bookingHours: s.booking_hours } });
+  }));
+
   // 13 §4.1: what the booking page shows. No name and no phone: the link can be passed on (14 §4).
   app.get('/api/bookings/by-ref/:ref', handler(async (req, res) => {
     const ctx = context(opts);
@@ -95,6 +110,7 @@ export function mountBookings(app, db, opts = {}) {
         failureReason: pay.failure_reason, failureText: failureText(pay.failure_reason, lang) },
       refund: refund && { status: refund.status, amount: Number(refund.amount), reason: refund.reason },
       offerVersion: s.offer_version,
+      terms: { bookingHours: s.booking_hours, holdMinutes: s.hold_minutes },
       telegramLinked: Boolean(client?.telegram_user_id),
       serverNow: tz(at)
     });

@@ -17,6 +17,7 @@ import { loadEnv } from './server/env.js';
 import { mountJobs, background } from './server/events/routes.js';
 import { mountPayments, mountStripeWebhook } from './server/http/payments.js';
 import { mountBookings } from './server/http/bookings.js';
+import { mountPersonalPages } from './server/http/personalPages.js';
 import { requestId, noStore, apiErrors } from './server/http/common.js';
 import { afterCommit } from './server/events/runner.js';
 
@@ -51,6 +52,7 @@ mountJobs(app, db);                        // deadlines: tick, /api/jobs/run (ra
 mountStripeWebhook(app, db);               // the raw body for the Stripe signature — before the JSON parser (05 §6.4)
 mountBookings(app, db, coreOpts);          // booking: hold, personal link (13 §4); own 64 KB JSON parser
 mountPayments(app, db, coreOpts);          // payments: start, emulators (05 §12); own 64 KB JSON parser
+mountPersonalPages(app, { publicDir: path.join(__dirname, 'public'), legalDir: path.join(__dirname, 'legal') });   // /b/…, /pay/card|click/…, /legal/…
 app.use(express.json({ limit: '4mb' }));   // the order carries the drawing PNG and a 3D picture (≤ 1.5 MB each); Vercel takes ≤ 4.5 MB
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));   // "/" is rendered below
 app.get('/favicon.ico', (req, res) => res.redirect(301, '/favicon.svg'));

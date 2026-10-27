@@ -30,6 +30,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,500&family=Manrope:wght@400;500;600;700&display=swap">
   <script>try{document.documentElement.dataset.theme=localStorage.getItem('fsp3d.theme')||'dark'}catch(e){document.documentElement.dataset.theme='dark'}</script>
   <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/booking.css">
   <script type="importmap">
     {
       "imports": {
@@ -44,6 +45,7 @@
   <link rel="modulepreload" href="/js/apartment.js">
   <link rel="modulepreload" href="/js/aptTemplates.js">
   <link rel="modulepreload" href="/js/autoplace.js">
+  <link rel="modulepreload" href="/js/bkFormat.js">
   <link rel="modulepreload" href="/js/bld3d/exterior.js">
   <link rel="modulepreload" href="/js/bld3d/facadeTex.js">
   <link rel="modulepreload" href="/js/bld3d/site.js">
@@ -55,6 +57,7 @@
   <link rel="modulepreload" href="/js/furnish.js">
   <link rel="modulepreload" href="/js/geometry.js">
   <link rel="modulepreload" href="/js/i18n.js">
+  <link rel="modulepreload" href="/js/i18nBooking.js">
   <link rel="modulepreload" href="/js/icons.js">
   <link rel="modulepreload" href="/js/kits.js">
   <link rel="modulepreload" href="/js/lighting.js">
@@ -171,7 +174,8 @@
         <div class="btn-row">
           <button type="button" class="btn" id="apt3d" data-i18n="bld.walk3d">🚶 Пройтись в 3D</button>
           <button type="button" class="btn" id="aptPlanner" data-i18n="bld.openPlanner">📐 Открыть в планировщике</button>
-          <button type="button" class="btn primary" id="aptRequest" data-i18n="bld.request">✉ Оставить заявку</button>
+          <button type="button" class="btn primary" id="aptBook" data-i18n="bk.hold.open" hidden>🏠 Забронировать</button>
+          <button type="button" class="btn" id="aptRequest" data-i18n="bld.request">✉ Оставить заявку</button>
         </div>
       </div>
     </div>
@@ -203,6 +207,27 @@
         <button type="button" class="btn ghost" id="reqCancel" data-i18n="order.cancel">Отмена</button>
         <button type="submit" class="btn primary" data-i18n="order.send">Отправить</button>
       </div>
+    </form>
+  </dialog>
+
+  <dialog id="holdDlg">
+    <form id="holdForm" method="dialog" novalidate>
+      <h2 id="holdTitle"></h2>
+      <p class="hold-sum" id="holdSum"></p>
+      <label class="row"><span data-i18n="order.name">Имя</span>
+        <input name="name" required minlength="2" maxlength="60" autocomplete="name"></label>
+      <label class="row"><span data-i18n="order.phone">Телефон</span>
+        <input name="phone" type="tel" required maxlength="30" placeholder="+998 __ ___ __ __" autocomplete="tel"></label>
+      <label class="check"><input type="checkbox" name="offer"><span id="holdOffer"></span></label>
+      <label class="check"><input type="checkbox" name="privacy"><span id="holdPrivacy"></span></label>
+      <!-- Honeypot for bots: hidden from people and screen readers -->
+      <input name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <p class="hold-err" id="holdErr" role="alert"></p>
+      <div class="btn-row end">
+        <button type="button" class="btn ghost" id="holdCancel" data-i18n="bk.hold.cancel">Отмена</button>
+        <button type="submit" class="btn primary" id="holdGo" data-i18n="bk.hold.submit" disabled>Оформить и перейти к оплате</button>
+      </div>
+      <p class="hint hold-note" id="holdNote"></p>
     </form>
   </dialog>
 

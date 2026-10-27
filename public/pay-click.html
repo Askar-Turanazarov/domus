@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="no-referrer">
+  <title>Click — оплата (эмулятор)</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,500&family=Manrope:wght@400;500;600;700&display=swap">
+  <script>try{document.documentElement.dataset.theme=localStorage.getItem('fsp3d.theme')||'dark'}catch(e){document.documentElement.dataset.theme='dark'}</script>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/booking.css">
+</head>
+<body class="pay pay-click" data-mode="click">
+  <div class="pay-banner" role="note" data-i18n="pay.banner">Учебный эмулятор. Настоящие карты не принимаются</div>
+
+  <header class="topbar">
+    <div class="brand"><div class="brand-text"><h1 id="payTitle" data-i18n="pay.clickTitle">Click · Оплата</h1></div></div>
+    <div class="lang" role="group" aria-label="Language">
+      <button data-lang="ru">RU</button>
+      <button data-lang="uz">UZ</button>
+      <button data-lang="en">EN</button>
+    </div>
+  </header>
+
+  <main class="bkp pay-main">
+    <p class="bkp-loading" id="payLoading" data-i18n="bk.page.loading">Загрузка…</p>
+
+    <section class="bkp-card pay-box" id="payBox" hidden>
+      <dl class="pay-sum"><dt data-i18n="pay.amount">Сумма</dt><dd id="payAmount"></dd></dl>
+      <p class="hint pay-to" data-i18n="pay.to">Получатель</p>
+
+      <form id="stepCard" autocomplete="off" novalidate>
+        <label class="row"><span data-i18n="pay.number">Номер карты</span>
+          <input name="number" id="fNumber" inputmode="numeric" autocomplete="off" maxlength="19" placeholder="0000 0000 0000 0000" required></label>
+        <p class="pay-brand" id="payBrand" aria-live="polite"></p>
+        <label class="row"><span data-i18n="pay.expiry">Срок действия</span>
+          <input name="expiry" id="fExpiry" inputmode="numeric" autocomplete="off" maxlength="5" placeholder="MM/YY" required></label>
+        <p class="bkp-err" id="cardErr" role="alert"></p>
+        <button type="submit" class="btn primary" id="cardGo" data-i18n="pay.next">Продолжить</button>
+        <details class="pay-hint">
+          <summary data-i18n="pay.hint">Тестовые карты</summary>
+          <ul id="testCards"></ul>
+        </details>
+      </form>
+
+      <form id="stepCode" autocomplete="off" novalidate hidden>
+        <p class="pay-masked" id="payMask"></p>
+        <label class="row"><span data-i18n="pay.code">Код из SMS</span>
+          <input name="code" id="fCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" required></label>
+        <p class="hint" id="codeLeft" aria-live="off"></p>
+        <p class="bkp-err" id="codeErr" role="alert"></p>
+        <button type="submit" class="btn primary" id="codeGo" data-i18n="pay.confirm">Подтвердить</button>
+        <button type="button" class="btn ghost" id="codeResend" data-i18n="pay.resend">Отправить код снова</button>
+      </form>
+
+      <div id="payResult" hidden>
+        <h2 id="payResultTitle"></h2>
+        <p id="payResultText"></p>
+      </div>
+
+      <div class="bkp-row pay-foot">
+        <button type="button" class="btn ghost danger" id="payCancel" data-i18n="pay.cancel">Отменить оплату</button>
+        <a class="btn ghost" id="payBack" href="/" data-i18n="pay.backToBooking">Вернуться к брони</a>
+      </div>
+    </section>
+  </main>
+
+  <div class="pay-sms" id="paySms" role="status" hidden>
+    <b data-i18n="pay.sms">SMS от 900</b>
+    <span id="paySmsText"></span>
+  </div>
+  <div class="toast" id="toast" hidden></div>
+  <script type="module" src="/js/payEmu.js"></script>
+</body>
+</html>

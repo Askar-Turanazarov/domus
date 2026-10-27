@@ -1,0 +1,72 @@
+/* The personal booking page /b/…, the payment emulators /pay/… and the hold form of the showcase (11 §6, §7.1).
+   Built on the tokens of style.css, so both themes work. */
+
+.bkp { flex: 1; overflow: auto; width: 100%; max-width: 640px; margin: 0 auto; padding: 22px 16px 32px; display: flex; flex-direction: column; gap: 14px; }
+#bkBody { display: flex; flex-direction: column; gap: 14px; }
+.bkp-loading { color: var(--muted); text-align: center; margin: 40px 0; }
+.bkp-card { background: var(--card-bg); border: 1px solid var(--line); border-radius: var(--r-m); padding: 16px 18px; box-shadow: var(--sh-1); }
+.bkp-card h2 { font: 500 26px/1.15 var(--f-display); margin: 0 0 6px; }
+.bkp-card h3 { font: 700 10.5px/1.2 var(--f-ui); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+.bkp-card p { margin: 0 0 8px; }
+.bkp-card p:last-child { margin-bottom: 0; }
+.bkp-meta { color: var(--muted); }
+.bkp-price { font: 500 22px/1.2 var(--f-display); color: var(--gold-2); }
+:root[data-theme="light"] .bkp-price { color: var(--gold); }
+.bkp-timer { font: 500 20px/1.2 var(--f-display); font-variant-numeric: tabular-nums; }
+.bkp-timer.low { color: var(--danger); }
+.bkp-err { color: var(--danger); margin: 6px 0; min-height: 0; }
+.bkp-err:empty { display: none; }
+.bkp-note { background: var(--note-bg); border-color: color-mix(in srgb, var(--warn) 40%, transparent); }
+p.bkp-note { padding: 10px 14px; border: 1px solid; border-radius: var(--r-m); margin: 0; }
+.bkp-ok { background: var(--ok-bg); border-color: color-mix(in srgb, var(--ok) 45%, transparent); }
+.bkp-ok h3 { color: var(--ok); font-size: 13px; letter-spacing: .04em; text-transform: none; }
+.bkp-done { color: var(--muted); font-size: 13px; }
+.bkp-methods { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-bottom: 12px; }
+.bkp-method { flex-direction: row; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--text); cursor: pointer; }
+.bkp-steps { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
+.bkp-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 10px; }
+.bkp-row.end { justify-content: flex-end; }
+.bkp-row .btn.primary { width: auto; flex: 1 1 200px; }
+.bkp-card > .btn.primary { margin-top: 4px; }
+.bkp .btn { text-decoration: none; }
+.bkp-net { background: var(--note-bg); color: var(--warn); text-align: center; font-size: 12.5px; padding: 6px 12px; }
+#bkAsk h2 { font-size: 22px; }
+
+/* ---------- the emulators ---------- */
+.pay-banner { background: var(--warn); color: var(--gold-ink); text-align: center; font: 700 12px/1.3 var(--f-ui); letter-spacing: .06em; padding: 8px 12px; }
+.pay-main { max-width: 420px; }
+.pay-box { display: flex; flex-direction: column; gap: 8px; }
+.pay-sum { display: flex; align-items: baseline; justify-content: space-between; margin: 0; }
+.pay-sum dt { font: 700 10.5px/1 var(--f-ui); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.pay-sum dd { margin: 0; font: 500 24px/1.1 var(--f-display); font-variant-numeric: tabular-nums; }
+.pay-to { margin: 0 0 6px; }
+.pay-brand { min-height: 1.2em; margin: -4px 0 6px; font: 700 11px/1 var(--f-ui); letter-spacing: .14em; color: var(--gold); }
+.pay-masked { font: 500 16px/1.2 var(--f-display); letter-spacing: .08em; color: var(--muted); }
+#fNumber, #fCode { font-variant-numeric: tabular-nums; letter-spacing: .12em; font-size: 17px; }
+.pay-hint { margin-top: 12px; font-size: 12.5px; }
+.pay-hint summary { cursor: pointer; color: var(--muted); }
+.pay-hint ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; }
+.pay-hint li { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; color: var(--muted); }
+.pay-hint li code { color: var(--text); font-variant-numeric: tabular-nums; }
+.pay-hint .btn { padding: 3px 8px; font-size: 10px; }
+.pay-foot { justify-content: space-between; margin-top: 14px; }
+.pay-foot .btn { flex: 0 0 auto; }
+#codeResend { margin-top: 8px; width: 100%; }
+#payResultTitle { margin: 0 0 6px; }
+.pay-click .pay-banner + .topbar { border-bottom-color: #00aaff55; }
+.pay-click .brand h1 { color: #4cc3ff; }
+.pay-sms {
+  position: fixed; left: 50%; top: 16px; transform: translateX(-50%); z-index: 70; width: min(92vw, 380px);
+  background: #f3f3f5; color: #111; border-radius: 14px; padding: 10px 14px; display: grid; gap: 2px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .5); font-size: 13px; line-height: 1.35;
+  animation: toast-in .35s var(--ease);
+}
+.pay-sms b { font-size: 12px; color: #555; }
+
+/* ---------- the hold form on the showcase ---------- */
+.hold-sum { margin: 0 0 12px; color: var(--muted); }
+.hold-note { margin: 12px 0 0; }
+.hold-err { color: var(--danger); margin: 8px 0 0; }
+.hold-err:empty { display: none; }
+#holdForm label.check { align-items: flex-start; }
+#holdForm label.check input { margin-top: 3px; }
