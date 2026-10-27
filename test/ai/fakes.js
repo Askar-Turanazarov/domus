@@ -23,6 +23,8 @@ export function fakeProvider(provider, script = {}) {
         const t = setTimeout(res, s.wait);
         signal?.addEventListener('abort', () => { clearTimeout(t); rej(signal.reason); }, { once: true });
       });
+      // early: the error comes before the first byte (a dropped connection)
+      if (s.error && s.early) throw new AiError(s.error, { status: s.status ?? null });
       tick();
       if (s.afterText) onEvent({ type: 'text', delta: s.afterText });
       if (s.error) throw new AiError(s.error, { status: s.status ?? null, retryMs: s.retryMs ?? null });
