@@ -1,4 +1,4 @@
-// Order dialog → POST /api/order (saved to order.json on the server).
+// Order dialog → POST /api/order (saved to the base on the server).
 // Sends the whole apartment: every room with its place on the plan (pos).
 import { t, getLang } from './i18n.js';
 import { state, itemName, roomView } from './state.js';

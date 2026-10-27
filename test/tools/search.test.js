@@ -5,7 +5,7 @@ import { searchApartments } from '../../server/tools/index.js';
 import { list, start } from './helpers.js';
 
 const s = await start();
-after(() => s.server.close());
+after(() => s.close());
 
 test('searchApartments: free by default, cheapest first, limit', () => {
   const r = searchApartments(list, { limit: 3 });

@@ -6,8 +6,8 @@ import { createHttpServer, checkToken } from '../../server/mcp/index.js';
 import { TOKEN, start } from './helpers.js';
 
 const s = await start();
-const broken = await start({ apartments: '/nonexistent/apartments.json', bookings: '/nonexistent/booking.json' });
-after(() => { s.server.close(); broken.server.close(); });
+const broken = await start({ apartments: '/nonexistent/apartments.json' });
+after(() => Promise.all([s.close(), broken.close()]));
 
 test('a missing data file → a general tool error without the file path', async () => {
   const r = await broken.call('search_apartments', {});

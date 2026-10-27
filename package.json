@@ -14,7 +14,9 @@
     "textures": "node scripts/fetch-textures.js",
     "og": "node scripts/og-images.js",
     "preload": "node scripts/preload.js",
-    "admin-password": "node scripts/admin-password.js"
+    "admin-password": "node scripts/admin-password.js",
+    "db:migrate": "node scripts/migrate.js",
+    "seed": "node scripts/seed.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",
@@ -26,5 +28,9 @@
   },
   "overrides": {
     "zod": "$zod"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.9",
+    "@electric-sql/pglite-pgvector": "0.0.10"
   }
 }

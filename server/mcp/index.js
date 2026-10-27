@@ -6,8 +6,10 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { registerTools, context, dbContext } from '../tools/index.js';
-import { createDb } from '../db.js';
+import { registerTools, dbContext } from '../tools/index.js';
+import { createDb } from '../db/index.js';
+import { legacyStore } from '../db/legacy.js';
+import { loadEnv } from '../env.js';
 import { logTexts, ruText } from '../tools/logText.js';
 
 export { dbContext };
@@ -37,10 +39,9 @@ async function readBody(req) {
   }
 }
 
-// files — the tools' context (server/tools/index.js context(): paths, or the site's storage via dbContext).
-export function createHttpServer({ token, files }) {
+// ctx — the tools' context (server/tools/index.js dbContext over the site's storage).
+export function createHttpServer({ token, ctx }) {
   if (!token || token.length < MIN_TOKEN) throw new Error(`MCP_TOKEN is missing or shorter than ${MIN_TOKEN} characters (see .env)`);
-  const ctx = context(files);
   return http.createServer((req, res) => handleMcp(req, res, { token, ctx }).catch(e => {
     // never let one request bring the process down
     console.error('mcp request failed:', e.code || e.message);
@@ -77,16 +78,15 @@ export async function handleMcp(req, res, { token, ctx, parsed }) {
   if (body?.method === 'tools/call' && !seen.logged) {
     const { name, arguments: a } = body.params || {};
     await ctx.logCall({ at: new Date(t0).toISOString(), type: 'call', tool: String(name).slice(0, 60), ok: false, ms: Date.now() - t0,
-      args: { fields: Object.keys(a && typeof a === 'object' ? a : {}).slice(0, 20) }, msg: ruText('badParams'), msgs: logTexts('badParams') });
+      error: 'invalid_input', args: { fields: Object.keys(a && typeof a === 'object' ? a : {}).slice(0, 20) }, msg: ruText('badParams'), msgs: logTexts('badParams') });
   }
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  try { process.loadEnvFile(fileURLToPath(new URL('../../.env', import.meta.url))); } catch { /* no .env: real environment variables only */ }
-  // the site's storage: statuses, bookings and the call log in Postgres with DATABASE_URL, in files otherwise
-  const root = fileURLToPath(new URL('../..', import.meta.url));
-  const db = createDb({ root, dataDir: process.env.DATA_DIR || fileURLToPath(new URL('../../data', import.meta.url)) });
+  loadEnv();
+  // the site's base: Neon with DATABASE_URL, the local PGlite (.pglite/) otherwise
+  const store = legacyStore(createDb());
   const port = Number(process.env.MCP_PORT) || 3001;
   const host = '127.0.0.1';
-  createHttpServer({ token: process.env.MCP_TOKEN, files: dbContext(db) }).listen(port, host, () => console.log(`MCP «Chinor Park»: http://${host}:${port}/mcp`));
+  createHttpServer({ token: process.env.MCP_TOKEN, ctx: dbContext(store) }).listen(port, host, () => console.log(`MCP «Chinor Park»: http://${host}:${port}/mcp`));
 }

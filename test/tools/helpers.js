@@ -1,18 +1,20 @@
-// Test helpers: the MCP server on port 0 with a test token, JSON-RPC over fetch.
-// The call log always goes to a temporary file, never to the real mcp-calls.jsonl.
+// Test helpers: the MCP server on port 0 with a test token over a PGlite base in memory, JSON-RPC over fetch.
+// Statuses as in apartments.json (test/support/db.js mirrorFileStatuses); the call log is the base's tool_calls.
 import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
 import { createHttpServer } from '../../server/mcp/index.js';
-import { FILES } from '../../server/tools/index.js';
+import { FILES, dbContext } from '../../server/tools/index.js';
+import { legacyStore } from '../../server/db/legacy.js';
+import { createTestDb, mirrorFileStatuses } from '../support/db.js';
 
 export const TOKEN = 'test-token-'.padEnd(40, 'x');
 export const list = JSON.parse(fs.readFileSync(FILES.apartments, 'utf8')).apartments;
 
-export async function start(files = {}) {
-  const calls = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'mcp-calls-')), 'mcp-calls.jsonl');
-  const all = { ...FILES, calls, ...files };
-  const server = createHttpServer({ token: TOKEN, files: all });
+// over — parts of the tools' context to replace (apartments path, statuses(), logCall()).
+export async function start(over = {}) {
+  const db = await createTestDb();
+  await mirrorFileStatuses(db);
+  const store = legacyStore(db);
+  const server = createHttpServer({ token: TOKEN, ctx: { ...dbContext(store), ...over } });
   await new Promise(ok => server.listen(0, '127.0.0.1', ok));
   const url = `http://127.0.0.1:${server.address().port}/mcp`;
   const rpc = (method, params, token = TOKEN) => fetch(url, {
@@ -21,6 +23,8 @@ export async function start(files = {}) {
     body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params })
   });
   const call = async (name, args) => (await (await rpc('tools/call', { name, arguments: args })).json()).result;
-  const log = () => (fs.existsSync(all.calls) ? fs.readFileSync(all.calls, 'utf8').trim().split('\n').filter(Boolean).map(JSON.parse) : []);
-  return { server, url, rpc, call, log, files: all };
+  // oldest first
+  const log = async () => (await store.listCalls(10000)).reverse();
+  const close = async () => { server.close(); await db.close(); };
+  return { server, url, rpc, call, log, db, store, close };
 }

@@ -5,7 +5,7 @@ import { annuity } from '../../server/core/finance.js';
 import { list, start } from './helpers.js';
 
 const s = await start();
-after(() => s.server.close());
+after(() => s.close());
 
 test('annuity: loan 80 000 000 sum, 24 % a year, 10 years → 1 763 848 a month, overpay 131 661 730', () => {
   // by hand (decimal, 40 digits): i = 0.24 / 12 = 0.02, n = 120, (1 + i)^n = 10.765163034

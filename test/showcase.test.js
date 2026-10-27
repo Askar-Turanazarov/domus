@@ -1,17 +1,13 @@
-// New-building showcase on the server: a request with apartmentRef, statuses by the manager (PATCH, Bearer token).
+// New-building showcase on the server: a request with apartmentRef, statuses computed from the base (D-15).
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { readFileSync } from 'node:fs';
 import { validateOrder } from '../server/validateOrder.js';
 import { applyStatuses } from '../server/buildings.js';
 
-// The routes on a real server (port 0) with a temporary data folder (loaded before the tests are declared).
-const dataDir = mkdtempSync(join(tmpdir(), 'fsp3d-'));
-process.env.DATA_DIR = dataDir;
+// The routes on a real server (port 0) over a PGlite base in memory (loaded before the tests are declared).
 process.env.ADMIN_TOKEN = 'showcase-test-token';
-const { default: app } = await import('../server.js');
+const { default: app, db } = await import('../server.js');
 const server = app.listen(0);
 after(() => server.close());
 
@@ -42,30 +38,20 @@ test('applyStatuses: the manager\'s status wins, unknown values are ignored', ()
 });
 
 const base = () => `http://127.0.0.1:${server.address().port}`;
-const patch = (apt, body, token = process.env.ADMIN_TOKEN, id = 'chinor-park') => fetch(`${base()}/api/buildings/${id}/apartments/${apt}`, {
-  method: 'PATCH', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) },
-  body: JSON.stringify(body)
-});
 const status = async no => (await (await fetch(`${base()}/api/buildings/chinor-park`)).json())
   .floorsData.flatMap(f => f.apartments).find(a => a.no === no).status;
 
-test('PATCH apartment status: token, status and apartment are checked; the building shows the new status', async () => {
-  assert.equal((await patch(1, { status: 'sold' }, '')).status, 401);
-  assert.equal((await patch(1, { status: 'sold' }, 'wrong')).status, 401);
-  assert.equal((await patch(1, { status: 'gone' })).status, 400);
-  assert.equal((await patch(99999, { status: 'sold' })).status, 404);
-  assert.equal((await patch(1, { status: 'sold' }, undefined, 'nope')).status, 404);
-  assert.equal((await patch('1x', { status: 'sold' })).status, 404);
-  const before = await status(1);
-  const next = before === 'booked' ? 'sold' : 'booked';
-  const res = await patch(1, { status: next });
-  assert.equal(res.status, 200);
-  assert.deepEqual(await res.json(), { no: 1, status: next });
-  assert.equal(await status(1), next);
-  assert.deepEqual(JSON.parse(readFileSync(join(dataDir, 'building-status.json'), 'utf8')), { 'chinor-park': { 1: next } });
+test('the building shows the status from the base: no manual PATCH any more, a sale shows at once', async () => {
+  const res = await fetch(`${base()}/api/buildings/chinor-park/apartments/1`, { method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + process.env.ADMIN_TOKEN }, body: '{"status":"sold"}' });
+  assert.equal(res.status, 404);
+  assert.equal(await status(1), 'free');
+  await db.query('UPDATE apartments SET sold_at = now() WHERE no = 1');
+  assert.equal(await status(1), 'sold');
   // the generated file itself is untouched
   const file = JSON.parse(readFileSync(new URL('../buildings/chinor-park.json', import.meta.url), 'utf8'));
-  assert.equal(file.floorsData.flatMap(f => f.apartments).find(a => a.no === 1).status, before);
+  assert.equal(file.floorsData.flatMap(f => f.apartments).find(a => a.no === 1).status, 'free');
+  await db.query('UPDATE apartments SET sold_at = NULL WHERE no = 1');
 });
 
 test('GET /api/buildings lists the demo building; a bad id is 404', async () => {

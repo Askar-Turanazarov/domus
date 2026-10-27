@@ -1,18 +1,14 @@
-// book_viewing on a temporary booking.json: saved, slot taken, sold refused, parallel writes kept, statuses untouched.
+// book_viewing on the base (viewings): saved, slot taken, sold refused, parallel writes kept, apartments.json untouched.
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
 import { FILES } from '../../server/tools/index.js';
 import { parseTime } from '../../server/core/viewings.js';
 import { list, start } from './helpers.js';
 
-const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mcp-booking-'));
-const bookings = path.join(dir, 'booking.json');
-const s = await start({ apartments: FILES.apartments, bookings });
-after(() => s.server.close());
-const saved = () => JSON.parse(fs.readFileSync(bookings, 'utf8'));
+const s = await start();
+after(() => s.close());
+const saved = () => s.store.listBookings();
 const free = list.find(a => a.status === 'free');
 const sold = list.find(a => a.status === 'sold');
 const day = n => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
@@ -26,12 +22,12 @@ test('parseTime: Tashkent by default, offsets converted, junk refused', () => {
   for (const bad of ['25.10.2026 15:00', '2026-10-25', '2026-13-45T99:00', '2026-10-25T15:00:30', 'завтра']) assert.equal(parseTime(bad), null, bad);
 });
 
-test('book_viewing: the booking lands in booking.json', async () => {
+test('book_viewing: the booking lands in the base, the phone in its normal form', async () => {
   const r = await s.call('book_viewing', req());
   assert.equal(r.isError, undefined, r.content?.[0]?.text);
   const b = r.structuredContent;
   assert.equal(b.datetime, `${day(3)}T15:00+05:00`);
-  assert.deepEqual(saved(), [b]);
+  assert.deepEqual(await saved(), [{ ...b, phone: '+998901234567' }]);
   assert.match(r.content[0].text, /Записано: Askar, квартира №\d+/);
 });
 
@@ -41,7 +37,7 @@ test('book_viewing: the same apartment and time again → slot taken (also writt
   assert.match(again.content[0].text, /Это время занято/);
   const sameInstant = await s.call('book_viewing', req({ datetime: `${day(3)}T10:00Z` }));
   assert.equal(sameInstant.isError, true);
-  assert.equal(saved().length, 1);
+  assert.equal((await saved()).length, 1);
 });
 
 test('book_viewing: sold, unknown apartment, past time, bad phone or name → refused, nothing saved', async () => {
@@ -52,14 +48,15 @@ test('book_viewing: sold, unknown apartment, past time, bad phone or name → re
     assert.equal(r.isError, true, JSON.stringify(patch));
     assert.match(r.content[0].text, msg);
   }
-  assert.equal(saved().length, 1);
+  assert.equal((await saved()).length, 1);
 });
 
 test('book_viewing: 10 parallel bookings are all kept', async () => {
   const rs = await Promise.all(Array.from({ length: 10 }, (_, i) => s.call('book_viewing', req({ datetime: `${day(5)}T${String(9 + i).padStart(2, '0')}:00` }))));
   assert.ok(rs.every(r => !r.isError));
-  assert.equal(saved().length, 11);
-  assert.equal(new Set(saved().map(b => b.id)).size, 11);
+  const all = await saved();
+  assert.equal(all.length, 11);
+  assert.equal(new Set(all.map(b => b.id)).size, 11);
 });
 
 test('bookings never change apartments.json', () => {

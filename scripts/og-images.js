@@ -9,7 +9,7 @@ import path from 'node:path';
 import { execFile } from 'node:child_process';
 const run = (cmd, args) => new Promise((ok, fail) => execFile(cmd, args, { timeout: 60000 }, e => (e ? fail(e) : ok())));   // async: the server answers meanwhile
 
-process.env.DATA_DIR ||= fs.mkdtempSync(path.join(os.tmpdir(), 'fsp3d-og-'));   // nothing is written to the project
+process.env.PGLITE_DIR ||= 'memory://';   // nothing is written to the project
 const { default: app } = await import('../server.js');
 app.get('/__og', (req, res) => res.sendFile(path.join(import.meta.dirname, 'og-poster.html')));
 

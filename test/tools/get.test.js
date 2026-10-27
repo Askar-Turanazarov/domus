@@ -5,7 +5,7 @@ import { getApartment } from '../../server/tools/index.js';
 import { list, start } from './helpers.js';
 
 const s = await start();
-after(() => s.server.close());
+after(() => s.close());
 
 test('get_apartment: №1 is exactly the apartments.json entry plus the price per m²', async () => {
   const a1 = list.find(a => a.no === 1);

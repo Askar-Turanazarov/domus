@@ -5,24 +5,18 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { validateOrder } from './server/validateOrder.js';
-import { createDb } from './server/db.js';
+import { createDb } from './server/db/index.js';
+import { legacyStore } from './server/db/legacy.js';
 import { writeZip } from './server/zip.js';
 import { fetchSet, libraryStatus, readLibMap } from './server/textureFetch.js';
-import { APT_STATUSES, BUILDING_ID, createBuildings } from './server/buildings.js';
+import { BUILDING_ID, createBuildings } from './server/buildings.js';
 import * as auth from './server/adminAuth.js';
 import * as pages from './server/pages.js';
+import { loadEnv } from './server/env.js';
 
 const __dirname = import.meta.dirname;
 
-// .env.local (`vercel env pull`) and .env (KEY=value lines) without extra dependencies; real environment variables win.
-for (const file of ['.env.local', '.env']) {
-  try {
-    for (const line of readFileSync(path.join(__dirname, file), 'utf8').split(/\r?\n/)) {
-      const m = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*?)\s*$/);
-      if (m && !(m[1] in process.env)) process.env[m[1]] = m[2].replace(/^(['"])(.*)\1$/, '$2');
-    }
-  } catch { /* no file */ }
-}
+loadEnv(__dirname);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -30,11 +24,11 @@ const CATALOG = path.join(__dirname, 'catalog.json');
 const TEMPLATES = path.join(__dirname, 'templates.json');
 const APT_TEMPLATES = path.join(__dirname, 'apartment-templates.json');
 const APARTMENTS = path.join(__dirname, 'apartments.json');   // the new-building apartments: rooms, area, price, status
-const DATA = process.env.DATA_DIR || path.join(__dirname, 'data');
-// Orders, apartment statuses, viewing bookings and the MCP call log: files locally
-// (booking.json / mcp-calls.jsonl, or BOOKING_FILE / CALLS_FILE), Postgres (Neon) with DATABASE_URL (server/db.js).
-const db = createDb({ root: __dirname, dataDir: DATA });
-const buildings = createBuildings(path.join(__dirname, 'buildings'), { read: () => db.statuses(), set: db.setStatus }, APARTMENTS);
+// The base (server/db/): Neon with DATABASE_URL, PGlite otherwise. store — the Domus interface over it, until the
+// new core replaces it (server/db/legacy.js).
+const db = createDb();
+const store = legacyStore(db);
+const buildings = createBuildings(path.join(__dirname, 'buildings'), { read: () => store.statuses() }, APARTMENTS);
 
 app.set('trust proxy', 1);                 // the client's IP behind the Vercel / reverse proxy
 // Basic security headers: no MIME sniffing, frames only from this site (the floor 3D iframe), short Referer.
@@ -64,7 +58,7 @@ app.use('/vendor/three', express.static(path.join(__dirname, 'node_modules', 'th
 // Files of the deployment: the CDN may keep them (a new deployment starts with an empty cache).
 const SHARED_JSON = 'public, max-age=0, s-maxage=600, stale-while-revalidate=86400';
 
-// Is the server alive, which storage does it use (files / postgres). No database call, no secrets.
+// Is the server alive, which base does it use (neon / pglite). No database call, no secrets.
 const { version } = JSON.parse(readFileSync(path.join(__dirname, 'package.json'), 'utf8'));
 app.get('/api/health', (req, res) => {
   res.set('Cache-Control', 'no-store').json({ ok: true, db: db.kind, version });
@@ -79,7 +73,7 @@ app.all('/mcp', async (req, res) => {
   const token = process.env.MCP_TOKEN || '';
   if (token.length < MCP_MIN_TOKEN) return res.status(503).json({ error: 'mcp_disabled' });
   try {
-    mcp ||= import('./server/mcp/index.js').then(m => ({ handle: m.handleMcp, ctx: m.dbContext(db) }));
+    mcp ||= import('./server/mcp/index.js').then(m => ({ handle: m.handleMcp, ctx: m.dbContext(store) }));
     const { handle, ctx } = await mcp;
     // req._body: express.json has read the body; otherwise the MCP code reads (and checks) it itself
     await handle(req, res, { token, ctx, parsed: req._body ? req.body : undefined });
@@ -148,9 +142,9 @@ app.post('/api/order', async (req, res) => {
     v.order.estimate ??= a.price;
   }
   try {
-    if (!(await db.allowOrder(req.ip))) return res.status(429).json({ error: 'too_many' });
+    if (!(await store.allowOrder(req.ip))) return res.status(429).json({ error: 'too_many' });
     // Drawing and 3D picture: plan.png, 3d.jpg next to the order (orders/<id>/ or the order_files table).
-    const id = await db.addOrder(v.order, v.files, req.ip);
+    const id = await store.addOrder(v.order, v.files, req.ip);
     res.json({ ok: true, id });
   } catch (e) {
     res.status(500).json({ error: 'save_failed' });
@@ -223,7 +217,7 @@ app.get('/api/admin/me', (req, res) => {
 
 app.get('/api/orders', admin, async (req, res) => {
   try {
-    const orders = await db.listOrders();
+    const orders = await store.listOrders();
     res.json(orders.map(o => ({ status: 'new', ...o })).reverse());
   } catch {
     res.status(500).json({ error: 'read_failed' });
@@ -236,7 +230,7 @@ app.patch('/api/orders/:id', admin, async (req, res) => {
   if (status !== undefined && !STATUSES.includes(status)) return res.status(400).json({ error: 'bad_status' });
   if (note !== undefined && (typeof note !== 'string' || note.length > 2000)) return res.status(400).json({ error: 'bad_note' });
   try {
-    const order = await db.updateOrder(id, o => {
+    const order = await store.updateOrder(id, o => {
       const at = new Date().toISOString();
       if (status !== undefined && status !== (o.status || 'new')) {
         o.status = status;
@@ -255,7 +249,7 @@ app.patch('/api/orders/:id', admin, async (req, res) => {
 // Viewing bookings (written by the MCP tools), newest first; none yet = an empty list, a broken file = 500.
 app.get('/api/bookings', admin, async (req, res) => {
   try {
-    const list = await db.listBookings();
+    const list = await store.listBookings();
     res.json(list.map(({ id, createdAt, name, phone, no, datetime }) => ({ id, createdAt, name, phone, no, datetime }))
       .sort((x, y) => String(y.createdAt).localeCompare(String(x.createdAt))));
   } catch {
@@ -264,31 +258,11 @@ app.get('/api/bookings', admin, async (req, res) => {
 });
 
 // The MCP call log: the last 200 events, newest first; none yet = an empty list.
-// msgs — the result line in ru / uz / en; lines logged before it hold Russian only and are read back (server/tools/logText.js).
-let logText;
 app.get('/api/calls', admin, async (req, res) => {
   try {
-    logText ||= import('./server/tools/logText.js');
-    const { fromLegacy } = await logText;
-    const events = await db.listCalls(200);
-    res.json(events.map(({ at, type, tool, ok, ms, args, msg, msgs, reason }) =>
-      ({ at, type, tool, ok, ms, args, msg, msgs: msgs || fromLegacy(msg) || undefined, reason })));
+    res.json(await store.listCalls(200));
   } catch {
     res.status(500).json({ error: 'read_failed' });
-  }
-});
-
-// Apartment status in the showcase: free → booked → sold (and back).
-app.patch('/api/buildings/:id/apartments/:apt', admin, async (req, res) => {
-  const { id, apt } = req.params, { status } = req.body || {};
-  if (!BUILDING_ID.test(id) || !/^\d{1,6}$/.test(apt)) return res.status(404).json({ error: 'not_found' });
-  if (!APT_STATUSES.includes(status)) return res.status(400).json({ error: 'bad_status' });
-  try {
-    const r = await buildings.setStatus(id, Number(apt), status);
-    if (!r) return res.status(404).json({ error: 'not_found' });
-    res.json(r);
-  } catch {
-    res.status(500).json({ error: 'save_failed' });
   }
 });
 
@@ -297,7 +271,7 @@ app.get('/api/orders/:id/:file', admin, async (req, res) => {
   const { id, file } = req.params;
   if (!/^\d{1,16}$/.test(id) || !['plan.png', '3d.jpg'].includes(file)) return res.status(404).end();
   try {
-    const buf = await db.orderFile(Number(id), file);
+    const buf = await store.orderFile(Number(id), file);
     if (!buf) return res.status(404).end();
     res.type(file.endsWith('.png') ? 'png' : 'jpeg').send(buf);
   } catch {
@@ -358,4 +332,5 @@ app.use('/api', (req, res) => res.status(404).json({ error: 'not_found' }));
 
 if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) app.listen(PORT, () => console.log(`Domus: http://localhost:${PORT}`));
 
+export { db };
 export default app;

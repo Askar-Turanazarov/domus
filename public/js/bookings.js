@@ -1,4 +1,4 @@
-// Manager page «Заявки на показ»: booking.json (written by the MCP server) through GET /api/bookings, refreshed every 3 s.
+// Manager page «Заявки на показ»: viewings (written by the MCP server) through GET /api/bookings, refreshed every 3 s.
 // Same sign-in as the orders page (manager password → session cookie, adminAuth.js); user data goes into the page as text only.
 import { t, getLang, applyStatic, initLangSwitcher, onLangChange } from './i18n.js';
 import { initTheme } from './theme.js';

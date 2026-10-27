@@ -1,10 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, readdirSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { validateOrder } from '../server/validateOrder.js';
-import { createStore, createRateLimit } from '../server/orderStore.js';
 
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13]);
 const png = buf => 'data:image/png;base64,' + buf.toString('base64');
@@ -57,25 +53,6 @@ test('drawing: only a real PNG of at most 1.5 MB', () => {
   assert.equal(validateOrder(order({ drawing: png(Buffer.from('GIF89a......')) })).field, 'drawing');
   assert.equal(validateOrder(order({ drawing: 'data:image/jpeg;base64,/9j/AAAA' })).field, 'drawing');
   assert.equal(validateOrder(order({ drawing: 'https://example.com/x.png' })).field, 'drawing');
-});
-
-test('rate limit: 5 per window per IP', () => {
-  let now = 0;
-  const hit = createRateLimit({ max: 5, windowMs: 1000, now: () => now });
-  for (let i = 0; i < 5; i++) assert.equal(hit('a'), true);
-  assert.equal(hit('a'), false);
-  assert.equal(hit('b'), true);
-  now = 1001;
-  assert.equal(hit('a'), true);
-});
-
-test('store: parallel updates are all kept, no temp files left', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'orders-'));
-  const file = join(dir, 'order.json');
-  const store = createStore(file);
-  await Promise.all(Array.from({ length: 20 }, (_, i) => store.update(o => { o.push({ id: i }); })));
-  assert.equal(JSON.parse(readFileSync(file, 'utf8')).length, 20);
-  assert.deepEqual(readdirSync(dir), ['order.json']);
 });
 
 test('apartment order: rooms[] with pos, no single-room fields', () => {

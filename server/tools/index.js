@@ -6,21 +6,14 @@ import { annuity } from '../core/finance.js';
 import { bookViewing, BookingError } from '../core/viewings.js';
 import { logTexts, ruText } from './logText.js';
 import { safeArgs } from './journal.js';
-import { fileBookings, fileCalls } from '../db.js';
 
 const root = f => fileURLToPath(new URL('../../' + f, import.meta.url));
-export const FILES = { apartments: root('apartments.json'), bookings: root('booking.json'), calls: root('mcp-calls.jsonl') };
+export const FILES = { apartments: root('apartments.json') };
 
-// What the tools work with: { apartments — path, statuses() — the manager's statuses (optional), addBooking(b), logCall(e) }.
-// files — either that, or the paths { apartments, bookings, calls } (tests, the local run without the site's storage).
-export function context(files = FILES) {
-  if (files.addBooking) return files;
-  return { ...files, ...fileBookings(files.bookings), logCall: files.calls ? fileCalls(files.calls).logCall : async () => {} };
-}
-
-// The site's storage (server/db.js createDb): bookings and the call log in booking.json / mcp-calls.jsonl or Postgres.
-export const dbContext = db => ({ apartments: FILES.apartments, statuses: () => db.statuses(),
-  addBooking: b => db.addBooking(b), logCall: e => db.logCall(e) });
+// What the tools work with: { apartments — path, statuses() — computed from bookings, addBooking(b), logCall(e) }.
+// The site's storage (server/db/legacy.js legacyStore) gives the last three.
+export const dbContext = store => ({ apartments: FILES.apartments, statuses: () => store.statuses(),
+  addBooking: b => store.addBooking(b), logCall: e => store.logCall(e) });
 
 const short = ({ no, floor, rooms, area, price, status }) => ({ no, floor, rooms, area, price, status });
 const kind = a => (a.rooms ? `${a.rooms}-комн.` : 'студия');
@@ -54,7 +47,7 @@ const safe = (ctx, tool, handler, seen = {}) => async args => {
   const t0 = Date.now();
   const { log, ...r } = await run(handler, args);
   const msgs = summary(tool, r.structuredContent, log);
-  await ctx.logCall({ type: 'call', tool, ok: !r.isError, ms: Date.now() - t0, args: safeArgs(tool, args), msg: msgs.ru, msgs });
+  await ctx.logCall({ type: 'call', tool, ok: !r.isError, error: log?.key, ms: Date.now() - t0, args: safeArgs(tool, args), msg: msgs.ru, msgs });
   return r;
 };
 
@@ -73,7 +66,7 @@ export function applyStatuses(list, overrides) {
   });
 }
 
-// files.statuses — optional async () → the manager's statuses (server/mcp/index.js passes the site's storage, server/db.js).
+// files.statuses — async () → the statuses computed from the base (server/db/legacy.js).
 const apartmentsOf = async files => applyStatuses(await readApartments(files.apartments), files.statuses ? await files.statuses() : {});
 
 // Pure: the filters, free only by default, cheapest first.
@@ -93,8 +86,8 @@ export function getApartment(list, no) {
 const APT = z.object({ no: z.number(), floor: z.number(), rooms: z.number(), area: z.number(), price: z.number(), status: z.string() });
 
 // seen.logged — set once a tool ran and wrote its line (server/mcp/index.js logs the calls the SDK refused before any tool ran).
-// files — the context (see context() above).
-export function registerTools(server, files = context(), seen = {}) {
+// files — the context (see dbContext above).
+export function registerTools(server, files, seen = {}) {
   const wrap = (tool, handler) => safe(files, tool, handler, seen);
   server.registerTool('search_apartments', {
     title: 'Поиск квартир',

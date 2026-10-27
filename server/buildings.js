@@ -1,6 +1,6 @@
 // New-building data for the showcase: generated buildings (buildings/<id>.json, the plans), the apartment list
-// (apartments.json: rooms, area, price, status) and the manager's apartment statuses on top
-// (server/db.js: { [building id]: { [apartment no]: 'free' | 'booked' | 'sold' } }).
+// (apartments.json: rooms, area, price, status) and the statuses computed from the base on top
+// (server/db/legacy.js statuses(): { [building id]: { [apartment no]: 'free' | 'booked' | 'sold' } }).
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
@@ -32,7 +32,7 @@ function applyListing(b, listing) {
 
 const findApartment = (b, no) => b.floorsData.flatMap(f => f.apartments).find(a => a.no === no) || null;
 
-// dir — the buildings folder, statusStore — { read() → all statuses, set(building, apt, status) } (server/db.js),
+// dir — the buildings folder, statusStore — { read() → all statuses } (computed from bookings, server/db/legacy.js),
 // listFile — apartments.json ({ apartments: [{ building, no, floor, rooms, area, price, status }] }).
 function createBuildings(dir, statusStore, listFile) {
   async function raw(id) {
@@ -54,14 +54,7 @@ function createBuildings(dir, statusStore, listFile) {
     return all.filter(Boolean).map(b => ({ id: b.id, name: b.name, floors: b.floors,
       apartments: b.floorsData.reduce((s, x) => s + x.apartments.length, 0) }));
   }
-  // → { no, status } | null when the building or the apartment does not exist.
-  async function setStatus(id, no, status) {
-    const b = await raw(id);
-    if (!b || !findApartment(b, no)) return null;
-    await statusStore.set(id, no, status);
-    return { no, status };
-  }
-  return { get, list, setStatus, apartment: async (id, no) => { const b = await get(id); return b && findApartment(b, no); } };
+  return { get, list, apartment: async (id, no) => { const b = await get(id); return b && findApartment(b, no); } };
 }
 
 export { APT_STATUSES, BUILDING_ID, applyListing, applyStatuses, findApartment, createBuildings };

@@ -1,12 +1,8 @@
-// Server routes on a real server (port 0) with a temporary data folder.
+// Server routes on a real server (port 0) over a PGlite base in memory.
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import pkg from '../package.json' with { type: 'json' };
 
-process.env.DATA_DIR = mkdtempSync(join(tmpdir(), 'fsp3d-'));
 process.env.ADMIN_TOKEN = 'server-test-token-123';
 const { default: app } = await import('../server.js');
 const server = app.listen(0);
@@ -22,11 +18,11 @@ test('PATCH /api/orders/:id: a non-numeric id is 404', async () => {
   }
 });
 
-test('GET /api/health: ok, storage kind and version, not cached', async () => {
+test('GET /api/health: ok, base kind and version, not cached', async () => {
   const res = await fetch(`${base()}/api/health`);
   assert.equal(res.status, 200);
   assert.equal(res.headers.get('cache-control'), 'no-store');
-  assert.deepEqual(await res.json(), { ok: true, db: 'files', version: pkg.version });
+  assert.deepEqual(await res.json(), { ok: true, db: 'pglite', version: pkg.version });
 });
 
 test('security headers on pages, static files and the API', async () => {

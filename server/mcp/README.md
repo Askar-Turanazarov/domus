@@ -4,7 +4,7 @@
 - **на сайте** — `POST https://<адрес сайта>/mcp` (маршрут в `server.js`, работает и на Vercel; без `MCP_TOKEN` в переменных окружения — `503`);
 - **отдельно, для разработки** — `http://127.0.0.1:3001/mcp` (`node server/mcp/index.js` из корня проекта).
 
-Данные — в хранилище сайта (`server/db.js`): с `DATABASE_URL` — Postgres (записи — таблица `bookings`, журнал — `mcp_calls`), без него — файлы `booking.json` и `mcp-calls.jsonl` в корне. Статусы квартир — с учётом изменений менеджера в `/admin.html`, как на витрине.
+Данные — в базе сайта (`server/db/`): с `DATABASE_URL` — Neon, без него — PGlite в `.pglite/`. Записи на показ — таблица `viewings`, журнал — `tool_calls`. Статусы квартир вычисляются из броней и продаж (D-15), как на витрине.
 Все цены в сумах (целые). Зависимости — в корневом `package.json` (`@modelcontextprotocol/sdk`, `zod`).
 
 ## Запуск

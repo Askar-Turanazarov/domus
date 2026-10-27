@@ -1,12 +1,9 @@
 // Pages with the language in the address (/ru, /uz, /en, …/building): <html lang>, title and the Open Graph block.
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { readFileSync } from 'node:fs';
 import * as pages from '../server/pages.js';
 
-process.env.DATA_DIR = mkdtempSync(join(tmpdir(), 'fsp3d-'));
 const { default: app } = await import('../server.js');
 const server = app.listen(0);
 after(() => server.close());

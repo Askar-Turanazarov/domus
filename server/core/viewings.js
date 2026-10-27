@@ -1,4 +1,4 @@
-// Viewing bookings: the checks here, the saving in the site's storage (server/db.js addBooking — booking.json or Postgres).
+// Viewing bookings: the checks here, the saving in the base (server/db/legacy.js addBooking → viewings).
 // Times are Tashkent time, stored as "YYYY-MM-DDTHH:MM+05:00". A booking never changes the apartment status.
 import crypto from 'node:crypto';
 import { ruText } from '../tools/logText.js';

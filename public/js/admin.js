@@ -1,4 +1,4 @@
-// Manager page: orders from order.json, statuses, notes. Sign-in by the manager password (adminAuth.js → session cookie).
+// Manager page: orders from the base (GET /api/orders), statuses, notes. Sign-in by the manager password (adminAuth.js → session cookie).
 // User data is put into the page as text, never as HTML.
 import { t, getLang, applyStatic, initLangSwitcher, onLangChange } from './i18n.js';
 import { initTheme } from './theme.js';

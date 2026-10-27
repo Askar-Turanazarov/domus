@@ -1,19 +1,17 @@
 // The new-building apartments (apartments.json): a sound list that matches the plans, and the server reads it.
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { readFileSync } from 'node:fs';
 import { applyListing, APT_STATUSES } from '../server/buildings.js';
+import { mirrorFileStatuses } from './support/db.js';
 
 const read = f => JSON.parse(readFileSync(new URL('../' + f, import.meta.url), 'utf8'));
 const list = read('apartments.json').apartments;
 const bld = read('buildings/chinor-park.json');
 const planned = bld.floorsData.flatMap(f => f.apartments.map(a => ({ ...a, floor: f.n })));
 // the server is loaded before the tests are declared: a top-level await between them would let the runner start early
-const dataDir = mkdtempSync(join(tmpdir(), 'fsp3d-'));
-process.env.DATA_DIR = dataDir;
-const { default: app } = await import('../server.js');
+const { default: app, db } = await import('../server.js');
+await mirrorFileStatuses(db);   // statuses come from the base: give it the file's ones
 const server = app.listen(0);
 after(() => server.close());
 

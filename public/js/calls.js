@@ -1,4 +1,4 @@
-// Manager page «Журнал вызовов»: the MCP call log (mcp-calls.jsonl) through GET /api/calls, refreshed every 3 s.
+// Manager page «Журнал вызовов»: the MCP call log (tool_calls) through GET /api/calls, refreshed every 3 s.
 // Each subagent has its own tools, so the tool tells who called. Same sign-in as the orders page (manager password → session cookie, adminAuth.js); data goes in as text only.
 import { t, getLang, applyStatic, initLangSwitcher, onLangChange } from './i18n.js';
 import { initTheme } from './theme.js';
@@ -155,7 +155,7 @@ function render(force = false) {
     const result = denied ? chip(t(e.reason === 'bad_token' ? 'cl.badToken' : 'cl.noToken'), 'deny')
       : chip(e.ok ? t('cl.ok') : t('cl.err'), e.ok ? 'good' : 'bad');
     const resCell = document.createElement('span');
-    const msg = e.msgs?.[getLang()] || e.msg;   // ru / uz / en from the server; very old lines only have msg
+    const msg = e.msgs?.[getLang()] || e.msg || e.error;   // the result line (older logs) or the error code (tool_calls)
     resCell.append(result, msg ? ' ' + msg : '');
     for (const cell of [when(e.at), denied ? '—' : AGENT[e.tool] || '—', denied ? '—' : e.tool, denied ? '—' : argsText(e.tool, e.args), resCell, denied ? '' : String(e.ms ?? '')]) {
       const td = document.createElement('td');
