@@ -14,8 +14,11 @@ import { BUILDING_ID, createBuildings } from './server/buildings.js';
 import * as auth from './server/adminAuth.js';
 import * as pages from './server/pages.js';
 import { loadEnv } from './server/env.js';
-import { mountJobs } from './server/events/routes.js';
+import { mountJobs, background } from './server/events/routes.js';
 import { mountPayments, mountStripeWebhook } from './server/http/payments.js';
+import { mountBookings } from './server/http/bookings.js';
+import { requestId, noStore, apiErrors } from './server/http/common.js';
+import { afterCommit } from './server/events/runner.js';
 
 const __dirname = import.meta.dirname;
 
@@ -33,16 +36,22 @@ const db = createDb();
 const store = legacyStore(db);
 const buildings = createBuildings(path.join(__dirname, 'buildings'), { read: () => store.statuses() }, APARTMENTS);
 
+// What the core hands over after COMMIT (Outbox rows, jobs): delivered and published after the answer (03 §1 step 4).
+const coreOpts = { onCommit: fx => background(afterCommit(db, fx, {}), 'after commit') };
+
 app.set('trust proxy', 1);                 // the client's IP behind the Vercel / reverse proxy
 // Basic security headers: no MIME sniffing, frames only from this site (the floor 3D iframe), short Referer.
 app.use((req, res, next) => {
   res.set({ 'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'SAMEORIGIN', 'Referrer-Policy': 'strict-origin-when-cross-origin' });
   next();
 });
+app.use(requestId);
+app.use('/api', noStore);
 mountJobs(app, db);                        // deadlines: tick, /api/jobs/run (raw body for the QStash signature), /api/cron/daily
 mountStripeWebhook(app, db);               // the raw body for the Stripe signature — before the JSON parser (05 §6.4)
+mountBookings(app, db, coreOpts);          // booking: hold, personal link (13 §4); own 64 KB JSON parser
+mountPayments(app, db, coreOpts);          // payments: start, emulators (05 §12); own 64 KB JSON parser
 app.use(express.json({ limit: '4mb' }));   // the order carries the drawing PNG and a 3D picture (≤ 1.5 MB each); Vercel takes ≤ 4.5 MB
-mountPayments(app, db);                    // the payment emulators (05 §12)
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));   // "/" is rendered below
 app.get('/favicon.ico', (req, res) => res.redirect(301, '/favicon.svg'));
 // Vercel serves public/ from its CDN but sends "/" to the function: the showcase from here (D-27; the planner is /:lang/planner/).
@@ -337,6 +346,7 @@ app.post('/api/textures/fetch/:id', async (req, res) => {
 
 // Any other /api path: JSON, not the HTML "Cannot GET" page.
 app.use('/api', (req, res) => res.status(404).json({ error: 'not_found' }));
+app.use(apiErrors);                        // a broken or too big body, an unexpected error: 13 §1.2 format
 
 if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) app.listen(PORT, () => console.log(`Domus: http://localhost:${PORT}`));
 

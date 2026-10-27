@@ -1,54 +1,79 @@
 // HTTP entries of the payment layer (05 §12). The card body is never logged (P6). Contracts — 13-api §5;
-// the common error table of 13 §2 comes with the API task (D2-12), here — the payment codes of 05 §13.
+// the error table and the answer format are common to all entries (./common.js, 13 §1.2, §2).
 import express from 'express';
 import { DomainError } from '../core/errors.js';
+import { startPayment, cancelPayment, paymentView } from '../core/payments.js';
+import { context, inTx } from '../core/tx.js';
 import { submitCard, confirmCard } from '../payments/card.js';
 import { handleClick, submitClickCard, confirmClick } from '../payments/click.js';
 import { handleStripeWebhook, stripeReturn } from '../payments/stripe.js';
-import { t } from '../i18n/index.js';
+import { parseRef } from '../core/links.js';
+import { bookingByRef, holderOf } from './bookings.js';
+import { sendError, langOf, jsonBody, parseBody, z, idempotencyKey, limit, ipKey, HOUR, MINUTE } from './common.js';
 
-const STATUS = {
-  payment_not_found: 404, payment_closed: 409, booking_already_paid: 409, hold_expiring: 409, provider_unavailable: 409,
-  provider_error: 502, card_invalid: 422, card_expired: 422, card_not_supported: 422, wrong_code: 422,
-  consent_required: 422, booking_closed: 409, booking_not_found: 404, invalid_input: 400, forbidden: 403, idempotency_conflict: 409
-};
+export { sendError };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const LANGS = ['ru', 'uz', 'en'];
 
-const langOf = req => [req.body?.lang, req.query.lang].find(l => LANGS.includes(l)) ?? 'ru';
-
-// DomainError → { error, message?, ...vars } with its status; anything else → 500 without details.
-export function sendError(res, e, lang = 'ru') {
-  if (!(e instanceof DomainError)) {
-    console.error('payments:', e.message);
-    return res.status(500).json({ error: 'internal' });
-  }
-  const message = t(lang, `pay.form.${e.code}`, e.vars) ?? undefined;
-  return res.status(STATUS[e.code] ?? 400).json({ error: e.code, message, ...e.vars });
-}
-
-// opts — { env } for the core (tests pass a clock-free env; the base clock is the core's).
+// opts — { env, onCommit } for the core (tests pass a clock-free env; the base clock is the core's).
 export function mountPayments(app, db, opts = {}) {
-  const run = fn => async (req, res) => {
+  const env = opts.env ?? process.env;
+  app.use('/api/payments', jsonBody);
+
+  // fn(req) → the JSON answer. Personal pages: no cache, no referrer. `paced` — the emulator limits of 14 §5.
+  const run = (fn, { paced = false } = {}) => async (req, res) => {
     res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
     try {
       if (!UUID.test(req.params.id)) throw new DomainError('payment_not_found');
+      if (paced) {
+        await limit(db, `pay:id:${req.params.id}`, 10, MINUTE, context(opts));
+        await limit(db, `pay:ip:${ipKey(req, env)}`, 30, MINUTE, context(opts));
+      }
       res.json(await fn(req));
     } catch (e) {
-      sendError(res, e, langOf(req));
+      sendError(res, e, langOf(req), 'pay.form');
     }
   };
 
-  app.post('/api/payments/:id/card', run(req =>
-    submitCard(db, { paymentId: req.params.id, number: req.body?.number, expiry: req.body?.expiry }, opts)));
-  app.post('/api/payments/:id/card/confirm', run(req =>
-    confirmCard(db, { paymentId: req.params.id, code: req.body?.code, lang: langOf(req) }, opts)));
-  app.post('/api/payments/:id/click/card', run(req =>
-    submitClickCard(db, { paymentId: req.params.id, number: req.body?.number, expiry: req.body?.expiry }, opts)));
-  app.post('/api/payments/:id/click/confirm', run(req =>
-    confirmClick(db, { paymentId: req.params.id, code: req.body?.code, lang: langOf(req) }, opts)));
+  // 05 §3, §12: start from the booking page. IK; the form shows the url (the emulator page, Stripe Checkout).
+  app.post('/api/payments', async (req, res) => {
+    res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
+    try {
+      const body = parseBody({
+        ref: z.string().max(80), provider: z.enum(['card', 'click', 'stripe']),
+        consent: z.strictObject({ version: z.string().max(20) }).optional(), lang: z.enum(['ru', 'uz', 'en']).optional()
+      }, req.body);
+      const key = idempotencyKey(req);
+      if (!parseRef(body.ref)) throw new DomainError('invalid_input', { fields: ['ref'] });   // 'o:501-…' — with the orders
+      const b = await bookingByRef(db, body.ref, env);
+      await limit(db, `pay:ref:${b.no}`, 10, HOUR, context(opts));
+      const r = await startPayment(db, { target: { bookingId: b.id }, provider: body.provider, consent: body.consent ?? null,
+        lang: langOf(req), idempotencyKey: key }, holderOf(b), opts);
+      res.status(201).json(r);
+    } catch (e) {
+      sendError(res, e, langOf(req));
+    }
+  });
 
-  // Click calls these (05 §5.3): form-urlencoded (JSON is taken too), the answer is always 200 with the protocol error
+  app.get('/api/payments/:id', run(req => paymentView(db, req.params.id, langOf(req), opts)));
+
+  app.post('/api/payments/:id/cancel', run(async req => {
+    const ctx = context(opts);
+    const row = await inTx(db, ctx, (q, fx) => cancelPayment(q, fx, ctx, { paymentId: req.params.id, why: 'cancelled_by_user',
+      actor: { type: 'client', id: null, role: 'client', channel: 'web' } }));
+    if (!row) throw new DomainError('payment_closed');
+    return { status: row.status };
+  }));
+
+  app.post('/api/payments/:id/card', run(req =>
+    submitCard(db, { paymentId: req.params.id, number: req.body?.number, expiry: req.body?.expiry }, opts), { paced: true }));
+  app.post('/api/payments/:id/card/confirm', run(req =>
+    confirmCard(db, { paymentId: req.params.id, code: req.body?.code, lang: langOf(req) }, opts), { paced: true }));
+  app.post('/api/payments/:id/click/card', run(req =>
+    submitClickCard(db, { paymentId: req.params.id, number: req.body?.number, expiry: req.body?.expiry }, opts), { paced: true }));
+  app.post('/api/payments/:id/click/confirm', run(req =>
+    confirmClick(db, { paymentId: req.params.id, code: req.body?.code, lang: langOf(req) }, opts), { paced: true }));
+
+// Click calls these (05 §5.3): form-urlencoded (JSON is taken too), the answer is always 200 with the protocol error
   // field. Only a failure of ours (the base is down) answers 500 — Click then repeats, which is what we want.
   const click = action => async (req, res) => {
     try {

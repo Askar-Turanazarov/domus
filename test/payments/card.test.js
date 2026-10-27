@@ -94,10 +94,10 @@ test('a wrong code 3 times → failed / code_attempts_exceeded; a new card gives
   const first = (await card(paymentId)).body.sms.code;
   const second = (await card(paymentId)).body.sms.code;          // the card again: the old code is void, attempts from 0
   const wrong = second === '000000' ? '000001' : '000000';
-  if (first !== second) assert.equal((await confirm(paymentId, first)).body.left, 2, 'the old code no longer works');
-  else assert.equal((await confirm(paymentId, wrong)).body.left, 2);
+  if (first !== second) assert.equal((await confirm(paymentId, first)).body.vars.left, 2, 'the old code no longer works');
+  else assert.equal((await confirm(paymentId, wrong)).body.vars.left, 2);
   const w2 = await confirm(paymentId, wrong);
-  assert.deepEqual([w2.status, w2.body.error, w2.body.left], [422, 'wrong_code', 1]);
+  assert.deepEqual([w2.status, w2.body.error, w2.body.vars.left], [422, 'wrong_code', 1]);
   assert.equal(w2.body.message, 'Неверный код. Осталось попыток: 1.');
   const w3 = await confirm(paymentId, wrong);
   assert.equal(w3.status, 200);
@@ -139,7 +139,7 @@ test('the hold ends mid-payment: the code is right, but no money is taken and th
   assert.deepEqual([late.body.status, late.body.failureReason], ['failed', 'hold_expired']);
   assert.equal(await bookingStatus(second.booking.id), 'held', 'not booked (swept later)');
   const third = await card(second.paymentId);
-  assert.deepEqual([third.status, third.body.error, third.body.reason], [409, 'payment_closed', 'hold_expired']);
+  assert.deepEqual([third.status, third.body.error, third.body.vars.reason], [409, 'payment_closed', 'hold_expired']);
 });
 
 test('unknown or malformed payment id → 404', async () => {
