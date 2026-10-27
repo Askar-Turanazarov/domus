@@ -89,7 +89,7 @@ test('10 §5.1: without sendMessageDraft (404) → «печатает…» every
   const a = fakeApi({ draft: false });
   const s = createReplyStream({ api: a.api, chatId: 1, draftId: 7, typingEveryMs: 10 });
   s.event({ type: 'status', data: { text: 'Считаю…' } });
-  await new Promise(r => setTimeout(r, 60));
+  for (let i = 0; i < 100 && a.calls.filter(c => c[0] === 'action').length < 3; i++) await new Promise(r => setTimeout(r, 20));
   await s.stop();
   assert.equal(drafts(a.calls).length, 1, 'one try, then no more');
   assert.ok(a.calls.filter(c => c[0] === 'action').length >= 3, 'typing repeats');
