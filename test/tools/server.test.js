@@ -54,8 +54,8 @@ test('a malformed path (//) or a body cut mid-way does not bring the server down
   assert.equal(res.status, 200, 'the server still answers');
 });
 
-test('with the token: initialize answers as «novostroyka»', async () => {
+test('with the token: initialize answers as «chinor-park»', async () => {
   const res = await s.rpc('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 't', version: '1' } });
   assert.equal(res.status, 200);
-  assert.equal((await res.json()).result.serverInfo.name, 'novostroyka');
+  assert.equal((await res.json()).result.serverInfo.name, 'chinor-park');
 });

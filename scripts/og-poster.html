@@ -42,9 +42,9 @@ const TEXT = {
     en: ['Apartment and custom furniture planner', 'Room and furniture sizes, a “does it fit” check, a 3D walk through the apartment and a request.']
   },
   building: {
-    ru: ['ЖК «Новостройка-12»', 'Подбор квартиры, план этажа и прогулка от улицы до двери в 3D.'],
-    uz: ['«Novostroyka-12» TJM', 'Kvartira tanlash, qavat rejasi va ko‘chadan eshikgacha 3D sayr.'],
-    en: ['Novostroyka-12', 'Pick an apartment, see the floor plan and walk from the street to the door in 3D.']
+    ru: ['ЖК «Chinor Park»', 'Подбор квартиры, план этажа и прогулка от улицы до двери в 3D.'],
+    uz: ['«Chinor Park» TJM', 'Kvartira tanlash, qavat rejasi va ko‘chadan eshikgacha 3D sayr.'],
+    en: ['Chinor Park', 'Pick an apartment, see the floor plan and walk from the street to the door in 3D.']
   }
 };
 document.getElementById('title').textContent = TEXT[page][lang][0];
@@ -141,7 +141,7 @@ async function building(b) {
   }
 }
 
-fetch('/api/buildings/novostroyka-12').then(r => r.json())
+fetch('/api/buildings/chinor-park').then(r => r.json())
   .then(b => (page === 'building' ? building(b) : planner(b)))
   .then(() => { document.title = 'ready'; });
 </script>

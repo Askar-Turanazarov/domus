@@ -1,4 +1,4 @@
-// MCP server «Новостройка» over Streamable HTTP: on the site as POST /mcp (server.js, also on Vercel),
+// MCP server «Chinor Park» over Streamable HTTP: on the site as POST /mcp (server.js, also on Vercel),
 // or on its own at http://127.0.0.1:3001/mcp (node server/mcp/index.js, for development).
 // Every request needs `Authorization: Bearer <MCP_TOKEN>` (MCP_TOKEN from the project's .env); otherwise 401.
 import http from 'node:http';
@@ -64,7 +64,7 @@ export async function handleMcp(req, res, { token, ctx, parsed }) {
       return send(res, e.status, { error: e.status === 413 ? 'too_large' : 'bad_json' });
     }
   } else if (JSON.stringify(body).length > MAX_BODY) return send(res, 413, { error: 'too_large' });
-  const server = new McpServer({ name: 'novostroyka', version: '0.1.0' });
+  const server = new McpServer({ name: 'chinor-park', version: '0.1.0' });
   const seen = { logged: false };
   registerTools(server, ctx, seen);
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
@@ -88,5 +88,5 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const db = createDb({ root, dataDir: process.env.DATA_DIR || fileURLToPath(new URL('../../data', import.meta.url)) });
   const port = Number(process.env.MCP_PORT) || 3001;
   const host = '127.0.0.1';
-  createHttpServer({ token: process.env.MCP_TOKEN, files: dbContext(db) }).listen(port, host, () => console.log(`MCP «Новостройка»: http://${host}:${port}/mcp`));
+  createHttpServer({ token: process.env.MCP_TOKEN, files: dbContext(db) }).listen(port, host, () => console.log(`MCP «Chinor Park»: http://${host}:${port}/mcp`));
 }

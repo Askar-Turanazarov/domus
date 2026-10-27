@@ -9,7 +9,7 @@ after(() => server.close());
 const base = () => `http://127.0.0.1:${server.address().port}`;
 
 test('GET /api/buildings/:id: the statuses database is down → 500 buildings_unavailable', async () => {
-  const res = await fetch(`${base()}/api/buildings/novostroyka-12`, { signal: AbortSignal.timeout(20000) });
+  const res = await fetch(`${base()}/api/buildings/chinor-park`, { signal: AbortSignal.timeout(20000) });
   assert.equal(res.status, 500);
   assert.deepEqual(await res.json(), { error: 'buildings_unavailable' });
 });

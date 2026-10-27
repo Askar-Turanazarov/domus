@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { facadeOf, apartmentAt, floorAt, sideLength } from '../public/js/facade.js';
 
-const bld = JSON.parse(fs.readFileSync(new URL('../buildings/novostroyka-12.json', import.meta.url), 'utf8'));
+const bld = JSON.parse(fs.readFileSync(new URL('../buildings/chinor-park.json', import.meta.url), 'utf8'));
 const fac = facadeOf(bld);
 const apts = bld.floorsData.flatMap(f => f.apartments);
 const wins = fac.bays.filter(b => b.kind === 'window');

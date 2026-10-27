@@ -1,4 +1,4 @@
-# MCP-сервер «Новостройка»
+# MCP-сервер «Chinor Park»
 
 Квартиры из `apartments.json` (корень проекта), записи на показ и журнал вызовов по MCP (Streamable HTTP):
 - **на сайте** — `POST https://<адрес сайта>/mcp` (маршрут в `server.js`, работает и на Vercel; без `MCP_TOKEN` в переменных окружения — `503`);
@@ -11,7 +11,7 @@
 ```bash
 # из корня проекта; в .env строка MCP_TOKEN=<32–64 символа>:
 #   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-node server/mcp/index.js          # MCP «Новостройка»: http://127.0.0.1:3001/mcp
+node server/mcp/index.js          # MCP «Chinor Park»: http://127.0.0.1:3001/mcp
 node --test "test/tools/*.test.js"
 ```
 Без `MCP_TOKEN` (или короче 32 символов) сервер не запускается. Каждый запрос — с заголовком `Authorization: Bearer <MCP_TOKEN>`, иначе `401`.
@@ -52,7 +52,7 @@ curl -s -w ' %{http_code}\n' "${H[@]}" -H "Authorization: Bearer $MCP_TOKEN" -d 
 ## Claude Code
 `.mcp.json` в корне проекта (в git не попадает):
 ```json
-{ "mcpServers": { "novostroyka": { "type": "http", "url": "https://<адрес сайта>/mcp",
+{ "mcpServers": { "chinor-park": { "type": "http", "url": "https://<адрес сайта>/mcp",
   "headers": { "Authorization": "Bearer <тот же MCP_TOKEN, что в .env>" } } } }
 ```
 

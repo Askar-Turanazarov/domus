@@ -1,4 +1,4 @@
-// The tools of «Новостройка»: apartments from the project's apartments.json. Prices in sum (integers), area in m², rooms 0 = studio.
+// The tools of «Chinor Park»: apartments from the project's apartments.json. Prices in sum (integers), area in m², rooms 0 = studio.
 import fs from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';

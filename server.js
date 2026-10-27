@@ -70,7 +70,7 @@ app.get('/api/health', (req, res) => {
   res.set('Cache-Control', 'no-store').json({ ok: true, db: db.kind, version });
 });
 
-// The MCP server «Новостройка» (server/mcp/) on the site: POST /mcp with `Authorization: Bearer <MCP_TOKEN>`.
+// The MCP server «Chinor Park» (server/mcp/) on the site: POST /mcp with `Authorization: Bearer <MCP_TOKEN>`.
 // Bookings and the call log go to the site's storage, the tools see the manager's statuses. No MCP_TOKEN — off.
 const MCP_MIN_TOKEN = 32;   // as server/mcp/index.js MIN_TOKEN
 let mcp = null;

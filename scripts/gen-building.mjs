@@ -1,4 +1,4 @@
-// Generates buildings/novostroyka-12.json: the demo 12-storey building for the showcase (see public/js/building.js).
+// Generates buildings/chinor-park.json: the demo 12-storey building for the showcase (see public/js/building.js).
 // Run: node scripts/gen-building.mjs
 import fs from 'node:fs';
 import { generateBuilding } from '../public/js/building.js';

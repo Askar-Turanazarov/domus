@@ -15,7 +15,7 @@ const { default: app } = await import('../server.js');
 const server = app.listen(0);
 after(() => server.close());
 
-const ref = { building: 'novostroyka-12', floor: 2, apt: 1 };
+const ref = { building: 'chinor-park', floor: 2, apt: 1 };
 const request = (patch = {}) => ({ name: 'Askar', phone: '+998 90 123 45 67', comment: '', lang: 'ru', apartmentRef: ref, ...patch });
 
 test('validateOrder: a request for an apartment needs no furniture', () => {
@@ -42,11 +42,11 @@ test('applyStatuses: the manager\'s status wins, unknown values are ignored', ()
 });
 
 const base = () => `http://127.0.0.1:${server.address().port}`;
-const patch = (apt, body, token = process.env.ADMIN_TOKEN, id = 'novostroyka-12') => fetch(`${base()}/api/buildings/${id}/apartments/${apt}`, {
+const patch = (apt, body, token = process.env.ADMIN_TOKEN, id = 'chinor-park') => fetch(`${base()}/api/buildings/${id}/apartments/${apt}`, {
   method: 'PATCH', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) },
   body: JSON.stringify(body)
 });
-const status = async no => (await (await fetch(`${base()}/api/buildings/novostroyka-12`)).json())
+const status = async no => (await (await fetch(`${base()}/api/buildings/chinor-park`)).json())
   .floorsData.flatMap(f => f.apartments).find(a => a.no === no).status;
 
 test('PATCH apartment status: token, status and apartment are checked; the building shows the new status', async () => {
@@ -62,14 +62,14 @@ test('PATCH apartment status: token, status and apartment are checked; the build
   assert.equal(res.status, 200);
   assert.deepEqual(await res.json(), { no: 1, status: next });
   assert.equal(await status(1), next);
-  assert.deepEqual(JSON.parse(readFileSync(join(dataDir, 'building-status.json'), 'utf8')), { 'novostroyka-12': { 1: next } });
+  assert.deepEqual(JSON.parse(readFileSync(join(dataDir, 'building-status.json'), 'utf8')), { 'chinor-park': { 1: next } });
   // the generated file itself is untouched
-  const file = JSON.parse(readFileSync(new URL('../buildings/novostroyka-12.json', import.meta.url), 'utf8'));
+  const file = JSON.parse(readFileSync(new URL('../buildings/chinor-park.json', import.meta.url), 'utf8'));
   assert.equal(file.floorsData.flatMap(f => f.apartments).find(a => a.no === 1).status, before);
 });
 
 test('GET /api/buildings lists the demo building; a bad id is 404', async () => {
   const list = await (await fetch(`${base()}/api/buildings`)).json();
-  assert.ok(list.some(b => b.id === 'novostroyka-12' && b.floors === 12 && b.apartments > 50));
+  assert.ok(list.some(b => b.id === 'chinor-park' && b.floors === 12 && b.apartments > 50));
   assert.equal((await fetch(`${base()}/api/buildings/..%2Fpackage`)).status, 404);
 });

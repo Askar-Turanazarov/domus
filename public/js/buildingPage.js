@@ -12,7 +12,7 @@ import { photoAuto } from './3d/perf.js';
 import { initTheme, getTheme, onThemeChange } from './theme.js';
 
 const $ = id => document.getElementById(id);
-const BUILDING = new URLSearchParams(location.search).get('b') || 'novostroyka-12';
+const BUILDING = new URLSearchParams(location.search).get('b') || 'chinor-park';
 export const HANDOFF = 'fsp3d.handoff';
 const STATUSES = ['free', 'booked', 'sold'];
 // Floor-plan colours per theme: muted statuses (sage / champagne / graphite) and room-count tints.

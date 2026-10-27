@@ -175,7 +175,7 @@ const roomDoc = (no, r, i, lang = 'ru') => normalizeRoom({
  * The building: { id, name, floors, section, core, corridor, pricePerM2, floorsData: [{ n, lobby?, commercial?, apartments }] }.
  * apartment = { no, floor, type, rooms (count), area, price, status, corner, side, at: {x, y}, w, flip, plan: [roomDoc] }.
  */
-export function generateBuilding({ id = 'novostroyka-12', seed = 12, floors = 12, pricePerM2 = 12_000_000, catalog = [], furnished = true } = {}) {
+export function generateBuilding({ id = 'chinor-park', seed = 12, floors = 12, pricePerM2 = 12_000_000, catalog = [], furnished = true } = {}) {
   const rand = rng(seed);
   const settings = { snap: 5, gap: 3, grid: 10, showZones: 'selected', minPassage: 60, showPassages: true };
   // three floor patterns; every floor takes one of them, so wet zones repeat over several floors
@@ -228,7 +228,7 @@ export function generateBuilding({ id = 'novostroyka-12', seed = 12, floors = 12
     floorsData.push({ n, apartments });
   }
   return {
-    id, name: { ru: 'ЖК «Новостройка-12»', uz: '«Novostroyka-12» TJM', en: '“Novostroyka-12” residential' },
+    id, name: { ru: 'ЖК «Chinor Park»', uz: '«Chinor Park» TJM', en: '“Chinor Park” residential' },
     floors, seed, pricePerM2,
     section: { L: SECTION, W: SECTION_W, H },
     core: CORE, corridor: { x: 0, y: CORR_Y, w: SECTION, h: CORR_W },

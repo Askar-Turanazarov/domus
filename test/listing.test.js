@@ -8,7 +8,7 @@ import { applyListing, APT_STATUSES } from '../server/buildings.js';
 
 const read = f => JSON.parse(readFileSync(new URL('../' + f, import.meta.url), 'utf8'));
 const list = read('apartments.json').apartments;
-const bld = read('buildings/novostroyka-12.json');
+const bld = read('buildings/chinor-park.json');
 const planned = bld.floorsData.flatMap(f => f.apartments.map(a => ({ ...a, floor: f.n })));
 // the server is loaded before the tests are declared: a top-level await between them would let the runner start early
 const dataDir = mkdtempSync(join(tmpdir(), 'fsp3d-'));

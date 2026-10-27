@@ -18,7 +18,7 @@ const hit = (p, q) => p.x < q.x + q.w && q.x < p.x + p.w && p.y < q.y + q.h && q
 
 test('deterministic, and the saved demo building is up to date', () => {
   assert.equal(JSON.stringify(generateBuilding({ catalog })), JSON.stringify(b));
-  const saved = JSON.parse(fs.readFileSync(new URL('../buildings/novostroyka-12.json', import.meta.url), 'utf8'));
+  const saved = JSON.parse(fs.readFileSync(new URL('../buildings/chinor-park.json', import.meta.url), 'utf8'));
   assert.deepEqual(saved, JSON.parse(JSON.stringify(b)), 'run node scripts/gen-building.mjs');
   assert.notEqual(JSON.stringify(generateBuilding({ seed: 5, furnished: false })), JSON.stringify(generateBuilding({ furnished: false })));
 });

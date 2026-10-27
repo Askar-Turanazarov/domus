@@ -22,11 +22,11 @@ const TEXT = {
       'Set room and furniture sizes, check what fits, walk through the apartment in 3D and send a request.']
   },
   building: {
-    ru: ['ЖК «Новостройка-12» — квартиры с планировкой и прогулкой в 3D',
+    ru: ['ЖК «Chinor Park» — квартиры с планировкой и прогулкой в 3D',
       'Подбор квартиры по комнатам, площади и цене, план этажа и прогулка от улицы до квартиры в 3D.'],
-    uz: ['«Novostroyka-12» TJM — rejali va 3D sayrli kvartiralar',
+    uz: ['«Chinor Park» TJM — rejali va 3D sayrli kvartiralar',
       'Kvartirani xonalar, maydon va narx bo‘yicha tanlash, qavat rejasi va ko‘chadan kvartiragacha 3D sayr.'],
-    en: ['Novostroyka-12 — apartments with floor plans and a 3D walk',
+    en: ['Chinor Park — apartments with floor plans and a 3D walk',
       'Pick an apartment by rooms, area and price, see the floor plan and walk from the street to the door in 3D.']
   }
 };

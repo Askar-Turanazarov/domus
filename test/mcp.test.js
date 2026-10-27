@@ -1,4 +1,4 @@
-// POST /mcp on the site: the MCP server «Новостройка» as a route (as on Vercel). Token, tools, a booking that shows up
+// POST /mcp on the site: the MCP server «Chinor Park» as a route (as on Vercel). Token, tools, a booking that shows up
 // on the manager's /api/bookings, the call log on /api/calls without the client's name and phone.
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
