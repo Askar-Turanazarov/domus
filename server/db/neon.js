@@ -5,8 +5,8 @@ import { handle } from './handle.js';
 types.setTypeParser(20, Number);     // int8
 types.setTypeParser(1700, Number);   // numeric
 
-export function neonDb(url) {
-  const pool = new Pool({ connectionString: url, max: 5, idleTimeoutMillis: 10_000 });
+export function neonDb(url, { max = 5 } = {}) {
+  const pool = new Pool({ connectionString: url, max, idleTimeoutMillis: 10_000 });
   const rows = c => async (text, params = []) => (await c.query(text, params)).rows;
   return handle('neon', rows(pool), {
     exec: async sql => { await pool.query(sql); },

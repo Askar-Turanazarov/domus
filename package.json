@@ -23,7 +23,8 @@
     "ai:smoke": "node --env-file-if-exists=.env scripts/ai-smoke.js",
     "kb:index": "node scripts/kb-index.js",
     "eval:kb": "node scripts/eval-kb.js",
-    "mcp:client": "node scripts/mcp-client.js"
+    "mcp:client": "node scripts/mcp-client.js",
+    "test:neon": "node --env-file-if-exists=.env scripts/test-neon.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.133.0",
