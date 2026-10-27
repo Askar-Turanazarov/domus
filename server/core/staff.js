@@ -44,3 +44,52 @@ export async function setStaffChatState(q, state, opts = {}) {
   await q.query(`INSERT INTO settings (key, value, updated_at) VALUES ('staff_chat', $1, $2)
     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at`, [JSON.stringify({ state }), ctx.now()]);
 }
+
+// ---- accounts (12 §2, 14 §2.1, D-16): created by `npm run staff`, signed in by server/http/admin.js ----
+
+const COMMON = new Set(['password1234', '123456789012', 'qwertyuiop12', 'administrator', 'letmein12345', 'welcome12345',
+  'changeme1234', 'password12345', 'iloveyou1234', 'admin1234567', 'qwerty123456', '1q2w3e4r5t6y', 'domus1234567', 'chinorpark123']);
+
+// ≥ 12 characters, not a famous one, not made of one repeated character, not the login (14 §2.1). → null | the reason code.
+export function weakPassword(password, login = '') {
+  const p = String(password ?? '');
+  if (p.length < 12) return 'short';
+  if (p.length > 200) return 'long';
+  if (COMMON.has(p.toLowerCase()) || /^(.)\1+$/.test(p)) return 'common';
+  if (login && p.toLowerCase().includes(String(login).toLowerCase())) return 'login';
+  return null;
+}
+
+// Staff rows are changed only here; every change that must end the open sessions bumps session_version.
+export async function createStaff(q, { login, name, role, passwordHash, lang = 'ru' }, opts = {}) {
+  const ctx = context(opts);
+  const l = String(login ?? '').trim().toLowerCase();
+  if (!/^[a-z0-9._-]{2,40}$/.test(l)) throw new DomainError('invalid_input', { fields: ['login'] });
+  if (!['manager', 'head'].includes(role)) throw new DomainError('invalid_input', { fields: ['role'] });
+  if (!String(name ?? '').trim()) throw new DomainError('invalid_input', { fields: ['name'] });
+  return q.one(`INSERT INTO staff (login, name, role, password_hash, lang, created_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+    [l, String(name).trim().slice(0, 100), role, passwordHash, lang, ctx.now()]);
+}
+
+export const staffById = (q, id) => q.one('SELECT * FROM staff WHERE id = $1', [id]);
+export const staffByLogin = (q, login) => q.one('SELECT * FROM staff WHERE login = $1', [String(login ?? '').trim().toLowerCase()]);
+export const listStaff = q => q.query('SELECT * FROM staff ORDER BY created_at, login');
+
+export async function touchLogin(q, staffId, opts = {}) {
+  await q.query('UPDATE staff SET last_login_at = $2 WHERE id = $1', [staffId, context(opts).now()]);
+}
+
+// A new password also ends every open session of the person.
+export const setPassword = (q, staffId, passwordHash) =>
+  q.one('UPDATE staff SET password_hash = $2, session_version = session_version + 1 WHERE id = $1 RETURNING *', [staffId, passwordHash]);
+
+export const logoutEverywhere = (q, staffId) =>
+  q.one('UPDATE staff SET session_version = session_version + 1 WHERE id = $1 RETURNING *', [staffId]);
+
+export const setActive = (q, staffId, active) =>
+  q.one('UPDATE staff SET active = $2, session_version = session_version + 1 WHERE id = $1 RETURNING *', [staffId, Boolean(active)]);
+
+export const setRole = (q, staffId, role) => {
+  if (!['manager', 'head'].includes(role)) throw new DomainError('invalid_input', { fields: ['role'] });
+  return q.one('UPDATE staff SET role = $2, session_version = session_version + 1 WHERE id = $1 RETURNING *', [staffId, role]);
+};

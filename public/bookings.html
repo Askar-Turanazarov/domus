@@ -32,6 +32,8 @@
   <main class="adm">
     <form class="adm-card adm-login" id="admLogin">
       <h2 data-i18n="adm.loginTitle">Вход для менеджера</h2>
+      <label class="row"><span data-i18n="adm.loginName">Логин</span>
+        <input type="text" name="login" required maxlength="100" autocomplete="username"></label>
       <label class="row"><span data-i18n="adm.password">Пароль</span>
         <input type="password" name="password" required maxlength="200" autocomplete="current-password"></label>
       <p class="adm-err" id="admLoginErr"></p>

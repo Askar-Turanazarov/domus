@@ -35,7 +35,7 @@ function toast(text, isError = false) {
 async function api(path, opts = {}) {
   const res = await fetch(path, {
     ...opts,
-    headers: opts.body ? { 'Content-Type': 'application/json' } : {}
+    headers: { 'X-Requested-With': 'domus-admin', ...(opts.body ? { 'Content-Type': 'application/json' } : {}) }
   });
   if (res.status === 401 || res.status === 503) {
     auth.signedOut(res.status);

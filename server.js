@@ -11,7 +11,7 @@ import { legacyStore } from './server/db/legacy.js';
 import { writeZip } from './server/zip.js';
 import { fetchSet, libraryStatus, readLibMap } from './server/textureFetch.js';
 import { BUILDING_ID, createBuildings } from './server/buildings.js';
-import * as auth from './server/adminAuth.js';
+import { mountAdmin } from './server/http/admin.js';
 import * as pages from './server/pages.js';
 import { loadEnv } from './server/env.js';
 import { mountJobs, background } from './server/events/routes.js';
@@ -71,6 +71,7 @@ mountTelegram(app, db, { core: coreOpts, turns, tools });  // Telegram webhook (
 mountBookings(app, db, coreOpts);          // booking: hold, personal link (13 §4); own 64 KB JSON parser
 mountChat(app, db, { turns, tools }, coreOpts);   // the site chat: POST /api/chat (SSE), confirm, feedback, messages (13 §6)
 mountPayments(app, db, coreOpts);          // payments: start, emulators (05 §12); own 64 KB JSON parser
+const staffAuth = mountAdmin(app, db, { env: process.env });   // /api/admin/login|logout|me and the gate on /api/admin/*, /api/dashboard/* (12 §2)
 mountPersonalPages(app, { publicDir: path.join(__dirname, 'public'), legalDir: path.join(__dirname, 'legal') });   // /b/…, /pay/card|click/…, /legal/…
 app.use(express.json({ limit: '4mb' }));   // the order carries the drawing PNG and a 3D picture (≤ 1.5 MB each); Vercel takes ≤ 4.5 MB
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));   // "/" is rendered below
@@ -186,21 +187,12 @@ app.post('/api/order', async (req, res) => {
 });
 
 // ---------- manager: orders list, statuses, notes ----------
-// The pages sign in with the manager password (ADMIN_PASSWORD_HASH, server/adminAuth.js) → a session cookie;
-// scripts may still call the API with Authorization: Bearer ADMIN_TOKEN.
+// Staff sign in with a login and password (server/http/admin.js, 12 §2) → the session cookie `dst`; scripts may still call
+// these Domus routes with Authorization: Bearer ADMIN_TOKEN. They move under /api/admin/* with the new admin (13 §11).
 // A short token or the .env.example placeholder counts as not set.
 const weakToken = s => s.length < 16 || /^change-me/i.test(s);
 const ADMIN_TOKEN = weakToken(process.env.ADMIN_TOKEN || '') ? '' : process.env.ADMIN_TOKEN;
-const ADMIN_HASH = auth.parseHash(process.env.ADMIN_PASSWORD_HASH) ? process.env.ADMIN_PASSWORD_HASH.trim() : '';
 const STATUSES = ['new', 'inWork', 'measure', 'done', 'cancelled'];
-// Failed sign-ins per IP: 5 in 15 minutes, then 429 until the oldest one ages out (one instance's memory on Vercel).
-const LOGIN_FAILS = 5, LOGIN_WINDOW = 15 * 60 * 1000;
-const loginFails = new Map();
-const recentFails = ip => (loginFails.get(ip) || []).filter(t => Date.now() - t < LOGIN_WINDOW);
-function failLogin(ip) {
-  loginFails.set(ip, [...recentFails(ip), Date.now()]);
-  if (loginFails.size > 10000) for (const k of loginFails.keys()) if (!recentFails(k).length) loginFails.delete(k);
-}
 
 function bearerOk(req) {
   if (!ADMIN_TOKEN) return false;
@@ -208,46 +200,13 @@ function bearerOk(req) {
   const want = Buffer.from(ADMIN_TOKEN);
   return got.length === want.length && crypto.timingSafeEqual(got, want);
 }
-const sessionOk = req => !!ADMIN_HASH && auth.validSession(auth.readCookie(req.get('cookie')), ADMIN_HASH);
-// A change sent with the cookie from another site is refused (SameSite=Strict already stops it; this is the second lock).
-function foreign(req) {
-  const origin = req.get('origin');
-  if (req.method === 'GET' || !origin) return false;
-  try { return new URL(origin).host !== req.get('host'); } catch { return true; }   // "null" and junk count as foreign
-}
 
-function admin(req, res, next) {
-  if (!ADMIN_TOKEN && !ADMIN_HASH) return res.status(503).json({ error: 'admin_disabled' });
-  res.set('Cache-Control', 'no-store');
+// Any signed-in staff member (the gate also asks X-Requested-With on changes) or the script token.
+const admin = (req, res, next) => {
   if (bearerOk(req)) return next();
-  if (!sessionOk(req)) return res.status(401).json({ error: 'unauthorized' });
-  if (foreign(req)) return res.status(403).json({ error: 'forbidden' });
-  next();
-}
-
-app.post('/api/admin/login', async (req, res) => {
   res.set('Cache-Control', 'no-store');
-  if (!ADMIN_HASH) return res.status(503).json({ error: 'admin_disabled' });
-  if (foreign(req)) return res.status(403).json({ error: 'forbidden' });
-  if (recentFails(req.ip).length >= LOGIN_FAILS) return res.status(429).json({ error: 'too_many' });
-  if (!(await auth.verifyPassword(req.body?.password, ADMIN_HASH))) {
-    failLogin(req.ip);
-    return res.status(401).json({ error: 'unauthorized' });
-  }
-  loginFails.delete(req.ip);
-  res.set('Set-Cookie', auth.cookieHeader(auth.newSession(ADMIN_HASH), req.secure)).json({ ok: true });
-});
-
-app.post('/api/admin/logout', (req, res) => {
-  res.set({ 'Cache-Control': 'no-store', 'Set-Cookie': auth.cookieHeader('', req.secure) }).json({ ok: true });
-});
-
-// Is this browser signed in? 200 / 401, or 503 when no password is set on the server.
-app.get('/api/admin/me', (req, res) => {
-  res.set('Cache-Control', 'no-store');
-  if (!ADMIN_HASH) return res.status(503).json({ error: 'admin_disabled' });
-  res.status(sessionOk(req) ? 200 : 401).json({ ok: sessionOk(req) });
-});
+  return staffAuth.gate()(req, res, next);
+};
 
 app.get('/api/orders', admin, async (req, res) => {
   try {
