@@ -92,6 +92,9 @@ app.use(express.static(path.join(__dirname, 'public'), { index: false }));   // 
 // The admin app (12 §1): a static shell; Vercel serves public/admin/ itself, the function only answers the bare /admin.
 app.get('/admin', (req, res, next) => (req.originalUrl.split('?')[0] === '/admin' ? res.redirect(302, '/admin/') : next()));   // routing is not strict: "/admin/" matches too
 app.get('/admin/', (req, res) => res.set({ 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' }).sendFile(path.join(__dirname, 'public', 'admin', 'index.html')));
+// The dashboard (12 §9): full screen, the same sign-in; the API answers by role.
+app.get('/dashboard', (req, res, next) => (req.originalUrl.split('?')[0] === '/dashboard' ? res.redirect(302, '/dashboard/') : next()));
+app.get('/dashboard/', (req, res) => res.set({ 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' }).sendFile(path.join(__dirname, 'public', 'dashboard', 'index.html')));
 app.get('/favicon.ico', (req, res) => res.redirect(301, '/favicon.svg'));
 // Vercel serves public/ from its CDN but sends "/" to the function: the showcase from here (D-27; the planner is /:lang/planner/).
 // The pages with the language in the address (and "/" = Russian): link previews (Open Graph) and the interface in that language.
