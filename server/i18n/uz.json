@@ -222,5 +222,7 @@
   "confirm.edit": "Nimani o‘zgartiramiz? Boshqa xonadon yoki boshqa vaqtni tanlash mumkin.",
   "confirm.expired": "Tasdiqlash vaqti tugadi. Takrorlaymizmi?",
   "confirm.done.create_booking": "Tayyor! №{no} xonadon {time} gacha ushlab turiladi. To‘lash: {link}",
-  "confirm.done.book_viewing": "Tayyor! Siz №{no} xonadonni ko‘rishga yozildingiz: {when}. 3 soat oldin eslatamiz."
+  "confirm.done.book_viewing": "Tayyor! Siz №{no} xonadonni ko‘rishga yozildingiz: {when}. 3 soat oldin eslatamiz.",
+  "agent.ungrounded": "(menejerdan aniqlang)",
+  "agent.card_in_chat": "Karta maʼlumotlarini chatga yubormang. To‘lov faqat to‘lov sahifasida."
 }

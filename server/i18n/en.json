@@ -222,5 +222,7 @@
   "confirm.edit": "What should I change? You can pick another apartment or another time.",
   "confirm.expired": "The confirmation time ran out. Try again?",
   "confirm.done.create_booking": "Done! Apartment No. {no} is held until {time}. Pay: {link}",
-  "confirm.done.book_viewing": "Done! You are booked for a viewing of apartment No. {no}: {when}. We will remind you 3 hours before."
+  "confirm.done.book_viewing": "Done! You are booked for a viewing of apartment No. {no}: {when}. We will remind you 3 hours before.",
+  "agent.ungrounded": "(please check with a manager)",
+  "agent.card_in_chat": "Please do not send card details in the chat. Payment is only on the payment page."
 }

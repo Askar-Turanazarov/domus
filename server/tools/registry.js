@@ -198,7 +198,7 @@ export function createTools({ db, settings = null, env = process.env, tools = CL
     get: name => byName.get(name) ?? null,
     list: ctx => tools.filter(x => allowed(x, ctx)),
     // The functions a model sees for this actor and entry: name, English description, JSON Schema.
-    schemas: ctx => tools.filter(x => allowed(x, ctx)).map(x => ({ name: x.name, description: x.description, parameters: jsonSchema(x.input) })),
+    schemas: ctx => tools.filter(x => allowed(x, ctx)).map(x => ({ name: x.name, description: x.description, schema: jsonSchema(x.input) })),
     run,
     confirm,
     decline,
