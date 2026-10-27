@@ -1,8 +1,10 @@
 // The models (06 §3), free-tier limits (§7), timeouts (§8.5) and prices (§14). Every number of the AI layer lives here:
-// a model renamed by Google or a new price is a change of this file only. Prices — $ per 1M tokens, 27.10.2026 [проверить].
+// a model renamed by Google or a new price is a change of this file only. Checked on ai.google.dev 27.10.2026: ids,
+// prices ($ per 1M; 3.8/3.6 Flash double from 01.01.2027), thinking levels. Free-tier rpm/rpd are shown only in AI Studio
+// [проверить с ключом]. thinkingLevel — each model's lowest (author): 3.8 Flash has no 'minimal' (low/medium/high).
 export const MODELS = Object.freeze({
-  'gemini-3.8-flash':      { provider: 'gemini', role: 'tools', price: { input: 0.75, output: 3.75, cached: 0.075 }, rpm: 15, rpd: 1500 },
-  'gemini-3.6-flash':      { provider: 'gemini', role: 'tools', price: { input: 0.75, output: 3.75, cached: 0.075 }, rpm: 15, rpd: 1500 },
+  'gemini-3.8-flash':      { provider: 'gemini', role: 'tools', price: { input: 0.75, output: 3.75, cached: 0.075 }, rpm: 15, rpd: 1500, thinkingLevel: 'low' },
+  'gemini-3.6-flash':      { provider: 'gemini', role: 'tools', price: { input: 0.75, output: 3.75, cached: 0.075 }, rpm: 15, rpd: 1500, thinkingLevel: 'minimal' },
   'claude-sonnet-5-5':     { provider: 'anthropic', role: 'tools', price: { input: 2, output: 10, cached: 0.2, cacheWrite: 2.5 }, thinking: 'between_tools' },
   'gemini-3.5-flash-lite': { provider: 'gemini', role: 'fast', price: { input: 0.3, output: 2.5, cached: 0.03 }, rpm: 15, rpd: 1500, thinkingLevel: 'minimal' },
   'gemini-3.1-flash-lite': { provider: 'gemini', role: 'fast', price: { input: 0.25, output: 1.5, cached: 0.025 }, rpm: 15, rpd: 1500, thinkingLevel: 'minimal' },

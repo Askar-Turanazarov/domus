@@ -32,7 +32,7 @@ export function requestOf({ model, cfg, role, system, messages, tools, output, m
   const config = {
     systemInstruction: system,
     maxOutputTokens,
-    thinkingConfig: { thinkingLevel: role === 'fast' ? (cfg.thinkingLevel || 'low') : 'low' }
+    thinkingConfig: { thinkingLevel: cfg.thinkingLevel || 'low' }
   };
   if (tools?.length) {
     config.tools = [{ functionDeclarations: tools.map(t => ({ name: t.name, description: t.description, parametersJsonSchema: t.schema })) }];

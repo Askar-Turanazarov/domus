@@ -32,7 +32,9 @@ test('gemini: request config — tools as parametersJsonSchema, AUTO, thinking l
   assert.equal(r.config.systemInstruction, 'S');
   assert.deepEqual(r.config.tools[0].functionDeclarations[0].parametersJsonSchema, schema);
   assert.equal(r.config.toolConfig.functionCallingConfig.mode, 'AUTO');
-  assert.equal(r.config.thinkingConfig.thinkingLevel, 'low');
+  assert.equal(r.config.thinkingConfig.thinkingLevel, 'low', '3.8 Flash has no minimal');
+  const b = geminiRequest({ model: 'gemini-3.6-flash', cfg: MODELS['gemini-3.6-flash'], role: 'tools', system: 'S', messages: [user], tools, maxOutputTokens: 1024 });
+  assert.equal(b.config.thinkingConfig.thinkingLevel, 'minimal');
   assert.equal(r.config.temperature, undefined);
   assert.equal(r.config.responseMimeType, undefined);
   const f = geminiRequest({ model: 'gemini-3.5-flash-lite', cfg: MODELS['gemini-3.5-flash-lite'], role: 'fast', system: 'S', messages: [user], output: { schema }, maxOutputTokens: 200 });
