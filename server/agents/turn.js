@@ -17,7 +17,7 @@ export const TURN_MS = 45_000;            // §10: the turn's budget
 const LOCK_MS = 50_000;                   // §11.1 step 2
 const MAX_TEXT = 2000;                    // §10
 const HISTORY = 12;                       // §6.2
-const MODEL_AGENTS = new Set(['apt_finder', 'finance', 'booking']);
+const MODEL_AGENTS = new Set(['apt_finder', 'finance', 'booking', 'kb_consultant']);
 const BOT = /(?:\bбот\b|\bробот|\bbot\b|\brobot|сунъий|sun[ʼ'‘]?iy)/iu;
 
 const usage0 = { input: 0, output: 0, cached: 0 };
@@ -121,6 +121,7 @@ export function createTurns({ db, ai, tools, env = process.env, settings = null,
     const uniq = cards.filter(a => a?.no != null && !seen.has(a.no) && seen.add(a.no));
     if (uniq.length) out.unshift({ type: 'apartments', data: { items: uniq } });
     for (const p of run.pending ?? []) out.push(confirmCard(p, lang, env));
+    if (run.citations?.length) out.push({ type: 'citations', data: { items: run.citations, mode: run.kb?.mode ?? null } });
     return out;
   }
 
@@ -140,6 +141,18 @@ export function createTurns({ db, ai, tools, env = process.env, settings = null,
       if (no != null && months && months < 36) out.push(btn('agent.sg.months', { months: 36 }, 'calc_installment', { no, months: 36 }));
       out.push({ label: t(lang, 'agent.sg.mortgage'), intent: null, payload: {}, text: t(lang, 'agent.sg.mortgage') });
       if (no != null) out.push(btn('agent.sg.book', { no }, 'book', { apartmentNo: no }));
+    } else if (last.agent === 'kb_consultant') {
+      // 07 §12: the neighbouring topics of the base (the found fragments the answer did not cite), then the manager
+      const cited = new Set((last.citations ?? []).map(c => c.n));
+      const seen = new Set();
+      for (const c of last.kb?.chunks ?? []) {
+        const topic = c.heading.split(' — ').at(-1);
+        if (cited.has(c.n) || seen.has(topic) || seen.size >= 2) continue;
+        seen.add(topic);
+        out.push({ label: topic, intent: null, payload: {}, text: topic });
+      }
+      out.push(btn('agent.sg.ask_manager', {}, 'call_manager', {}));
+      if (!last.kb) out.push(btn('agent.suggest.find', {}, 'show_free', {}));
     } else if (last.agent === 'booking') {
       out.push(btn('confirm.btn.my_bookings', {}, 'my_bookings', {}));
     }
@@ -373,13 +386,6 @@ export function createTurns({ db, ai, tools, env = process.env, settings = null,
         const r = smalltalk(BOT.test(message) ? 'bot' : 'hello', lang);
         out.runs.push(r);
         out.say('smalltalk', r.text);
-        continue;
-      }
-      if (agent === 'kb_consultant') {
-        // the knowledge base comes in D3-11: an honest «no answer» with the manager button (FR-KB-03)
-        out.runs.push({ agent, provider: 'scripted', calls: [], pending: [], ok: false, error: 'no_kb_answer', steps: 0 });
-        out.say(agent, template('no_kb_answer', lang).text);
-        out.suggestions = [{ label: t(lang, 'agent.sg.ask_manager'), intent: 'call_manager', payload: {} }];
         continue;
       }
       if (!MODEL_AGENTS.has(agent)) continue;

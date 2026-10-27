@@ -61,7 +61,9 @@ export function createTelegramAgent({ db, turns, tools, env = process.env, core 
   // ---- the final answer → messages: [{ html, kb? }] ----
   function messagesOf({ text, blocks = [], suggestions = [], messageId = null }, lang) {
     const out = [];
-    for (const html of splitText(text, LIMIT, { base })) out.push({ html });
+    const cites = blocks.find(b => b.type === 'citations')?.data?.items ?? [];           // 09 §6: «Источники: [1] …; [2] …» under the answer
+    const sources = cites.length ? `\n\n${t(lang, 'tg.sources')}: ${cites.map(c => `[${c.n}] ${c.heading}`).join('; ')}` : '';
+    for (const html of splitText(text + sources, LIMIT, { base })) out.push({ html });
     for (const b of blocks) {
       const d = b.data ?? {};
       if (b.type === 'apartments') {
@@ -87,6 +89,10 @@ export function createTelegramAgent({ db, turns, tools, env = process.env, core 
     }
     // the buttons-hints go under the last message (10 §5.2); a 👍/👎 row only under a stored answer
     const rows = (out.at(-1)?.kb) ?? new InlineKeyboard();
+    if (messageId && cites.length) {
+      for (const c of cites.slice(0, 4)) rows.text(t(lang, 'tg.src_btn', { n: c.n }), `src:${messageId}:${c.n}`);
+      rows.row();
+    }
     suggestionRows(rows, suggestions, lang, messageId);
     if (messageId && out.length && !out.some(m => m.kb?.inline_keyboard?.some(r => r.some(b => b.callback_data?.startsWith('pa:'))))) {
       rows.text('👍', `fb:${messageId}:1`).text('👎', `fb:${messageId}:-1`);
@@ -179,6 +185,22 @@ export function createTelegramAgent({ db, turns, tools, env = process.env, core 
     await run(ctx, client, { intent, payload: n && PAYLOAD_KEY[intent] ? { [PAYLOAD_KEY[intent]]: Number(n) } : {} });
   }
 
+  // src:<messageId>:<n> — «Показать источник n»: the whole fragment the answer stands on (09 §6).
+  async function onSource(ctx, client) {
+    const [, id, n] = /^src:(\d{1,15}):(\d{1,2})$/.exec(ctx.match[0]) ?? [];
+    const m = id && await db.one(`SELECT m.blocks, c.client_id, c.lang FROM messages m JOIN conversations c ON c.id = m.conversation_id
+      WHERE m.id = $1 AND m.role = 'assistant'`, [id]);
+    if (!m || m.client_id !== client.id) return foreign(ctx, client.lang);
+    const block = (m.blocks ?? []).find(b => b.type === 'citations')?.data;
+    const c = block?.items?.find(x => x.n === Number(n));
+    if (!c) return ctx.answerCallbackQuery({ text: t(client.lang, 'tg.stale_button'), show_alert: true });
+    await ctx.answerCallbackQuery();
+    const meta = [c.score != null ? t(m.lang, 'tg.src_match', { pct: Math.round(c.score * 100) }) : null,
+      block.mode === 'keyword_only' ? t(m.lang, 'tg.src_words') : null].filter(Boolean).join(' · ');
+    await ctx.api.sendMessage(ctx.chat.id, `<b>[${c.n}] ${esc(c.heading)}</b>\n${esc(c.text)}${meta ? `\n<i>${esc(meta)}</i>` : ''}`,
+      { parse_mode: 'HTML', link_preview_options: { is_disabled: true } });
+  }
+
   // fb:<messageId>:<1|-1> — 👍 / 👎 under an answer (07 §16.3).
   async function onFeedback(ctx, client) {
     const [, id, v] = /^fb:(\d{1,15}):(1|-1)$/.exec(ctx.match[0]) ?? [];
@@ -196,6 +218,7 @@ export function createTelegramAgent({ db, turns, tools, env = process.env, core 
     dm.callbackQuery(/^pa:[0-9a-f-]{36}:[yenr]$/, own(onDraft));
     dm.callbackQuery(/^sg:\d{1,15}:\d{1,2}$/, own(onSuggestion));
     dm.callbackQuery(SHORT, own(onShort));
+    dm.callbackQuery(/^src:\d{1,15}:\d{1,2}$/, own(onSource));
     dm.callbackQuery(/^fb:\d{1,15}:(?:1|-1)$/, own(onFeedback));
   }
 

@@ -119,3 +119,22 @@ test('blocks: suggestions keep own links only; unknown blocks are not drawn', ()
   assert.equal(node.querySelectorAll('button').length, 1);
   assert.equal(renderBlock({ type: 'press', data: {} }, ctx()), null);
 });
+
+test('blocks: citations — a button per source, a press opens the fragment as text (never HTML) with the match and the mode, a second press closes', () => {
+  const data = { mode: 'keyword_only', items: [{ n: 1, heading: 'Сроки — Когда', text: '<img src=x onerror=alert(1)> Q4 2027', score: 0.812 }, { n: 2, heading: 'Паркинг', text: 'Есть', score: null }] };
+  const node = renderBlock({ type: 'citations', data }, ctx());
+  const [b1, b2] = node.querySelectorAll('button');
+  assert.deepEqual([b1.textContent, b2.textContent], ['[1]', '[2]']);
+  const panel = node.querySelector('.chat-cite-panel');
+  assert.equal(panel.hidden, true);
+  b1.click();
+  assert.equal(panel.hidden, false);
+  assert.match(panel.textContent, /chat\.cite · \[1\] Сроки — Когда/);
+  assert.match(panel.textContent, /<img src=x onerror=alert\(1\)> Q4 2027/);
+  assert.equal(panel.querySelector('img'), null);
+  assert.match(panel.textContent, /chat\.match\|pct=81/);
+  assert.match(panel.textContent, /chat\.mode\.keyword_only/);
+  b1.click();
+  assert.equal(panel.hidden, true);
+  assert.equal(renderBlock({ type: 'citations', data: { items: [] } }, ctx()), null);
+});

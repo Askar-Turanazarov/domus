@@ -26,7 +26,7 @@ export function createKb({ db, ai = null, env = process.env, log = console } = {
   }
 
   // → { answered, mode, chunks?, reason?, topScore }
-  async function retrieve({ query, lang = 'ru', conversationId = null }) {
+  async function retrieve({ query, lang = 'ru', conversationId = null, journal = true }) {
     const t0 = performance.now();
     const { text, stems } = prepare(query, lang, KB_QUERY_MAX);
     const min = minScore(env);
@@ -69,7 +69,7 @@ export function createKb({ db, ai = null, env = process.env, log = console } = {
     const out = answered
       ? { answered: true, mode, topScore, chunks: chunks.map(({ hits, ...c }) => c) }
       : { answered: false, mode, topScore, reason: 'below_threshold' };
-    await db.query(
+    if (journal) await db.query(
       `INSERT INTO kb_queries (at, conversation_id, lang, query, mode, top_score, chunk_ids, answered, ms)
        VALUES ($1, $2, $3, $4, $5, $6, $7::bigint[], $8, $9)`,
       [now(), conversationId, lang, text, mode, topScore, idArray(ids), answered, Math.round(performance.now() - t0)]);

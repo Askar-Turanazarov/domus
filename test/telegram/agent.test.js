@@ -1,7 +1,11 @@
 // 10 §4.3–4.4, §5: free text and menu tasks → the agent; the draft and the final messages; the blocks; the buttons pa:, sg:, sgi:, fb:.
 import { test, before, after, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { fakeClock } from '../../server/core/clock.js';
+import { ingest } from '../../server/kb/ingest.js';
 import { createAi } from '../../server/ai/index.js';
 import { createTools } from '../../server/tools/registry.js';
 import { createTurns } from '../../server/agents/turn.js';
@@ -179,4 +183,31 @@ test('10 §5: a failure of the turn is not silent — the client gets the «cons
   const { bot, calls } = makeBot(db, { env: AI_ENV, turns, tools });
   await bot.handleUpdate(text('Привет'));
   assert.match(sent(calls).at(-1).payload.text, /Консультант временно недоступен/);
+});
+
+test('09 §6 / 10 §5: a knowledge-base answer → «Источники: [1] …» under it and «Источник 1»; the button shows the fragment; a stranger gets an alert', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-'));
+  fs.mkdirSync(path.join(root, 'ru'));
+  fs.writeFileSync(path.join(root, 'ru', 'handover-date.md'),
+    '---\ntitle: Сроки сдачи\ntopic: handover\nupdated: 2026-10-27\n---\n\n## Когда сдача дома\nДом сдаётся в IV квартале 2027 года. Срок ориентировочный.\n');
+  await ingest({ db, ai: null, root, log: quiet, sleep: async () => {} });
+  const { bot, calls } = world({
+    'gemini-3.5-flash-lite': [plan({ agents: ['kb_consultant'] })],
+    'gemini-3.8-flash': [{ calls: [{ name: 'search_kb', args: { query: 'Когда сдача дома, срок сдачи?' } }] }, { text: 'Сдача в IV квартале 2027 года [1].' }]
+  });
+  await bot.handleUpdate(text('Когда сдача дома?'));
+  const answer = sent(calls).find(c => /Сдача в IV квартале/.test(c.payload.text));
+  assert.match(answer.payload.text, /Источники: \[1\] Сроки сдачи — Когда сдача дома/);
+  const src = keys(answer).find(b => /^src:\d+:1$/.test(b.callback_data));
+  assert.ok(src, 'the «Источник 1» button');
+  assert.ok(keys(answer).some(b => b.callback_data?.startsWith('fb:')));
+
+  const before = calls.length;
+  await bot.handleUpdate(callback(src.callback_data));
+  const shown = sent(calls.slice(before)).at(-1);
+  assert.match(shown.payload.text, /^<b>\[1\] Сроки сдачи — Когда сдача дома<\/b>\nДом сдаётся в IV квартале 2027 года/);
+  const b2 = calls.length;
+  await bot.handleUpdate(callback(src.callback_data, STRANGER));
+  assert.equal(calls.slice(b2).find(c => c.method === 'answerCallbackQuery').payload.show_alert, true);
+  assert.equal(sent(calls.slice(b2)).length, 0);
 });

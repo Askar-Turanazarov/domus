@@ -22,6 +22,7 @@ import { mountTelegram } from './server/telegram/webhook.js';
 import { mountChat } from './server/http/chat.js';
 import { createAi } from './server/ai/index.js';
 import { createTools } from './server/tools/registry.js';
+import { createKb } from './server/kb/retrieve.js';
 import { createTurns } from './server/agents/turn.js';
 import { createSettings } from './server/core/settings.js';
 import { mountPersonalPages } from './server/http/personalPages.js';
@@ -52,7 +53,8 @@ const coreOpts = { render: notifyOpts.render, onCommit: fx => background(afterCo
 // The consultant: the models (Gemini → Claude → scripts), the tools of the registry, the turn (07). One stack for the site chat.
 const settings = createSettings(db);
 const ai = createAi({ db, env: process.env, settings });
-const tools = createTools({ db, settings, env: process.env });
+const kb = createKb({ db, ai, env: process.env });
+const tools = createTools({ db, settings, env: process.env, kb });
 const turns = createTurns({ db, ai, tools, env: process.env, settings, waitUntil: p => background(p, 'chat summary') });
 
 app.set('trust proxy', 1);                 // the client's IP behind the Vercel / reverse proxy

@@ -21,7 +21,8 @@
     "stripe:check": "node --env-file-if-exists=.env scripts/stripe-check.js",
     "tg:setup": "node --env-file-if-exists=.env scripts/tg-setup.js",
     "ai:smoke": "node --env-file-if-exists=.env scripts/ai-smoke.js",
-    "kb:index": "node scripts/kb-index.js"
+    "kb:index": "node scripts/kb-index.js",
+    "eval:kb": "node scripts/eval-kb.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.133.0",

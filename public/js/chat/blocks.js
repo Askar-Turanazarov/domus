@@ -25,6 +25,7 @@ export function renderBlock(block, ctx) {
     case 'table': return table(d, ctx);
     case 'confirm': return confirm(d, ctx);
     case 'suggestions': return suggestions(d, ctx);
+    case 'citations': return citations(d, ctx);
     default: return null;     // 'press' and the unknown kinds are not drawn
   }
 }
@@ -71,6 +72,32 @@ function table(d, { t, doc }) {
   wrap.append(tbl);
   if (d.price) wrap.append(el(doc, 'div', 'chat-table-foot', t('chat.t.price', { price: num(d.price) })));
   return wrap;
+}
+
+// 09 §6: the sources of an answer — [1] [2] buttons; a press opens «how I found the answer»: the fragment, the match, the mode.
+function citations(d, { t, doc }) {
+  const items = Array.isArray(d.items) ? d.items : [];
+  if (!items.length) return null;
+  const box = el(doc, 'div', 'chat-cite');
+  const row = el(doc, 'div', 'chat-sg');
+  const panel = el(doc, 'div', 'chat-cite-panel');
+  panel.hidden = true;
+  let open = null;
+  for (const c of items) {
+    const b = btn(doc, 'chat-chip', `[${c.n}]`, () => {
+      if (open === c.n) { open = null; panel.hidden = true; return; }
+      open = c.n;
+      panel.replaceChildren(el(doc, 'strong', null, `${t('chat.cite')} · [${c.n}] ${c.heading}`), el(doc, 'p', null, c.text));
+      const meta = [c.score != null ? t('chat.match', { pct: Math.round(c.score * 100) }) : null,
+        d.mode === 'keyword_only' ? t('chat.mode.keyword_only') : null].filter(Boolean).join(' · ');
+      if (meta) panel.append(el(doc, 'small', null, meta));
+      panel.hidden = false;
+    });
+    b.title = c.heading;
+    row.append(b);
+  }
+  box.append(row, panel);
+  return box;
 }
 
 // The card of a draft: the terms are the server's words (07 §8.2), drawn as they are. After an answer the buttons go off.

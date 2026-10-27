@@ -46,7 +46,8 @@ function withTimeout(promise, ms) {
   return Promise.race([promise, late]).finally(() => clearTimeout(timer));
 }
 
-export function createTools({ db, settings = null, env = process.env, tools = CLIENT_TOOLS, timeoutMs = TIMEOUT_MS, log = console } = {}) {
+// kb — createKb() of the knowledge base (09 §5); without it search_kb searches by words only.
+export function createTools({ db, settings = null, env = process.env, tools = CLIENT_TOOLS, timeoutMs = TIMEOUT_MS, log = console, kb = null } = {}) {
   const byName = new Map(tools.map(x => [x.name, x]));
   const withDefaults = ctx => ({ lang: 'ru', now: clockNow, ...ctx });
 
@@ -63,7 +64,7 @@ export function createTools({ db, settings = null, env = process.env, tools = CL
   }
 
   // What a tool's run / preview gets: the call context plus the base and the core options.
-  const toolCtx = ctx => ({ ...ctx, db, settings, env, core: { now: ctx.now, env, settings, onCommit: ctx.onCommit, render: ctx.render } });
+  const toolCtx = ctx => ({ ...ctx, db, settings, env, kb, core: { now: ctx.now, env, settings, onCommit: ctx.onCommit, render: ctx.render } });
 
   // Runs fn (the tool's run or preview) under the timeout; DomainError → its code, anything else → internal (never the text).
   // after(out) — more work inside the measured call (the draft row); its id goes to the journal.

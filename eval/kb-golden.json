@@ -1,0 +1,202 @@
+[
+  {
+    "id": "h1",
+    "lang": "ru",
+    "q": "Когда дом сдают и можно ли получить ключи?",
+    "expect": ["handover-date"],
+    "inBase": true
+  },
+  {
+    "id": "h2",
+    "lang": "ru",
+    "q": "Сколько этажей в доме и сколько в нём квартир?",
+    "expect": ["building-class"],
+    "inBase": true
+  },
+  {
+    "id": "h3",
+    "lang": "ru",
+    "q": "Где можно оставить машину, есть ли подземный паркинг?",
+    "expect": ["parking"],
+    "inBase": true
+  },
+  {
+    "id": "h4",
+    "lang": "ru",
+    "q": "Квартиры продаются с ремонтом или без?",
+    "expect": ["finishing-options"],
+    "inBase": true
+  },
+  {
+    "id": "h5",
+    "lang": "ru",
+    "q": "Какой первый взнос при рассрочке и на какой срок её дают?",
+    "expect": ["installment-rules"],
+    "inBase": true
+  },
+  {
+    "id": "h6",
+    "lang": "ru",
+    "q": "Сколько часов квартира держится за мной после брони?",
+    "expect": ["deal-steps"],
+    "inBase": true
+  },
+  {
+    "id": "h7",
+    "lang": "ru",
+    "q": "До скольки работает офис продаж по субботам?",
+    "expect": ["sales-office"],
+    "inBase": true
+  },
+  {
+    "id": "u1",
+    "lang": "uz",
+    "q": "Uy qachon topshiriladi?",
+    "expect": ["handover-date"],
+    "inBase": true
+  },
+  {
+    "id": "u2",
+    "lang": "uz",
+    "q": "Hovlida bolalar o‘yin maydonchasi bormi?",
+    "expect": ["yard-territory"],
+    "inBase": true
+  },
+  {
+    "id": "u3",
+    "lang": "uz",
+    "q": "Kvartirani ipotekaga olsa bo‘ladimi?",
+    "expect": ["mortgage-banks"],
+    "inBase": true
+  },
+  {
+    "id": "u4",
+    "lang": "uz",
+    "q": "Kvartiralar qanday pardozda sotiladi?",
+    "expect": ["finishing-options"],
+    "inBase": true
+  },
+  {
+    "id": "u5",
+    "lang": "uz",
+    "q": "Depozit nima uchun kerak va u qaytariladimi?",
+    "expect": ["deposit-rules"],
+    "inBase": true
+  },
+  {
+    "id": "u6",
+    "lang": "uz",
+    "q": "Maktab va bolalar bog‘chasi uydan uzoqmi?",
+    "expect": ["nearby-schools"],
+    "inBase": true
+  },
+  {
+    "id": "u7",
+    "lang": "uz",
+    "q": "Mebelni 3D rejalagichda joylashtirish mumkinmi?",
+    "expect": ["furniture-service"],
+    "inBase": true
+  },
+  {
+    "id": "e1",
+    "lang": "en",
+    "q": "When will the building be finished?",
+    "expect": ["handover-date", "construction-stages"],
+    "inBase": true
+  },
+  {
+    "id": "e2",
+    "lang": "en",
+    "q": "What are the walls and the frame made of?",
+    "expect": ["materials-walls"],
+    "inBase": true
+  },
+  {
+    "id": "e3",
+    "lang": "en",
+    "q": "Who is building this complex?",
+    "expect": ["about-developer"],
+    "inBase": true
+  },
+  {
+    "id": "e4",
+    "lang": "en",
+    "q": "How do I become the registered owner after buying?",
+    "expect": ["ownership"],
+    "inBase": true
+  },
+  {
+    "id": "e5",
+    "lang": "en",
+    "q": "Are there buses nearby and how long does it take to reach the centre?",
+    "expect": ["transport"],
+    "inBase": true
+  },
+  {
+    "id": "e6",
+    "lang": "en",
+    "q": "Can I buy a storage room or a parking space?",
+    "expect": ["storage-rooms", "parking"],
+    "inBase": true
+  },
+  {
+    "id": "x1",
+    "lang": "ru",
+    "q": "Какой вид из окна у квартиры 41?",
+    "inBase": false
+  },
+  {
+    "id": "x2",
+    "lang": "ru",
+    "q": "Какая ставка по ипотеке в Капиталбанке?",
+    "inBase": false
+  },
+  {
+    "id": "x3",
+    "lang": "ru",
+    "q": "Дадите ли вы скидку, если я куплю сразу две квартиры?",
+    "inBase": false
+  },
+  {
+    "id": "x4",
+    "lang": "ru",
+    "q": "Гарантируете ли вы, что банк одобрит мне кредит?",
+    "inBase": false
+  },
+  {
+    "id": "x5",
+    "lang": "uz",
+    "q": "Kapitalbankda ipoteka foizi qancha?",
+    "inBase": false
+  },
+  {
+    "id": "x6",
+    "lang": "uz",
+    "q": "41-xonadonning derazasidan nima ko‘rinadi?",
+    "inBase": false
+  },
+  {
+    "id": "x7",
+    "lang": "uz",
+    "q": "Bugun dollar kursi qancha?",
+    "inBase": false
+  },
+  {
+    "id": "x8",
+    "lang": "en",
+    "q": "What will the weather be in Tashkent tomorrow?",
+    "inBase": false
+  },
+  {
+    "id": "x9",
+    "lang": "en",
+    "q": "Can I get a discount if I pay everything in cash?",
+    "inBase": false
+  },
+  {
+    "id": "x10",
+    "lang": "en",
+    "q": "Is there a swimming pool and a gym in the complex?",
+    "inBase": false
+  }
+]

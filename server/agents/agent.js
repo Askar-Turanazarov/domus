@@ -5,16 +5,20 @@ import { t } from '../i18n/index.js';
 import { prompt } from './prompts.js';
 import { template } from './scripted.js';
 import { knownNumbers, ungrounded, scrub } from './grounding.js';
+import { applyCitations } from '../kb/citations.js';
 
-// 07 §4.1 MAX_STEPS and §5: the tools each agent sees (search_kb comes with the knowledge base).
+// 07 §4.1 MAX_STEPS and §5: the tools each agent sees.
 export const AGENTS = {
   apt_finder: { steps: 3, tools: ['search_apartments', 'get_apartment'] },
   finance: { steps: 4, tools: ['get_apartment', 'calc_installment', 'calc_mortgage', 'compare_finance'] },
-  booking: { steps: 3, tools: ['get_apartment', 'book_viewing', 'create_booking', 'my_bookings', 'request_extension'] }
+  booking: { steps: 3, tools: ['get_apartment', 'book_viewing', 'create_booking', 'my_bookings', 'request_extension'] },
+  kb_consultant: { steps: 2, tools: ['search_kb'] }
 };
 const MAX_OUTPUT = { finance: 1200 };
 
 const SHORTER = 'Answer shorter.';
+const CITE = 'Cite sources as [n].';
+const SEARCH_FIRST = 'Call search_kb first, then answer from its fragments.';
 const notGrounded = xs => `Number ${xs.map(x => x.text).join(', ')} is not in tool results. Use only tool results.`;
 
 const sumUsage = (a, b = {}) => ({ input: a.input + (b.input || 0), output: a.output + (b.output || 0), cached: a.cached + (b.cached || 0) });
@@ -56,7 +60,7 @@ export async function runAgent({ ai, tools, agent, task = null, message, context
     return r;
   }
 
-  let shorter = false, regrounded = false;
+  let shorter = false, regrounded = false, cited = false, searched = false;
   for (let i = 1; i <= cfg.steps; i++) {
     run.steps = i;
     const r = await step(messages);
@@ -69,7 +73,7 @@ export async function runAgent({ ai, tools, agent, task = null, message, context
       reset();
       return done({ ok: false, error: 'refusal', text: template('refusal', lang).text });
     }
-    const text = r.parts.filter(p => p.type === 'text').map(p => p.text).join('');
+    let text = r.parts.filter(p => p.type === 'text').map(p => p.text).join('');
     const calls = r.parts.filter(p => p.type === 'tool_call');
     if (r.stop === 'max_tokens' && !shorter && !calls.length) {
       shorter = true;
@@ -77,6 +81,36 @@ export async function runAgent({ ai, tools, agent, task = null, message, context
       messages.push({ role: 'assistant', parts: r.parts, native: r.native }, { role: 'user', parts: [{ type: 'text', text: SHORTER }] });
       i--;
       continue;
+    }
+    if (!calls.length && agent === 'kb_consultant') {
+      // 09 §6, 07 §5.4: the answer stands on the fragments found; no answer in the base is said by code, not by the model.
+      const found = [...run.calls].reverse().find(c => c.name === 'search_kb' && c.ok)?.result;
+      if (!found && !searched) {
+        searched = true;
+        reset();
+        messages.push({ role: 'assistant', parts: r.parts, native: r.native }, { role: 'user', parts: [{ type: 'text', text: SEARCH_FIRST }] });
+        i--;
+        continue;
+      }
+      if (!found?.answered) {
+        reset();
+        const refusal = template('no_kb_answer', lang).text;
+        onEvent({ type: 'text', agent, delta: refusal });
+        return done({ ok: true, error: 'no_kb_answer', text: refusal, kb: found ?? null });
+      }
+      const fixed = applyCitations(text, found.chunks);
+      if (!fixed.used.length && !cited) {
+        cited = true;
+        reset();
+        messages.push({ role: 'assistant', parts: r.parts, native: r.native }, { role: 'user', parts: [{ type: 'text', text: CITE }] });
+        i--;
+        continue;
+      }
+      if (fixed.text !== text) { reset(); onEvent({ type: 'text', agent, delta: fixed.text }); }
+      text = fixed.text;
+      run.kb = found;
+      run.citations = fixed.citations;
+      if (!fixed.used.length) run.error = 'no_citations';
     }
     if (!calls.length) {
       const known = knownNumbers({ calls: run.calls, message });
@@ -94,7 +128,7 @@ export async function runAgent({ ai, tools, agent, task = null, message, context
         onEvent({ type: 'text', agent, delta: fixed });
         return done({ ok: true, error: 'ungrounded_number', text: fixed });
       }
-      return done({ text });
+      return done({ text, ...(run.error ? { error: run.error } : {}) });
     }
     messages.push({ role: 'assistant', parts: r.parts, native: r.native });
     messages.push({ role: 'tool', parts: await callTools(calls) });

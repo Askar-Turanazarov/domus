@@ -61,6 +61,11 @@
 .chat-state.sold { color: var(--danger); }
 
 .chat-table-wrap { overflow-x: auto; }
+.chat-cite { display: grid; gap: 6px; }
+.chat-cite-panel { border: 1px solid var(--hairline); border-radius: 8px; padding: 8px 10px; font-size: 12px; display: grid; gap: 4px; }
+.chat-cite-panel[hidden] { display: none; }
+.chat-cite-panel p { margin: 0; }
+.chat-cite-panel small { opacity: .7; }
 .chat-table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
 .chat-table th, .chat-table td { text-align: right; padding: 5px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
 .chat-table th:first-child, .chat-table td:first-child { text-align: left; }

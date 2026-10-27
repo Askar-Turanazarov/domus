@@ -15,7 +15,7 @@ after(() => db.close());
 beforeEach(async () => { await resetDb(db); fakeClock.set('2026-10-28T10:00:00+05:00'); });
 afterEach(() => fakeClock.reset());
 
-const READING = ['search_apartments', 'get_apartment', 'calc_mortgage', 'calc_installment', 'compare_finance'];
+const READING = ['search_apartments', 'get_apartment', 'calc_mortgage', 'calc_installment', 'compare_finance', 'search_kb'];
 const ALL = CLIENT_TOOLS.map(t => t.name);
 const HEAD_MCP = { type: 'mcp', id: null, role: 'head', channel: 'mcp' };
 
