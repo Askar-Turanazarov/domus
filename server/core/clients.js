@@ -40,9 +40,16 @@ async function create(q, fields, channel, actor, ctx) {
   return c;
 }
 
-const touch = (q, c, channel, at, extra = '', params = []) => q.one(
+// The card was seen again: add the channel; a Telegram visit refreshes username and chat.
+const touch = (q, c, channel, at, tg = {}) => q.one(
   `UPDATE clients SET channels = CASE WHEN $2 = ANY(channels) THEN channels ELSE array_append(channels, $2) END,
-     last_seen_at = $3, updated_at = $3${extra} WHERE id = $1 RETURNING *`, [c.id, channel, at, ...params]);
+     last_seen_at = $3, updated_at = $3, telegram_username = COALESCE($4, telegram_username),
+     telegram_chat_id = COALESCE($5, telegram_chat_id) WHERE id = $1 RETURNING *`,
+  [c.id, channel, at, tg.username ?? null, tg.chatId ?? null]);
+
+// Tables whose client_id moves to the winner on merge (03 §9.2); events and outbox keep history as it was.
+const MOVE = ['bookings', 'payments', 'viewings', 'orders', 'conversations', 'client_link_codes', 'pending_actions']
+  .map(t => `UPDATE ${t} SET client_id = $2 WHERE client_id = $1`);
 
 // Who is this (03 §9.1) → the client card. Inside the caller's transaction.
 // who — { id? (a known card), cookieId? (signed dcl, R5), name?, phone?, telegram?: {userId, username?, chatId?}, lang? }.
@@ -58,8 +65,7 @@ export async function resolveClient(q, who, channel, actor = { type: 'system' },
     const tg = who.telegram;
     const c = await q.one('SELECT * FROM clients WHERE telegram_user_id = $1', [tg.userId]);
     if (!c) return create(q, { name: who.name, tg, lang: who.lang }, channel, actor, ctx);
-    return touch(q, c, channel, at, ', telegram_username = COALESCE($4, telegram_username), telegram_chat_id = COALESCE($5, telegram_chat_id)',
-      [tg.username ?? null, tg.chatId ?? null]);
+    return touch(q, c, channel, at, tg);
   }
   const name = nameOf(who.name);
   const phone = phoneOf(who.phone);
@@ -86,9 +92,7 @@ export async function merge(q, loserId, winnerId, rule, actor = { type: 'system'
   await q.query('SELECT id FROM clients WHERE id = $1 FOR UPDATE', [b]);
   const loser = await q.one('SELECT * FROM clients WHERE id = $1', [loserId]);
   const winner = await q.one('SELECT * FROM clients WHERE id = $1', [winnerId]);
-  for (const t of ['bookings', 'payments', 'viewings', 'orders', 'conversations', 'client_link_codes', 'pending_actions']) {
-    await q.query(`UPDATE ${t} SET client_id = $2 WHERE client_id = $1`, [loserId, winnerId]);
-  }
+  for (const sql of MOVE) await q.query(sql, [loserId, winnerId]);
   const at = ctx.now();
   const fresher = (loser.lead_scored_at ?? 0) > (winner.lead_scored_at ?? 0);
   await q.query(`UPDATE clients SET merged_into = $2, telegram_user_id = NULL, phone_verified = false, updated_at = $3 WHERE id = $1`,
