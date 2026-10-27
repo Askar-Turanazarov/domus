@@ -110,7 +110,7 @@ app.all('/mcp', async (req, res) => {
   try {
     mcp ||= import('./server/mcp/index.js').then(m => m.handleMcp);
     // req._body: express.json has read the body; otherwise the MCP code reads (and checks) it itself
-    await (await mcp)(req, res, { db, tools, env: process.env, parsed: req._body ? req.body : undefined });
+    await (await mcp)(req, res, { db, tools, env: process.env, core: coreOpts, parsed: req._body ? req.body : undefined });
   } catch (e) {
     mcp = null;
     console.error('mcp request failed:', e.code || e.message);

@@ -209,3 +209,19 @@ test('08 §9: tool_calls hold no tokens, no confirmToken, no full phones; failur
   const rows = await s.db.query(`SELECT tool, role, source FROM tool_calls`);
   assert.ok(rows.every(r => r.source === 'mcp' && r.role === 'head'));
 });
+
+test('after COMMIT the MCP call hands the Outbox rows to onCommit — the group is told about the extension', async () => {
+  const seen = [];
+  const t = await start({ core: { onCommit: fx => seen.push([...fx.outbox]) } });
+  try {
+    fakeClock.set('2026-10-28T10:00:00+05:00');
+    const anya = await makeClient(t.db, { name: 'Аня', phone: PHONE });
+    const b = await makeBooking(t.db, { apartmentNo: 41, clientId: anya.id, status: 'booked', minutes: 12 * 60 });
+    const d = await t.call('extend_booking', { bookingNo: b.no, hours: 24 });
+    assert.deepEqual(seen, [], 'a draft sends nothing');
+    await t.call('extend_booking', { bookingNo: b.no, hours: 24, confirmToken: d.structuredContent.confirmToken });
+    assert.equal(seen.length, 1, 'onCommit ran once, after the second call');
+    const sent = await t.db.query('SELECT template FROM outbox WHERE id = ANY($1)', [seen[0]]);
+    assert.ok(sent.some(r => r.template === 'staff_booking_extended'), 'the staff message is in it');
+  } finally { await t.close(); }
+});

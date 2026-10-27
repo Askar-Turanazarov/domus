@@ -87,7 +87,7 @@ export function toMcp(tool, res) {
 const CONFIRM_HINT = ' Always show the preview to the user and call again with confirmToken only after the user explicitly agrees.';
 
 // The tools of this role from the registry, as the SDK wants them. seen.logged — a tool ran (else the SDK refused the call).
-function registerTools(server, { tools, actor, seen }) {
+function registerTools(server, { tools, actor, seen, core }) {
   for (const tool of tools.list({ actor, source: 'mcp' })) {
     const config = {
       title: tool.title.en,
@@ -97,15 +97,15 @@ function registerTools(server, { tools, actor, seen }) {
     if (!tool.mutates) config.outputSchema = tool.output;           // a draft has another shape than the result
     server.registerTool(tool.name, config, async args => {
       seen.logged = true;
-      return toMcp(tool, await tools.run(tool.name, args, { actor, source: 'mcp', lang: 'ru' }));
+      return toMcp(tool, await tools.run(tool.name, args, { actor, source: 'mcp', lang: 'ru', onCommit: core.onCommit, render: core.render }));
     });
   }
 }
 
 // One request. Stateless: a fresh MCP server and transport per request, plain JSON answers (no SSE stream to keep
 // open) — so it also runs as a Vercel function. parsed — the body already read by the site (express.json), if any.
-// ctx — { db, tools, env }.
-export async function handleMcp(req, res, { db, tools, env = process.env, parsed }) {
+// ctx — { db, tools, env, core }; core — { onCommit, render } of the core calls: after COMMIT the notifications are delivered.
+export async function handleMcp(req, res, { db, tools, env = process.env, parsed, core = {} }) {
   if (req.url.split('?')[0] !== '/mcp') return send(res, 404, { error: 'not_found' });
   if (req.method === 'OPTIONS') return res.writeHead(204).end();                                   // mcp-remote may ask (14 §5)
   const tokens = mcpTokens(env);
@@ -132,7 +132,7 @@ export async function handleMcp(req, res, { db, tools, env = process.env, parsed
   } else if (JSON.stringify(body).length > MAX_BODY) return send(res, 413, { error: 'too_large' });
   const server = new McpServer({ name: 'chinor-park', version: '0.2.0' });
   const seen = { logged: false };
-  registerTools(server, { tools, actor, seen });
+  registerTools(server, { tools, actor, seen, core });
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
   res.on('close', () => { transport.close(); server.close(); });
   await server.connect(transport);
@@ -147,8 +147,8 @@ export async function handleMcp(req, res, { db, tools, env = process.env, parsed
   }
 }
 
-export function createHttpServer({ db, tools, env = process.env }) {
-  return http.createServer((req, res) => handleMcp(req, res, { db, tools, env }).catch(e => {
+export function createHttpServer({ db, tools, env = process.env, core = {} }) {
+  return http.createServer((req, res) => handleMcp(req, res, { db, tools, env, core }).catch(e => {
     // never let one request bring the process down
     console.error('mcp request failed:', e.code || e.message);
     if (!res.headersSent) send(res, 500, { error: 'internal' }); else res.destroy();

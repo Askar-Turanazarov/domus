@@ -8,10 +8,10 @@ export const HEAD_TOKEN = 'head-token-'.padEnd(40, 'h');
 export const ENV = { MCP_CLIENT_TOKEN: CLIENT_TOKEN, MCP_HEAD_TOKEN: HEAD_TOKEN, LOG_SALT: 'test-salt', TELEGRAM_STAFF_CHAT_ID: '-1',
   LINK_SECRET: 'test-secret', PUBLIC_URL: 'https://x.test' };
 
-export async function start({ env = {} } = {}) {
+export async function start({ env = {}, core = {} } = {}) {
   const db = await createTestDb();
   const full = { ...ENV, ...env };
-  const server = createHttpServer({ db, tools: createTools({ db, env: full, log: { error() {}, warn() {}, info() {} } }), env: full });
+  const server = createHttpServer({ db, tools: createTools({ db, env: full, log: { error() {}, warn() {}, info() {} } }), env: full, core });
   await new Promise(ok => server.listen(0, '127.0.0.1', ok));
   const url = `http://127.0.0.1:${server.address().port}/mcp`;
   const rpc = (method, params, token = HEAD_TOKEN, extra = {}) => fetch(url, {
