@@ -2,7 +2,9 @@
 // It never throws: a Telegram error is a { ok: false, status, … }, a network failure or timeout is { ok: false, network: true }.
 import { Api, GrammyError, HttpError } from 'grammy';
 
-const TIMEOUT_MS = 10_000;
+// 04 §3.2 says 10 s; raised to 25 s (author's decision, 27.10): on a slow network Telegram delivered the message but its answer came
+// later, the row went to «retry» and the client got it twice.
+const TIMEOUT_MS = 25_000;
 
 // What of `rendered` goes to Telegram (the rest of the row is ours).
 const options = r => ({ parse_mode: r.parse_mode, reply_markup: r.reply_markup, link_preview_options: r.link_preview_options });
