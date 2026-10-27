@@ -1,6 +1,5 @@
 // The tool registry (08 §2, §4, §5, §9, §10, D-02): one layer, three entries (chat agents, MCP, the analyst). A tool is a
 // described core call — name, zod schema, roles, whether it changes something; no rules of its own.
-// The legacy Domus MCP tools (index.js, over apartments.json) stay until D3-14 moves server/mcp onto this registry.
 //
 //   createTools({ db, settings?, env?, tools? }) → { get, list, schemas, run, confirm, decline, renew, pendingOf }
 //   run(name, args, ctx) — ctx { actor, source: 'agent'|'mcp', turnId?, conversationId?, lang, now?, contactPhone?, summary?,
@@ -15,7 +14,7 @@ import { z } from 'zod';
 import { DomainError } from '../core/errors.js';
 import { now as clockNow } from '../core/clock.js';
 import { t } from '../i18n/index.js';
-import { CLIENT_TOOLS } from './client.js';
+import { ALL_TOOLS } from './client.js';
 import { draft, claim, finish, argsHash, tokenHash, sameActor } from './pending.js';
 export { defineTool, SOURCES } from './define.js';
 
@@ -47,7 +46,7 @@ function withTimeout(promise, ms) {
 }
 
 // kb — createKb() of the knowledge base (09 §5); without it search_kb searches by words only.
-export function createTools({ db, settings = null, env = process.env, tools = CLIENT_TOOLS, timeoutMs = TIMEOUT_MS, log = console, kb = null } = {}) {
+export function createTools({ db, settings = null, env = process.env, tools = ALL_TOOLS, timeoutMs = TIMEOUT_MS, log = console, kb = null } = {}) {
   const byName = new Map(tools.map(x => [x.name, x]));
   const withDefaults = ctx => ({ lang: 'ru', now: clockNow, ...ctx });
 

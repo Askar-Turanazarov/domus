@@ -102,19 +102,15 @@ app.get('/api/health', async (req, res) => {
   res.set('Cache-Control', 'no-store').status(code).json(body);
 });
 
-// The MCP server «Chinor Park» (server/mcp/) on the site: POST /mcp with `Authorization: Bearer <MCP_TOKEN>`.
-// Bookings and the call log go to the site's storage, the tools see the manager's statuses. No MCP_TOKEN — off.
-const MCP_MIN_TOKEN = 32;   // as server/mcp/index.js MIN_TOKEN
+// The MCP server «chinor-park» (server/mcp/, 08 §7) on the site: POST /mcp with `Authorization: Bearer <token>`, the token
+// decides the role (MCP_CLIENT_TOKEN — the demo client, MCP_HEAD_TOKEN — the head). No tokens in the environment — 503.
 let mcp = null;
 app.all('/mcp', async (req, res) => {
   res.set('Cache-Control', 'no-store');
-  const token = process.env.MCP_TOKEN || '';
-  if (token.length < MCP_MIN_TOKEN) return res.status(503).json({ error: 'mcp_disabled' });
   try {
-    mcp ||= import('./server/mcp/index.js').then(m => ({ handle: m.handleMcp, ctx: m.dbContext(store) }));
-    const { handle, ctx } = await mcp;
+    mcp ||= import('./server/mcp/index.js').then(m => m.handleMcp);
     // req._body: express.json has read the body; otherwise the MCP code reads (and checks) it itself
-    await handle(req, res, { token, ctx, parsed: req._body ? req.body : undefined });
+    await (await mcp)(req, res, { db, tools, env: process.env, parsed: req._body ? req.body : undefined });
   } catch (e) {
     mcp = null;
     console.error('mcp request failed:', e.code || e.message);

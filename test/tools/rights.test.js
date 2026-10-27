@@ -4,7 +4,8 @@ import { test, before, after, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeClock } from '../../server/core/clock.js';
 import { createTools } from '../../server/tools/registry.js';
-import { CLIENT_TOOLS } from '../../server/tools/client.js';
+import { CLIENT_TOOLS, ALL_TOOLS } from '../../server/tools/client.js';
+import { HEAD_TOOLS } from '../../server/tools/head.js';
 import { createTestDb, resetDb } from '../support/db.js';
 import { makeClient, makeBooking, makeStaff, asClient, asStaff } from '../support/factories.js';
 
@@ -17,6 +18,7 @@ afterEach(() => fakeClock.reset());
 
 const READING = ['search_apartments', 'get_apartment', 'calc_mortgage', 'calc_installment', 'compare_finance', 'search_kb'];
 const ALL = CLIENT_TOOLS.map(t => t.name);
+const HEAD_ONLY = HEAD_TOOLS.map(t => t.name);
 const HEAD_MCP = { type: 'mcp', id: null, role: 'head', channel: 'mcp' };
 
 test('08 §5: the matrix — chat client all, MCP client all but call_manager, head the reading ones, manager none', async () => {
@@ -26,7 +28,10 @@ test('08 §5: the matrix — chat client all, MCP client all but call_manager, h
   const names = ctx => tools.list(ctx).map(t => t.name);
   assert.deepEqual(names({ actor: asClient(c), source: 'agent' }), ALL);
   assert.deepEqual(names({ actor: { type: 'mcp', id: c.id, role: 'client', channel: 'mcp' }, source: 'mcp' }), ALL.filter(n => n !== 'call_manager'));
-  assert.deepEqual(names({ actor: HEAD_MCP, source: 'mcp' }), READING);
+  assert.deepEqual(names({ actor: HEAD_MCP, source: 'mcp' }), [...READING, ...HEAD_ONLY]);
+  assert.deepEqual(names({ actor: { type: 'staff', id: null, role: 'head', channel: 'admin' }, source: 'agent' }), [...READING, ...HEAD_ONLY.filter(n => !['extend_booking', 'cancel_booking'].includes(n))],
+    'the analyst: the reading tools only');
+  for (const n of HEAD_ONLY) assert.equal((await tools.run(n, {}, { actor: asClient(c), source: 'agent', lang: 'en' })).error, 'forbidden', n);
   assert.deepEqual(names({ actor: asStaff(m), source: 'agent' }), []);
   assert.deepEqual(names({ actor: null, source: 'agent' }), []);
   for (const name of ALL.filter(n => !READING.includes(n))) {
@@ -35,7 +40,7 @@ test('08 §5: the matrix — chat client all, MCP client all but call_manager, h
   }
   const r = await tools.run('call_manager', {}, { actor: { type: 'mcp', id: c.id, role: 'client', channel: 'mcp' }, source: 'mcp' });
   assert.equal(r.error, 'forbidden');
-  assert.equal((await db.query(`SELECT 1 FROM tool_calls WHERE error = 'forbidden'`)).length, ALL.length - READING.length + 1);
+  assert.equal((await db.query(`SELECT 1 FROM tool_calls WHERE error = 'forbidden'`)).length, ALL.length - READING.length + 1 + HEAD_ONLY.length);
 });
 
 test('08 §5: my_bookings shows only the own bookings (merged cards too); a client without a card sees nothing', async () => {

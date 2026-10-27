@@ -399,15 +399,16 @@ export function bookingJobHandlers(opts = {}) {
 }
 
 // The bookings of a client (my_bookings, 08 §3.1) with the cards merged into it (§9), newest first; statuses as reads
-// must see them (I12). Head filter (list_bookings, 08 §3.2): expiring within N hours.
-export async function listBookings(q, { clientId = null, status = null, expiringWithinHours = null, limit = 20 } = {}, opts = {}) {
+// must see them (I12). Head filters (list_bookings, 08 §3.2): expiring within N hours, held in [from, to).
+export async function listBookings(q, { clientId = null, status = null, expiringWithinHours = null, from = null, to = null, limit = 20 } = {}, opts = {}) {
   const ctx = context(opts);
   const at = ctx.now();
   const soon = expiringWithinHours ? new Date(at.getTime() + expiringWithinHours * 3600e3) : null;
   const rows = await q.query(`SELECT * FROM bookings b
     WHERE ($1::uuid IS NULL OR b.client_id IN (SELECT id FROM clients WHERE id = $1 OR merged_into = $1))
       AND ($2::timestamptz IS NULL OR (b.status IN ('held', 'booked') AND b.expires_at > $3 AND b.expires_at <= $2))
-    ORDER BY b.held_at DESC, b.no DESC LIMIT $4`, [clientId, soon, at, limit]);
+      AND ($5::timestamptz IS NULL OR b.held_at >= $5) AND ($6::timestamptz IS NULL OR b.held_at < $6)
+    ORDER BY b.held_at DESC, b.no DESC LIMIT $4`, [clientId, soon, at, limit, from, to]);
   const out = rows.map(b => ({ ...b, status: effectiveStatus(b, at), link: bookingPath(b, ctx.env) }));
   return status ? out.filter(b => b.status === status) : out;
 }

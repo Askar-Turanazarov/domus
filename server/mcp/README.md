@@ -1,59 +1,49 @@
-# MCP-сервер «Chinor Park»
+# MCP-сервер «chinor-park»
 
-Квартиры из `apartments.json` (корень проекта), записи на показ и журнал вызовов по MCP (Streamable HTTP):
-- **на сайте** — `POST https://<адрес сайта>/mcp` (маршрут в `server.js`, работает и на Vercel; без `MCP_TOKEN` в переменных окружения — `503`);
-- **отдельно, для разработки** — `http://127.0.0.1:3001/mcp` (`node server/mcp/index.js` из корня проекта).
+Те же инструменты, что у ИИ-агентов сайта (`server/tools/`), для внешних клиентов — Claude Desktop (SPEC 08 §7). Транспорт — Streamable HTTP, без сессий, ответы обычным JSON:
+- **на сайте** — `POST https://<адрес сайта>/mcp` (маршрут в `server.js`, работает и на Vercel);
+- **отдельно, для разработки** — `http://127.0.0.1:3001/mcp` (`node server/mcp/index.js`, порт — `MCP_PORT`).
 
-Данные — в базе сайта (`server/db/`): с `DATABASE_URL` — Neon, без него — PGlite в `.pglite/`. Записи на показ — таблица `viewings`, журнал — `tool_calls`. Статусы квартир вычисляются из броней и продаж (D-15), как на витрине.
-Все цены в сумах (целые). Зависимости — в корневом `package.json` (`@modelcontextprotocol/sdk`, `zod`).
+Данные — в базе сайта: с `DATABASE_URL` — Neon, без него — PGlite в `.pglite/`. Все суммы — целые сумы.
 
-## Запуск
-```bash
-# из корня проекта; в .env строка MCP_TOKEN=<32–64 символа>:
-#   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-node server/mcp/index.js          # MCP «Chinor Park»: http://127.0.0.1:3001/mcp
-node --test "test/tools/*.test.js"
-```
-Без `MCP_TOKEN` (или короче 32 символов) сервер не запускается. Каждый запрос — с заголовком `Authorization: Bearer <MCP_TOKEN>`, иначе `401`.
-
-На Vercel: переменная `MCP_TOKEN` (Production, Sensitive) и Redeploy.
-
-## Проверка curl (из корня проекта)
-```bash
-BODY='{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"search_apartments","arguments":{"rooms":2,"maxPrice":900000000}}}'
-H=(-H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream')
-curl -s -w ' %{http_code}\n' "${H[@]}" -d "$BODY" http://127.0.0.1:3001/mcp                                   # 401
-set -a; . ./.env; set +a
-curl -s -w ' %{http_code}\n' "${H[@]}" -H "Authorization: Bearer $MCP_TOKEN" -d "$BODY" http://127.0.0.1:3001/mcp   # 200
-```
-
-## Инструменты
-| Инструмент | Вход | Выход |
+## Два токена — две роли
+| Переменная | Кто | Что видит |
 |---|---|---|
-| `search_apartments` | `rooms` (0 — студия), `maxPrice` (сум), `minArea` (м²), `floor`, `status` (`free` по умолчанию / `booked` / `sold` / `any`), `limit` (20) | `{ total, apartments: [{ no, floor, rooms, area, price, status }] }`, сначала дешёвые |
-| `get_apartment` | `no` — номер квартиры | `{ no, floor, rooms, area, price, status, pricePerM2 }` |
-| `calc_mortgage` | одно из: `loan` (сумма кредита), `price` + `downPct` 0–90, `no`; `years` 1–30, `rate` 0–60 % годовых | `{ price, down, loan, months, monthly, total, overpay }`, целые сумы |
-| `book_viewing` | `name`, `phone` (+998 90 123 45 67), `datetime` (`2026-10-25T15:00`, Ташкент, до минуты, в будущем), `no` | `{ id, no, name, phone, datetime, createdAt }` → хранилище записей |
+| `MCP_CLIENT_TOKEN` | демо-клиент (D-24): `MCP_CLIENT_ID` — его запись в `clients` | `search_apartments`, `get_apartment`, `calc_mortgage`, `calc_installment`, `compare_finance`, `search_kb`, `my_bookings`, `book_viewing`, `create_booking`, `request_extension` |
+| `MCP_HEAD_TOKEN` | руководитель, без id | читающие клиентские + `list_bookings`, `sales_summary`, `list_payments`, `list_viewings`, `extend_booking`, `cancel_booking` |
 
-`calc_mortgage` — аннуитет с месячной ставкой: `i = rate / 12 / 100`, `n = years · 12`, платёж `loan · i / (1 − (1 + i)^−n)`; общая сумма = точный платёж · n, переплата = общая сумма − кредит, всё округляется до сума в конце. Пример: кредит 80 000 000 сум, 24 %, 10 лет → 1 763 848 сум в месяц, всего 211 661 730, переплата 131 661 730.
+Токены — от 32 символов и разные; иначе роль выключена. Нет ни одного — `503 mcp_disabled`. Нет заголовка `Authorization: Bearer …` или токен неверный — `401` и строка в `tool_calls` (без инструмента, с хэшем адреса). Лимиты: 60 вызовов в минуту на токен, 20 неудачных попыток в минуту на адрес — потом `429` с `Retry-After`.
 
-`book_viewing` проверяет, что квартира существует и не продана и что на это же время на эту квартиру нет другой записи; статус квартиры не меняет. Ошибки — понятным текстом.
-
-## Заявки на показ на сайте
-Страница менеджера `/bookings.html` (вход по паролю менеджера, как `/admin.html`) читает записи через `GET /api/bookings` и обновляет таблицу каждые 3 секунды без перезагрузки. Записей нет — «Заявок пока нет».
-
-## Журнал вызовов
-Каждый вызов инструмента и каждый отказ 401 попадает в журнал (одна запись: время, инструмент, ок/ошибка, мс, параметры, первая строка ответа); хранятся последние 1000.
-Имени, телефона и токена в журнале нет: у `book_viewing` пишутся только номер квартиры и время, у вызовов с неверными параметрами — только названия полей.
-Неизвестные параметры (например `max_price` вместо `maxPrice`) — ошибка, а не молча отброшенный фильтр.
-Страница менеджера `/calls.html` (вход по паролю менеджера) показывает журнал, обновляясь каждые 3 секунды; субагент определяется по инструменту:
-`search_apartments`, `get_apartment` → `apt_finder`; `calc_mortgage` → `mortgage_consultant`; `book_viewing` → `booking_manager`.
-
-## Claude Code
-`.mcp.json` в корне проекта (в git не попадает):
-```json
-{ "mcpServers": { "chinor-park": { "type": "http", "url": "https://<адрес сайта>/mcp",
-  "headers": { "Authorization": "Bearer <тот же MCP_TOKEN, что в .env>" } } } }
+Демо-клиент создаётся один раз на каждую базу (локальную и Neon):
+```bash
+npm run mcp:client                         # локальная база
+node --env-file=.env.neon scripts/mcp-client.js --yes    # Neon
 ```
+Скрипт печатает `MCP_CLIENT_ID=…` — строку нужно вписать в `.env` (и в переменные Vercel).
 
-Для разработки с отдельным сервером — `"url": "http://localhost:3001/mcp"`.
+## Подтверждение изменений
+Меняющие инструменты (`extend_booking`, `cancel_booking`, `create_booking`, `book_viewing`, `request_extension`) работают в два шага:
+1. Первый вызов ничего не меняет и возвращает черновик: `{ needsConfirmation, confirmToken, preview, expiresAt }`.
+2. Клиент показывает условия человеку; после явного «да» повторяет вызов с теми же аргументами и `confirmToken`. Токен привязан к аргументам, одноразовый, живёт 10 минут (в базе — только его хэш).
+
+События от таких действий пишутся с каналом `mcp` («через Claude Desktop»).
+
+## Журнал
+Каждый вызов — строка в `tool_calls` (источник `mcp`, роль, фаза preview/execute, мс). Токенов доступа и подтверждения, полных телефонов и имён там нет.
+
+## Запуск и проверка
+```bash
+npm test                       # все тесты
+node --test "test/mcp/*.test.js"
+node server/mcp/index.js       # http://127.0.0.1:3001/mcp
+```
+Сгенерировать токен: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
+
+## Claude Desktop
+Через `mcp-remote` (SPEC 08 §8): Claude Desktop → Settings → Developer → Edit Config → `claude_desktop_config.json`:
+```json
+{ "mcpServers": { "chinor-park": { "command": "npx",
+  "args": ["-y", "mcp-remote@<версия>", "https://<домен>/mcp", "--header", "Authorization:${CHINOR_AUTH}"],
+  "env": { "CHINOR_AUTH": "Bearer <токен руководителя>" } } } }
+```
+Для роли клиента — тот же блок с токеном клиента (имя сервера, например, `chinor-park-client`). Токен в README и на скриншоты не попадает.

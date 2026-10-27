@@ -2,7 +2,7 @@
 import { z } from 'zod';
 import { DomainError } from '../core/errors.js';
 import { getApartment } from '../core/apartments.js';
-import { settingsOf } from '../core/bookings.js';
+import { settingsOf, effectiveStatus } from '../core/bookings.js';
 import { maskPhone } from '../core/phone.js';
 
 export const aptNo = z.number().int().positive();
@@ -39,4 +39,22 @@ export function redactPii({ confirmToken, ...args }) {
   if (out.phone != null) out.phone = maskPhone(String(out.phone)) ?? '***';
   if (out.name != null) out.name = String(out.name).trim().slice(0, 1) + '.';
   return out;
+}
+
+// A Tashkent day for the head's period filters (08 §3.2): 'YYYY-MM-DD', `to` inclusive.
+export const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe('Day in Tashkent time, YYYY-MM-DD');
+
+// The booking by its number, as reads see it (I12); no such booking → booking_not_found.
+export async function bookingByNo(ctx, no) {
+  const b = await ctx.db.one('SELECT * FROM bookings WHERE no = $1', [no]);
+  if (!b) throw new DomainError('booking_not_found');
+  return { ...b, status: effectiveStatus(b, ctx.now()) };
+}
+
+// Clients for the head's lists: the name and the masked phone (08 §3.2), never the full number. → id → { name, phone }
+export async function clientsOf(ctx, ids) {
+  const list = [...new Set(ids.filter(Boolean))];
+  const rows = list.length ? await ctx.db.query('SELECT id, name, phone FROM clients WHERE id = ANY($1::uuid[])', [`{${list.join(',')}}`]) : [];
+  const byId = new Map(rows.map(r => [r.id, { name: r.name ?? null, phone: r.phone ? maskPhone(r.phone) : null }]));
+  return id => byId.get(id) ?? { name: null, phone: null };
 }

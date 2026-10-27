@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { z } from 'zod';
 import { fakeClock } from '../../server/core/clock.js';
 import { createTools, defineTool, jsonSchema } from '../../server/tools/registry.js';
-import { CLIENT_TOOLS } from '../../server/tools/client.js';
+import { ALL_TOOLS } from '../../server/tools/client.js';
 import { createTestDb, resetDb } from '../support/db.js';
 import { makeClient, asClient } from '../support/factories.js';
 
@@ -23,7 +23,7 @@ const walk = (s, fn) => {
 
 test('08 §11: schema → JSON Schema, additionalProperties false everywhere, English description, 3 titles, roles, preview', () => {
   const names = new Set();
-  for (const t of CLIENT_TOOLS) {
+  for (const t of ALL_TOOLS) {
     assert.match(t.name, /^[a-z_]+$/);
     assert.ok(!names.has(t.name), `${t.name} twice`);
     names.add(t.name);
@@ -37,7 +37,9 @@ test('08 §11: schema → JSON Schema, additionalProperties false everywhere, En
     if (t.mutates) assert.equal(typeof t.preview, 'function', `${t.name}: preview`);
     assert.ok(t.output, `${t.name}: output`);
   }
-  assert.deepEqual(CLIENT_TOOLS.filter(t => t.mutates).map(t => t.name).sort(), ['book_viewing', 'create_booking']);
+  assert.deepEqual(ALL_TOOLS.filter(t => t.mutates).map(t => t.name).sort(), ['book_viewing', 'cancel_booking', 'create_booking', 'extend_booking']);
+  assert.ok(ALL_TOOLS.filter(t => t.roles.includes('head') && t.mutates).every(t => t.sources.length === 1 && t.sources[0] === 'mcp'),
+    'changing tools of the head are for MCP only (the analyst never gets them, 08 §5)');
 });
 
 test('08 §4: unknown tool, invalid input with field names only, each refused call journaled', async () => {
