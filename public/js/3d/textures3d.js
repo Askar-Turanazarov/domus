@@ -38,6 +38,32 @@ async function loadTexture(url) {
   return t;
 }
 
+// 2K library maps (server/textureHD.js): only on a desktop of the "high" tier, never on a phone or in the mini app.
+// The server says whether 2K is on (its kill switch); a 2K map that fails or is slow is taken from the 1K set
+// in the repository instead, and after two such misses this session stays on 1K.
+const HD_WAIT = 8000;
+let hdWanted = false, hdOn = null, hdMisses = 0;
+export const useHD = on => { hdWanted = !!on; };
+async function hdReady() {
+  if (!hdWanted || hdMisses >= 2) return false;
+  hdOn ??= fetch('/api/textures/hd').then(r => r.json()).then(b => b.on === true, () => false);
+  return hdOn;
+}
+async function loadLibMap(id, file) {
+  const sd = `/textures/sets/${id}/${file}.jpg`;
+  if (!(await hdReady())) return loadTexture(sd);
+  let timer;
+  try {
+    return await Promise.race([loadTexture(`/textures/2k/${id}/${file}.jpg`),
+      new Promise((_, no) => { timer = setTimeout(() => no(new Error('slow')), HD_WAIT); })]);
+  } catch {
+    hdMisses++;
+    return loadTexture(sd);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // Deterministic random so textures look the same on every rebuild.
 function rng(seed) {
   return () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
@@ -429,8 +455,8 @@ async function loadLib(id) {
   }
   const rep = 1 / (entry.tile || 1);
   const load = async (file, srgb) => {
-    // Bundled sets are in the repository, the others are downloaded on demand into lib/.
-    const t = await loadTexture(`/textures/${entry.bundled ? 'sets' : 'lib'}/${id}/${file}.jpg`);
+    // Bundled sets are in the repository (1K, or 2K from Supabase on a strong desktop), the others are downloaded on demand into lib/.
+    const t = await (entry.bundled ? loadLibMap(id, file) : loadTexture(`/textures/lib/${id}/${file}.jpg`));
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
     t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
     t.anisotropy = aniso;

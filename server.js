@@ -10,6 +10,7 @@ import { health } from './server/health.js';
 import { legacyStore } from './server/db/legacy.js';
 import { writeZip } from './server/zip.js';
 import { fetchSet, libraryStatus, readLibMap } from './server/textureFetch.js';
+import { mountTextureHD } from './server/textureHD.js';
 import { BUILDING_ID, createBuildings } from './server/buildings.js';
 import { mountAdmin } from './server/http/admin.js';
 import { securityHeaders } from './server/http/securityHeaders.js';
@@ -338,6 +339,9 @@ app.get('/textures/lib/:id/:file', async (req, res) => {
   if (!buf) return res.set('Cache-Control', 'public, s-maxage=300').status(404).end();
   res.set('Cache-Control', 'public, max-age=86400, s-maxage=31536000, immutable').type('jpg').send(buf);
 });
+
+// 2K maps from Supabase Storage (server/textureHD.js); 1K stays the default and the fallback.
+mountTextureHD(app);
 
 app.post('/api/textures/fetch/:id', async (req, res) => {
   try {

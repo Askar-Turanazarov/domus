@@ -17,6 +17,12 @@
       "includeFiles": "{public/*.html,catalog.json,templates.json,apartment-templates.json,apartments.json,buildings/**,public/textures/{library.json,README.md,floor/**,wall/**,wood/**,fabric/**},server/db/migrations/**,server/i18n/**,legal/**,kb/**,assets/fonts/**}"
     }
   },
+  "rewrites": [
+    {
+      "source": "/textures/2k/:id/:file",
+      "destination": "https://mhkookdedvmpvwwrwdty.supabase.co/storage/v1/object/public/textures/2k/:id/:file"
+    }
+  ],
   "headers": [
     {
       "source": "/((?!mini$|admin$|admin\\.html$|admin/|dashboard$|dashboard/|bookings\\.html$|calls\\.html$|api/).*)",

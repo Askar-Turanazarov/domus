@@ -115,6 +115,8 @@
     { "m": "GET", "p": "/api/textures/pack.zip", "access": "Pub" },
     { "m": "GET", "p": "/api/textures/library", "access": "Pub" },
     { "m": "GET", "p": "/textures/lib/:id/:file", "access": "Pub" },
+    { "m": "GET", "p": "/api/textures/hd", "access": "Pub" },
+    { "m": "GET", "p": "/textures/2k/:id/:file", "access": "Pub" },
     { "m": "POST", "p": "/api/textures/fetch/:id", "access": "Pub" }
   ]
 }

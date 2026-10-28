@@ -17,7 +17,7 @@ import { validateAll } from '../validate.js';
 import * as controls from './controls3d.js';
 import * as anim from './anim3d.js';
 import { initTouch } from './touch3d.js';
-import { setQuality, resetPhoto, onLibLoaded, onLibMissing, libPending, photoReady, fetchLibSet, canFetchLib, PHOTO_MB, setAnisotropy } from './textures3d.js';
+import { setQuality, resetPhoto, onLibLoaded, onLibMissing, libPending, photoReady, fetchLibSet, canFetchLib, PHOTO_MB, setAnisotropy, useHD } from './textures3d.js';
 import { SETTINGS, PREFS, readPref, savePref, tierFor, governor, photoAuto } from './perf.js';
 import { styleOf } from '../style.js';
 import { footprints, contactShadows, cornerShade } from './softShadows.js';
@@ -57,6 +57,8 @@ function init(el) {
   const pref = readPref();
   tier = tierFor(pref);
   setAnisotropy(SETTINGS[tier].anisotropy);
+  // 2K library maps: the "high" start tier on a desktop only (phones and the mini app keep 1K, PERF-01).
+  useHD(tier === 'high' && !matchMedia('(pointer: coarse)').matches && document.documentElement.dataset.mode !== 'mini');
   try {
     renderer = new THREE.WebGLRenderer({ antialias: SETTINGS[tier].antialias });
   } catch {
