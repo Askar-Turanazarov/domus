@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { DomainError } from '../core/errors.js';
+import { recordVisit } from '../core/analytics.js';
 import { createHold, effectiveStatus, settingsOf } from '../core/bookings.js';
 import { statusMap } from '../core/apartments.js';
 import { resolveClient, leaveContact } from '../core/clients.js';
@@ -69,6 +70,7 @@ export function mountMini(app, db, opts = {}) {
     const ctx = context(opts);
     const at = ctx.now();
     const c = req.mini.client;
+    await recordVisit(db, { visitor: `tg:${req.mini.telegram.userId}`, channel: 'mini' }, { env, now: ctx.now });   // the funnel (11 §11.1)
     const [building, statuses, s, bookings] = await Promise.all([
       opts.buildings ? opts.buildings.get(opts.buildingId) : null, statusMap(db, ctx), settingsOf(db, ctx), clientBookings(c.id, at)
     ]);

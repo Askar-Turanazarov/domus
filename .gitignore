@@ -27,7 +27,9 @@ eval/reports/*.tmp
 AGENTS.md
 GEMINI.md
 CLAUDE.local.md
-docs/
+docs/*
+!docs/perf.md
+!docs/security-review.md
 handoff.md
 .cursor/
 .codex/

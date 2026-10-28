@@ -30,6 +30,7 @@
     { "m": "GET", "p": "/pay/return", "access": "Pub" },
     { "m": "POST", "p": "/api/admin/login", "access": "Pub" },
     { "m": "POST", "p": "/api/admin/logout", "access": "Pub" },
+    { "m": "POST", "p": "/api/visit", "access": "Pub" },
     { "m": "GET", "p": "/api/admin/me", "access": "Staff" },
     { "m": "GET", "p": "/api/admin/units", "access": "Staff" },
     { "m": "GET", "p": "/api/admin/apartments/:no", "access": "Staff" },

@@ -1,8 +1,8 @@
 // Clients (03 §9, D-06, I4/I6): a typed phone never merges cards; a shared Telegram contact (R2) or a link code (R6) does.
 import { test, before, after, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { fakeClock } from '../../server/core/clock.js';
-import { resolveClient, verifyPhone, issueLinkCode, attachTelegram, canonical } from '../../server/core/clients.js';
+import { fakeClock, now } from '../../server/core/clock.js';
+import { resolveClient, verifyPhone, issueLinkCode, attachTelegram, canonical, forgetClients } from '../../server/core/clients.js';
 import { enqueue } from '../../server/core/outbox.js';
 import { createTestDb, resetDb } from '../support/db.js';
 import { makeClient, makeBooking } from '../support/factories.js';
@@ -121,4 +121,28 @@ test('R6: a confirmation skipped before the link is sent right after «Гото�
   const code2 = await db.tx(q => issueLinkCode(q, { clientId: late.id, bookingId: gone.id }));
   await attachTelegram(db, { code: code2, telegram: { userId: 88, chatId: 88 } });
   assert.equal((await outboxOf()).length, 6, 'only «Готово!» for the lost hold');
+});
+
+test('client:forget (14 §10.4): name, phone, Telegram and the client\'s texts go; bookings, staff replies and events stay', async () => {
+  const c = await makeClient(db, { name: 'Аня', phone: PHONE, verified: true, tg: 77, chat: 77 });
+  const other = await makeClient(db, { name: 'Боря', phone: '+998907654321' });
+  const b = await makeBooking(db, { clientId: c.id, status: 'booked' });
+  const at = now();
+  const conv = await db.one(`INSERT INTO conversations (kind, client_id, channel, lang, summary, state, created_at, updated_at)
+    VALUES ('client', $1, 'telegram', 'ru', 'Аня ищет 2к', '{"name":"Аня"}', $2, $2) RETURNING id`, [c.id, at]);
+  for (const [role, text] of [['user', 'Я Аня, +998901234567'], ['assistant', 'Здравствуйте!'], ['staff', 'Перезвоню']]) {
+    await db.query('INSERT INTO messages (conversation_id, role, text, created_at) VALUES ($1, $2, $3, $4)', [conv.id, role, text, at]);
+  }
+  assert.equal(await forgetClients(db, { phone: '+998 90 123 45 67' }), 1);
+  const f = await db.one('SELECT * FROM clients WHERE id = $1', [c.id]);
+  assert.deepEqual([f.name, f.phone, f.telegram_user_id, f.telegram_chat_id, f.phone_verified], ['Удалён', null, null, null, false]);
+  assert.deepEqual((await db.query('SELECT role, text FROM messages ORDER BY id')).map(m => m.text), ['[удалено]', 'Здравствуйте!', 'Перезвоню']);
+  const cv = await db.one('SELECT summary, state FROM conversations WHERE id = $1', [conv.id]);
+  assert.deepEqual([cv.summary, cv.state], [null, {}]);
+  assert.equal((await db.one('SELECT status FROM bookings WHERE id = $1', [b.id])).status, 'booked');
+  assert.equal((await db.one('SELECT name FROM clients WHERE id = $1', [other.id])).name, 'Боря');
+  const ev = await db.query("SELECT client_id, data FROM events WHERE type = 'client.forgotten'");
+  assert.deepEqual(ev.map(e => e.client_id), [c.id]);
+  assert.equal(await forgetClients(db, { phone: PHONE }), 0, 'a repeat finds nothing');
+  await assert.rejects(forgetClients(db, { phone: '123' }), { code: 'phone_invalid' });
 });

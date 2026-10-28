@@ -1,5 +1,6 @@
 // Numbers for the head and the dashboard (01 §3.2, 12 §9): the period is in Tashkent days. summary feeds the MCP tool sales_summary (D3-14);
 // dashboardSummary / dashboardCharts / dashboardFeed feed the dashboard (D4-08, D-26: a manager gets counts, no money).
+import crypto from 'node:crypto';
 import { now as clockNow } from './clock.js';
 import { DomainError, need } from './errors.js';
 import { feed as eventsFeed } from './events.js';
@@ -22,6 +23,26 @@ export function periodOf({ from = null, to = null } = {}, now = clockNow) {
   const start = dayStart(a);
   const end = new Date(dayStart(b).getTime() + DAY_MS);
   return { from: start, to: end, fromDay: a, toDay: b };
+}
+
+// ---- the visitor counter of the funnel (11 §11.1, 02 §3.12): one row per visitor and Tashkent day, no IP, no raw id ----
+// visitor — the cookie dvid (web) or 'tg:<telegram user id>' (mini); the hash is salted per day, so days do not link up.
+export async function recordVisit(q, { visitor, channel }, opts = {}) {
+  if (!visitor || !['web', 'mini'].includes(channel)) throw new DomainError('invalid_input', { fields: ['visitor'] });
+  const env = opts.env ?? process.env;
+  const at = (opts.now ?? clockNow)();
+  const day = tashkentDay(at);
+  const salt = crypto.createHmac('sha256', env.LOG_SALT || env.SESSION_SECRET || 'dev-visit-salt').update(`visit:${day}`).digest();
+  const hash = crypto.createHash('sha256').update(visitor).update(salt).digest('hex');
+  const row = await q.one(`INSERT INTO analytics_visits (day, visitor_hash, channel, first_at) VALUES ($1, $2, $3, $4)
+    ON CONFLICT DO NOTHING RETURNING day`, [day, hash, channel, at]);
+  return Boolean(row);
+}
+
+// The dvid of the visitor goes into clients.visitor_id at the hold (11 §11.1): the dashboard links the visit to the booking.
+export async function linkVisitor(q, { clientId, visitor }) {
+  if (!clientId || !visitor) return;
+  await q.query('UPDATE clients SET visitor_id = $2 WHERE id = $1 AND visitor_id IS NULL', [clientId, visitor]);
 }
 
 const share = (a, b) => (b > 0 ? Math.round((a / b) * 1000) / 1000 : null);

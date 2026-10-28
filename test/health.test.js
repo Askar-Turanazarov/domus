@@ -10,14 +10,14 @@ before(async () => { db = await createTestDb(); });
 after(() => db.close());
 afterEach(() => fakeClock.reset());
 
-test('health: keys set → test / not_configured / qstash ok; the commit hash is the version', async () => {
+test('health: keys set → test / ok / qstash ok; the commit hash is the version', async () => {
   await resetDb(db);
   fakeClock.set('2026-11-02T09:00:00+05:00');
   const env = { QSTASH_TOKEN: 'x', TELEGRAM_BOT_TOKEN: 'x', STRIPE_SECRET_KEY: 'sk_test_x', GEMINI_API_KEY: 'x', VERCEL_GIT_COMMIT_SHA: 'a1b2c3d4e5' };
   const { code, body } = await health(db, { env, version: '1.0.0' });
   assert.equal(code, 200);
   assert.deepEqual(body, { status: 'ok', version: 'a1b2c3d', time: '2026-11-02T09:00:00+05:00', db: 'ok', qstash: 'ok',
-    telegram: 'not_configured', stripe: 'test', click: 'emulator', ai: { gemini: { status: 'not_configured' }, anthropic: { status: 'off' } } });
+    telegram: 'ok', stripe: 'test', click: 'emulator', ai: { gemini: { status: 'ok' }, anthropic: { status: 'off' } } });
   assert.equal((await health(db, { env: { STRIPE_SECRET_KEY: 'sk_live_x' } })).body.stripe, 'off');
 });
 

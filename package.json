@@ -17,6 +17,7 @@
     "db:migrate": "node scripts/migrate.js",
     "seed": "node scripts/seed.js",
     "staff": "node --env-file-if-exists=.env scripts/staff.js",
+    "client:forget": "node --env-file-if-exists=.env scripts/forget.js",
     "jobs:run": "node scripts/jobs-run.js",
     "stripe:check": "node --env-file-if-exists=.env scripts/stripe-check.js",
     "tg:setup": "node --env-file-if-exists=.env scripts/tg-setup.js",

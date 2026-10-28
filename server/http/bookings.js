@@ -7,9 +7,10 @@ import { getApartment, statusMap } from '../core/apartments.js';
 import { normalizePhone } from '../core/phone.js';
 import { parseRef, checkSig, bookingPath } from '../core/links.js';
 import { issueLinkCode } from '../core/clients.js';
+import { linkVisitor } from '../core/analytics.js';
 import { context } from '../core/tx.js';
 import { failureText, t } from '../i18n/index.js';
-import { handler, jsonBody, parseBody, z, langOf, idempotencyKey, limit, ipKey, hashKey, readDcl, setDcl, tz, HOUR, foreignOrigin } from './common.js';
+import { handler, jsonBody, parseBody, z, langOf, idempotencyKey, limit, ipKey, hashKey, readDcl, setDcl, readDvid, tz, HOUR, foreignOrigin } from './common.js';
 
 const LANGS = ['ru', 'uz', 'en'];
 const MIN_FILL_MS = 3000;                                    // 14 §6: a form filled faster than this is a script
@@ -72,6 +73,7 @@ export function mountBookings(app, db, opts = {}) {
       consent: body.consent ? { version: body.consent.version } : null, channel: 'web', idempotencyKey: key
     }, { type: 'client', id: null, role: 'client', channel: 'web' }, opts);
     setDcl(res, req, r.booking.client_id, env);
+    await linkVisitor(db, { clientId: r.booking.client_id, visitor: readDvid(req) });
     res.status(201).json({ bookingNo: r.booking.no, link: r.link, expiresAt: tz(r.booking.expires_at), holdSeconds: r.holdSeconds,
       depositAmount: Number(r.booking.deposit_amount) });
   }));

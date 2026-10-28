@@ -38,6 +38,7 @@ import { createTurns } from './server/agents/turn.js';
 import { createSettings } from './server/core/settings.js';
 import { mountPersonalPages } from './server/http/personalPages.js';
 import { mountMini } from './server/http/mini.js';
+import { mountVisits } from './server/http/visits.js';
 import { requestId, noStore, apiErrors } from './server/http/common.js';
 import { afterCommit } from './server/events/runner.js';
 
@@ -79,6 +80,7 @@ mountStripeWebhook(app, db, coreOpts);     // the raw body for the Stripe signat
 mountTelegram(app, db, { core: coreOpts, turns, tools });  // Telegram webhook (10 §3): the secret, the answer at once, the bot in waitUntil
 mountBookings(app, db, coreOpts);          // booking: hold, personal link (13 §4); own 64 KB JSON parser
 mountChat(app, db, { turns, tools }, coreOpts);   // the site chat: POST /api/chat (SSE), confirm, feedback, messages (13 §6)
+mountVisits(app, db);                      // the funnel counter: POST /api/visit, the cookie dvid (11 §11.1)
 mountOrders(app, db, coreOpts);            // the furniture order page data: GET /api/orders/by-ref/:ref (03 §13, S)
 mountPayments(app, db, coreOpts);          // payments: start, emulators (05 §12); own 64 KB JSON parser
 mountMini(app, db, { ...coreOpts, buildings, buildingId: BUILDING_ID, publicDir: path.join(__dirname, 'public') });   // /mini and /api/mini/* (Tg, 10 §7)

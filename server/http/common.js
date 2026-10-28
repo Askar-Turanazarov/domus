@@ -161,6 +161,17 @@ export function setDcl(res, req, clientId, env = process.env) {
   res.append('Set-Cookie', `dcl=${encodeURIComponent(`${clientId}.${mac(clientId, env)}`)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${180 * 86400}${secure ? '; Secure' : ''}`);
 }
 
+// ---- the cookie `dvid` of a site visitor (11 §11.1): 16 random bytes, base64url, only for the funnel; 365 days ----
+export function readDvid(req) {
+  const m = /(?:^|;\s*)dvid=([A-Za-z0-9_-]{22})(?:;|$)/.exec(req.get('cookie') ?? '');
+  return m ? m[1] : null;
+}
+
+export function setDvid(res, req, id) {
+  const secure = req.secure || req.get('x-forwarded-proto') === 'https';
+  res.append('Set-Cookie', `dvid=${id}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${365 * 86400}${secure ? '; Secure' : ''}`);
+}
+
 // Tashkent time for answers (13 §1.1): 2026-10-27T18:15:00+05:00.
 export const tz = d => (d == null ? null : new Date(new Date(d).getTime() + 5 * 3600e3).toISOString().slice(0, 19) + '+05:00');
 

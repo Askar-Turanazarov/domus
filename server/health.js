@@ -1,5 +1,5 @@
 // GET /api/health (13 §8.3, 16 §6): statuses only, no secrets, no request to a model. 200 if the base is ok, else 503.
-// Not built yet (day 1): Telegram and the AI layer answer not_configured when their key is set, off when it is not.
+// Telegram and the AI providers: ok when their key is set, off when it is not (no call to them from here).
 // The staff details (queues, webhook errors, AI spend) come with the admin (12 §10.2).
 import { pendingMigrations } from './db/migrate.js';
 import { now as clockNow } from './core/clock.js';
@@ -27,7 +27,7 @@ async function qstashStatus(db, env, at) {
   }
 }
 
-const later = key => (key ? 'not_configured' : 'off');
+const later = key => (key ? 'ok' : 'off');
 
 export async function health(db, { env = process.env, now = clockNow, version = '' } = {}) {
   const at = now();

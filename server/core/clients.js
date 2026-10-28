@@ -293,3 +293,23 @@ export async function setLeadScore(q, { clientId, score, summary = null, nextSte
   await emit(q, 'client.scored', { clientId }, { score }, actor, ctx);
   return { score };
 }
+
+// A client's request to erase the data (14 §10.4, C): every card with this phone (merged ones too) loses the name, phone,
+// Telegram and site ids, the lead notes; the client's own messages and the dialogue summaries are blanked. Bookings and
+// payments stay (accounting). One client.forgotten per card. → the number of cards.
+export async function forgetClients(db, { phone }, actor = { type: 'system' }, ctx = context()) {
+  const p = phoneOf(phone);
+  return inTx(db, ctx, async q => {
+    const ids = (await q.query('SELECT id FROM clients WHERE phone = $1', [p])).map(r => r.id);
+    for (const id of ids) {
+      await q.query(`UPDATE clients SET name = 'Удалён', phone = NULL, phone_verified = false, telegram_user_id = NULL,
+        telegram_username = NULL, telegram_chat_id = NULL, visitor_id = NULL, lead_summary = NULL, lead_next_step = NULL,
+        possible_duplicate_of = NULL, updated_at = $2 WHERE id = $1`, [id, ctx.now()]);
+      await q.query(`UPDATE messages SET text = '[удалено]', blocks = NULL, feedback_note = NULL
+        WHERE role = 'user' AND conversation_id IN (SELECT id FROM conversations WHERE client_id = $1)`, [id]);
+      await q.query(`UPDATE conversations SET summary = NULL, state = '{}'::jsonb, updated_at = $2 WHERE client_id = $1`, [id, ctx.now()]);
+      await emit(q, 'client.forgotten', { clientId: id }, {}, actor, ctx);
+    }
+    return ids.length;
+  });
+}

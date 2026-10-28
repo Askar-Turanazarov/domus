@@ -132,10 +132,12 @@ async function main() {
       // an update kind the bot ignores: the answer time is the whole point, no message goes anywhere
       const r = await timed('/api/telegram/webhook', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Telegram-Bot-Api-Secret-Token': secret },
         body: JSON.stringify({ update_id: 900_000_000 + crypto.randomInt(99_000_000), poll: { id: 'bench', question: 'bench', options: [] } }) });
+      if (r.status === 401) break;                                 // the local secret is not the one of that server
       if (r.status !== 200) throw new Error(`webhook → ${r.status}`);
       xs.push(r.ms);
     }
-    row('PERF-05', 'Ответ вебхуку Telegram', 'p95 < 500 мс', `p50 ${ms(pct(xs, 50))} · p95 ${ms(pct(xs, 95))}`, pct(xs, 95) < 500);
+    if (xs.length) row('PERF-05', 'Ответ вебхуку Telegram', 'p95 < 500 мс', `p50 ${ms(pct(xs, 50))} · p95 ${ms(pct(xs, 95))}`, pct(xs, 95) < 500);
+    else row('PERF-05', 'Ответ вебхуку Telegram', 'p95 < 500 мс', '—', null, '401: TELEGRAM_WEBHOOK_SECRET не тот, что на сервере');
   }
 
   if (CHAT > 0) {
