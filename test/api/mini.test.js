@@ -115,7 +115,7 @@ test('payment: one\'s own booking starts; someone else\'s link answers link_inva
   assert.equal((await db.one("SELECT count(*)::int AS n FROM payments WHERE status IN ('created', 'pending')")).n, 1);
 });
 
-test('/mini: the showcase with data-mode="mini", the Telegram script and mini.js; framed by telegram.org only; not indexed', async () => {
+test('/mini: the showcase with data-mode="mini", the Telegram script, mini.js of the page; framed by telegram.org only; not indexed', async () => {
   const r = await call('GET', '/mini', undefined, { tg: null });
   assert.equal(r.status, 200);
   assert.match(r.text, /<html[^>]*data-mode="mini"/);
@@ -124,5 +124,5 @@ test('/mini: the showcase with data-mode="mini", the Telegram script and mini.js
   assert.equal(r.headers.get('x-frame-options'), null);
   assert.match(r.headers.get('content-security-policy'), /frame-ancestors https:\/\/web\.telegram\.org/);
   assert.match(r.headers.get('x-robots-tag'), /noindex/);
-  assert.equal(miniPage('<html lang="ru" data-mode="x"><head></head>'), '<html lang="ru" data-mode="mini"><head>  <script src="https://telegram.org/js/telegram-web-app.js"></script>\n  <script type="module" src="/js/mini.js"></script>\n</head>');
+  assert.equal(miniPage('<html lang="ru" data-mode="x"><head></head>'), '<html lang="ru" data-mode="mini"><head>  <script src="https://telegram.org/js/telegram-web-app.js"></script>\n</head>');
 });

@@ -18,11 +18,12 @@ const TG_SCRIPT = 'https://telegram.org/js/telegram-web-app.js';
 // 14 §9: Telegram Web opens /mini in a frame — the frame is allowed to telegram.org only.
 const FRAME = "frame-ancestors https://web.telegram.org https://*.telegram.org";
 
-// The showcase page in the mini app mode (11 §8): the server marks <html> and adds the Telegram script and mini.js.
+// The showcase page in the mini app mode (11 §8): the server marks <html> and adds the Telegram script
+// (the page itself loads /js/mini.js, which does nothing outside the mini app).
 export function miniPage(html) {
   return html
     .replace(/<html([^>]*)>/, (m, a) => `<html${a.replace(/\s*data-mode="[^"]*"/, '')} data-mode="mini">`)
-    .replace('</head>', `  <script src="${TG_SCRIPT}"></script>\n  <script type="module" src="/js/mini.js"></script>\n</head>`);
+    .replace('</head>', `  <script src="${TG_SCRIPT}"></script>\n</head>`);
 }
 
 const tgLang = code => (LANGS.includes(String(code ?? '').slice(0, 2)) ? String(code).slice(0, 2) : 'ru');

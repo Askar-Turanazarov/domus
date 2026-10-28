@@ -69,6 +69,7 @@ export function createTelegramAgent({ db, turns, tools, env = process.env, core 
       if (b.type === 'apartments') {
         for (const a of (d.items ?? []).slice(0, 3)) {
           const kb = new InlineKeyboard();
+          if (base.startsWith('https://')) kb.webApp(t(lang, 'tg.open_mini'), `${base}/mini#apt=${a.no}`).row();   // 10 §7: the card and the plan in the mini app
           const u = siteUrl(`/${lang}#apt=${a.no}`, lang);
           if (u) kb.url(t(lang, 'tpl.btn.open_3d'), u).row();
           kb.text(t(lang, 'agent.sg.installment', { no: a.no }), `sgi:calc_installment:${a.no}`).row();

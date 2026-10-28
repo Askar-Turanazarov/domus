@@ -27,11 +27,11 @@ export function botInfoOf(token, username) {
     has_main_web_app: false };
 }
 
-// web_app buttons need https. Until the mini app (D4-12, /mini) exists the button opens the showcase itself.
-const MINI_PATH = '/';
-export function miniUrl(env) {
+// The mini app (10 §7, 11 §8); web_app buttons need https. `no` — open that apartment's card (#apt=41).
+const MINI_PATH = '/mini';
+export function miniUrl(env, no = null) {
   const base = String(env.PUBLIC_URL ?? '').replace(/\/$/, '');
-  return base.startsWith('https://') ? base + MINI_PATH : null;
+  return base.startsWith('https://') ? base + MINI_PATH + (no ? `#apt=${no}` : '') : null;
 }
 
 // The persistent main menu (10 §4.1); the contact button only while the phone is not confirmed.
@@ -87,8 +87,10 @@ export function createBot({ db, env = process.env, core = {}, token = env.TELEGR
       if (!apt) return ctx.reply(t(client.lang, 'tg.apt_missing', { no }));
       const text = t(client.lang, 'tg.apt_card', { no: apt.no, rooms: apt.rooms, area: areaText(apt.area, client.lang), floor: apt.floor,
         price: money(apt.price), status: t(client.lang, `tg.apt_status.${apt.status}`) });
-      const site = miniUrl(env);
-      await ctx.reply(text, site ? { reply_markup: new InlineKeyboard().url(t(client.lang, 'tg.open_site'), `${site.replace(/\/$/, '')}/${client.lang}`) } : {});
+      const mini = miniUrl(env, apt.no);
+      const site = String(env.PUBLIC_URL ?? '').replace(/\/$/, '');
+      await ctx.reply(text, mini ? { reply_markup: new InlineKeyboard().webApp(t(client.lang, 'tg.open_mini'), mini).row()
+        .url(t(client.lang, 'tg.open_site'), `${site}/${client.lang}#apt=${apt.no}`) } : {});
     });
   }
 

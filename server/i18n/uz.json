@@ -119,6 +119,7 @@
   "tg.apt_status.held": "ushlab turilgan",
   "tg.apt_status.booked": "bron qilingan",
   "tg.apt_status.sold": "sotilgan",
+  "tg.open_mini": "🏢 Kvartira va reja",
   "tg.open_site": "🏢 Saytda ochish",
   "tg.desc": "«Chinor Park» majmuasi boti: kvartiralar, bron, xabarnomalar va menejer bilan aloqa. O‘quv loyihasi — bronlar va to‘lovlar sinov uchun.",
   "tg.short": "«Chinor Park» — o‘quv loyihasi",

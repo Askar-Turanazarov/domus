@@ -26,7 +26,7 @@ test('/start: a new user gets a card in their language, the language buttons and
   assert.deepEqual(buttons(pick), [['🇷🇺 Русский', '🇺🇿 O‘zbekcha', '🇬🇧 English']]);
   assert.match(menu.payload.text, /^Assalomu alaykum/);
   assert.deepEqual(buttons(menu), [['🏠 Kvartira tanlash', '🏢 Majmuani ochish'], ['📋 Bronlarim', '👤 Menejer bilan bog‘lanish'], ['📱 Telefonni ulashish']]);
-  assert.equal(menu.payload.reply_markup.keyboard[0][1].web_app.url, 'https://domus.test/');
+  assert.equal(menu.payload.reply_markup.keyboard[0][1].web_app.url, 'https://domus.test/mini', 'the menu button opens the mini app');
   assert.equal(menu.payload.reply_markup.keyboard[2][0].request_contact, true);
   assert.equal(menu.payload.reply_markup.is_persistent, true);
 });
@@ -106,7 +106,8 @@ test('/start apt_<no>: the menu and the card of the apartment; an unknown number
   await bot.handleUpdate(start('apt_41'));
   const card = sent().at(-1);
   assert.match(card.payload.text, /^Квартира №41 · \d+-комн\. · .+ м² · \d+ эт\. · .+ сум · свободна$/);
-  assert.equal(card.payload.reply_markup.inline_keyboard[0][0].url, 'https://domus.test/ru');
+  assert.equal(card.payload.reply_markup.inline_keyboard[0][0].web_app.url, 'https://domus.test/mini#apt=41', 'the card and the plan in the mini app');
+  assert.equal(card.payload.reply_markup.inline_keyboard[1][0].url, 'https://domus.test/ru#apt=41');
   await bot.handleUpdate(start('apt_9999'));
   assert.equal(sent().at(-1).payload.text, 'Квартира №9999 не найдена.');
 });

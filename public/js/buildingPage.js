@@ -803,7 +803,8 @@ async function start() {
   // back from the booking or the payment page (the browser may show the page from its cache): ask at once
   addEventListener('pageshow', e => { if (e.persisted) live.refresh(); });
   // The consultant (11 §5): loaded in the background. An apartment from the chat is shown here: its floor, the card, the hold form.
-  (window.requestIdleCallback || (f => setTimeout(f, 1500)))(() => import('./chat/widget.js').then(m => m.mountChat({
+  // The mini app has no widget (11 §8): the chat is the bot itself.
+  if (document.documentElement.dataset.mode !== 'mini') (window.requestIdleCallback || (f => setTimeout(f, 1500)))(() => import('./chat/widget.js').then(m => m.mountChat({
     page: 'building',
     getApartmentNo: () => ($('aptDlg').open ? cardApt?.no ?? null : null),
     onOpen: (no, { book }) => {

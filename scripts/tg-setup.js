@@ -55,9 +55,9 @@ await call('setMyDescription', { description: t('ru', 'tg.desc') });
 await call('setMyShortDescription', { short_description: t('ru', 'tg.short') });
 console.log('commands and descriptions set (ru, uz, en)');
 
-// The mini app (/mini, D4-12) does not exist yet: the button opens the showcase until then (server/telegram/bot.js MINI_PATH).
+// The menu button opens the mini app (10 §7, server/telegram/bot.js MINI_PATH).
 if (base.startsWith('https://')) {
-  await call('setChatMenuButton', { menu_button: { type: 'web_app', text: 'Chinor Park', web_app: { url: `${base}/` } } });
+  await call('setChatMenuButton', { menu_button: { type: 'web_app', text: 'Chinor Park', web_app: { url: `${base}/mini` } } });
   console.log('menu button set');
 }
 

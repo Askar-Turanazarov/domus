@@ -77,3 +77,8 @@ html[data-mode="mini"] body { background: var(--tg-bg, var(--bg)); }
 .mini-outside { max-width: 520px; margin: 18vh auto 0; padding: 0 20px; text-align: center; }
 .mini-outside h1 { font: 600 26px/1.2 var(--f-display, serif); margin: 0 0 10px; }
 .mini-outside p { color: var(--muted); margin: 0 0 16px; }
+.mini-mine-btn { position: fixed; right: 12px; top: 10px; z-index: 20; }
+html:not([data-mode="mini"]) .mini-mine-btn { display: none; }
+.mini-mine ul { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 10px; min-width: min(80vw, 360px); }
+.mini-mine li { display: grid; gap: 2px; }
+.mini-mine li span, .mini-none { color: var(--muted); font-size: 13px; }

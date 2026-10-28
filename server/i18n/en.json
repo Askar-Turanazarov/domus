@@ -119,6 +119,7 @@
   "tg.apt_status.held": "on hold",
   "tg.apt_status.booked": "booked",
   "tg.apt_status.sold": "sold",
+  "tg.open_mini": "🏢 Apartment and plan",
   "tg.open_site": "🏢 Open on the site",
   "tg.desc": "Chinor Park bot: apartments, booking, notifications and a link to a manager. A training project — bookings and payments are test ones.",
   "tg.short": "Chinor Park — a training project",
