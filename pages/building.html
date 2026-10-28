@@ -182,6 +182,8 @@
           <button type="button" class="btn" id="aptPlanner" data-i18n="bld.openPlanner">📐 Открыть в планировщике</button>
           <a class="btn primary" id="aptContinue" data-i18n="bk.hold.continue" href="#" hidden>Продолжить оплату</a>
           <button type="button" class="btn primary" id="aptBook" data-i18n="bk.hold.open" hidden>🏠 Забронировать</button>
+          <button type="button" class="btn" id="aptAsk" data-i18n="vw.ask">💬 Спросить консультанта</button>
+          <button type="button" class="btn" id="aptView" data-i18n="vw.open">📅 Записаться на показ</button>
           <button type="button" class="btn" id="aptRequest" data-i18n="bld.request">✉ Оставить заявку</button>
         </div>
       </div>
@@ -213,6 +215,28 @@
       <div class="btn-row end">
         <button type="button" class="btn ghost" id="reqCancel" data-i18n="order.cancel">Отмена</button>
         <button type="submit" class="btn primary" data-i18n="order.send">Отправить</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="viewDlg">
+    <form id="viewForm" method="dialog" novalidate>
+      <h2 id="viewTitle"></h2>
+      <div id="viewFields">
+        <label class="row"><span data-i18n="order.name">Имя</span>
+          <input name="name" required minlength="2" maxlength="60" autocomplete="name"></label>
+        <label class="row"><span data-i18n="order.phone">Телефон</span>
+          <input name="phone" type="tel" required maxlength="30" placeholder="+998 __ ___ __ __" autocomplete="tel"></label>
+        <label class="row"><span data-i18n="vw.date">Дата</span><select name="date" id="viewDate"></select></label>
+        <div class="row"><span data-i18n="vw.time">Время</span><div class="vw-slots" id="viewSlots" role="group"></div></div>
+        <!-- Honeypot for bots: hidden from people and screen readers -->
+        <input name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+      </div>
+      <p class="hold-sum" id="viewDone" role="status" hidden></p>
+      <p class="hold-err" id="viewErr" role="alert"></p>
+      <div class="btn-row end">
+        <button type="button" class="btn ghost" id="viewCancel" data-i18n="order.cancel">Отмена</button>
+        <button type="submit" class="btn primary" id="viewGo" data-i18n="vw.submit">Записаться</button>
       </div>
     </form>
   </dialog>

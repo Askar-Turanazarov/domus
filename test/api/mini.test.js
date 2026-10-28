@@ -126,3 +126,8 @@ test('/mini: the showcase with data-mode="mini", the Telegram script, mini.js of
   assert.match(r.headers.get('x-robots-tag'), /noindex/);
   assert.equal(miniPage('<html lang="ru" data-mode="x"><head></head>'), '<html lang="ru" data-mode="mini"><head>  <script src="https://telegram.org/js/telegram-web-app.js"></script>\n</head>');
 });
+
+test('miniPage: the bot username for «Спросить в чате» on <html>, only a valid one', () => {
+  assert.match(miniPage('<html lang="ru"><head></head>', 'ChinorPark_bot'), /data-mode="mini" data-bot="ChinorPark_bot">/);
+  assert.doesNotMatch(miniPage('<html><head></head>', '"><script>'), /data-bot/);
+});

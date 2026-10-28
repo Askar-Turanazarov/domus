@@ -126,3 +126,10 @@ test('a page opened from the mini app keeps the mode by the flag; without the fl
   assert.equal(gone.storage.has('domus.mini'), false);
   assert.equal(gone.win.document.documentElement.dataset.mode, undefined);
 });
+
+test('miniRequest: the viewing form goes to /api/mini/viewings and /slots with initData', () => {
+  const [u1, i1] = miniRequest('/api/viewings', { method: 'POST' }, 'ID', 'https://x.test');
+  assert.equal(u1, '/api/mini/viewings');
+  assert.equal(i1.headers.get('X-Tg-Init-Data'), 'ID');
+  assert.equal(miniRequest('/api/viewings/slots?no=41&date=2026-10-29', {}, 'ID', 'https://x.test')[0], '/api/mini/viewings/slots?no=41&date=2026-10-29');
+});

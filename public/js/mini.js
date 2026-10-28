@@ -5,7 +5,8 @@
 // opened from the mini app (plain navigation, 10 §7.4) keep the mode: a flag in sessionStorage, the script loaded here.
 const FLAG = 'domus.mini';
 const TG_SCRIPT = 'https://telegram.org/js/telegram-web-app.js';
-const ROUTES = [['POST', /^\/api\/bookings\/hold$/, '/api/mini/bookings/hold'], ['POST', /^\/api\/payments$/, '/api/mini/payments']];
+const ROUTES = [['POST', /^\/api\/bookings\/hold$/, '/api/mini/bookings/hold'], ['POST', /^\/api\/payments$/, '/api/mini/payments'],
+  ['POST', /^\/api\/viewings$/, '/api/mini/viewings'], ['GET', /^\/api\/viewings\/slots$/, '/api/mini/viewings/slots']];
 const THEME_KEYS = { bg_color: '--tg-bg', text_color: '--tg-text', hint_color: '--tg-hint', link_color: '--tg-link', button_color: '--tg-button',
   button_text_color: '--tg-button-text', secondary_bg_color: '--tg-secondary-bg' };
 const TEXT = {

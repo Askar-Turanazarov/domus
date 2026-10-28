@@ -88,3 +88,10 @@ html:not([data-mode="mini"]) .mini-mine-btn { display: none; }
 .od-stages li { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line, #d8cfbf); color: var(--muted, #6f6656); font-size: 14px; }
 .od-stages li.done { color: inherit; }
 .od-stages li.now { font-weight: 700; color: inherit; border-color: currentColor; }
+
+/* The viewing form (11 §7.2): the slot grid of a day; taken and past slots are grey */
+.vw-slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; margin-top: 4px; }
+.vw-slots button { padding: 6px 0; border: 1px solid var(--line, #ccc); border-radius: 8px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.vw-slots button.on { background: var(--accent, #8a5a1c); border-color: var(--accent, #8a5a1c); color: #fff; }
+.vw-slots button:disabled { opacity: .35; cursor: default; text-decoration: line-through; }
+.vw-slots p { grid-column: 1 / -1; margin: 0; opacity: .7; }

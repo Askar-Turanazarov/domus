@@ -57,6 +57,11 @@ export const bookingTexts = {
     'pay.confirm': 'Подтвердить', 'pay.resend': 'Отправить код снова', 'pay.cancel': 'Отменить оплату', 'pay.backToBooking': 'Вернуться к брони',
     'pay.sending': 'Подождите…', 'pay.done': 'Оплата прошла', 'pay.failedTitle': 'Оплата не прошла', 'pay.redirecting': 'Возвращаем вас к брони…',
     'pay.closed': 'Этот платёж уже завершён.', 'pay.notFound': 'Платёж не найден.', 'pay.loadFail': 'Не удалось загрузить платёж. Попробуйте ещё раз',
+    'vw.ask': '💬 Спросить консультанта', 'vw.open': '📅 Записаться на показ', 'vw.title': 'Показ квартиры №{no}',
+    'vw.date': 'Дата', 'vw.time': 'Время', 'vw.noSlots': 'На этот день свободного времени нет', 'vw.slotsFail': 'Не удалось загрузить свободное время',
+    'vw.submit': 'Записаться', 'vw.sending': 'Записываем…', 'vw.fail': 'Не удалось записаться. Попробуйте ещё раз',
+    'vw.taken': 'Это время только что заняли — выберите другое', 'vw.tooMany': 'Слишком много попыток — попробуйте через час',
+    'vw.done': 'Ждём вас {date} в {time}, ЖК Chinor Park, офис продаж. Напомним за 3 часа.', 'vw.close': 'Закрыть',
   },
   uz: {
     'bld.st.held': 'Rasmiylashtirilmoqda',
@@ -113,6 +118,11 @@ export const bookingTexts = {
     'pay.confirm': 'Tasdiqlash', 'pay.resend': 'Kodni qayta yuborish', 'pay.cancel': 'To‘lovni bekor qilish', 'pay.backToBooking': 'Bronga qaytish',
     'pay.sending': 'Kuting…', 'pay.done': 'To‘lov o‘tdi', 'pay.failedTitle': 'To‘lov o‘tmadi', 'pay.redirecting': 'Bronga qaytilmoqda…',
     'pay.closed': 'Bu to‘lov allaqachon yakunlangan.', 'pay.notFound': 'To‘lov topilmadi.', 'pay.loadFail': 'To‘lovni yuklab bo‘lmadi. Qayta urinib ko‘ring',
+    'vw.ask': '💬 Maslahatchidan so‘rash', 'vw.open': '📅 Ko‘rishga yozilish', 'vw.title': '№{no} kvartirani ko‘rish',
+    'vw.date': 'Sana', 'vw.time': 'Vaqt', 'vw.noSlots': 'Bu kunga bo‘sh vaqt yo‘q', 'vw.slotsFail': 'Bo‘sh vaqtni yuklab bo‘lmadi',
+    'vw.submit': 'Yozilish', 'vw.sending': 'Yozilmoqda…', 'vw.fail': 'Yozilib bo‘lmadi. Qayta urinib ko‘ring',
+    'vw.taken': 'Bu vaqt hozirgina band qilindi — boshqasini tanlang', 'vw.tooMany': 'Urinishlar juda ko‘p — bir soatdan so‘ng urinib ko‘ring',
+    'vw.done': 'Sizni {date} kuni soat {time} da kutamiz: Chinor Park TJM, sotuv ofisi. 3 soat oldin eslatamiz.', 'vw.close': 'Yopish',
   },
   en: {
     'bld.st.held': 'Being booked',
@@ -169,5 +179,10 @@ export const bookingTexts = {
     'pay.confirm': 'Confirm', 'pay.resend': 'Send the code again', 'pay.cancel': 'Cancel the payment', 'pay.backToBooking': 'Back to the booking',
     'pay.sending': 'Please wait…', 'pay.done': 'Payment successful', 'pay.failedTitle': 'Payment failed', 'pay.redirecting': 'Taking you back to the booking…',
     'pay.closed': 'This payment is already finished.', 'pay.notFound': 'Payment not found.', 'pay.loadFail': 'Could not load the payment. Please try again',
+    'vw.ask': '💬 Ask the consultant', 'vw.open': '📅 Book a viewing', 'vw.title': 'Viewing of apartment №{no}',
+    'vw.date': 'Date', 'vw.time': 'Time', 'vw.noSlots': 'No free time on this day', 'vw.slotsFail': 'Could not load the free time',
+    'vw.submit': 'Book', 'vw.sending': 'Booking…', 'vw.fail': 'Could not book the viewing. Please try again',
+    'vw.taken': 'This time was just taken — please pick another', 'vw.tooMany': 'Too many attempts — try again in an hour',
+    'vw.done': 'See you on {date} at {time}, Chinor Park, sales office. We will remind you 3 hours before.', 'vw.close': 'Close',
   }
 };

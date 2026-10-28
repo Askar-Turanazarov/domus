@@ -12,6 +12,7 @@ import { bookingPath } from '../core/links.js';
 import { context } from '../core/tx.js';
 import { initDataChecker } from '../telegram/initData.js';
 import { bookingByRef } from './bookings.js';
+import { mountMiniViewings } from './viewings.js';
 import { MINI_CSP } from './securityHeaders.js';
 import { handler, jsonBody, parseBody, z, langOf, idempotencyKey, limit, ipKey, tz, sendError, HOUR } from './common.js';
 
@@ -20,9 +21,11 @@ const TG_SCRIPT = 'https://telegram.org/js/telegram-web-app.js';
 
 // The showcase page in the mini app mode (11 §8): the server marks <html> and adds the Telegram script
 // (the page itself loads /js/mini.js, which does nothing outside the mini app).
-export function miniPage(html) {
+// bot — the bot username for «Спросить в чате» (11 §8): data-bot on <html>, only a valid username.
+export function miniPage(html, bot = '') {
+  const botAttr = /^\w{5,64}$/.test(bot) ? ` data-bot="${bot}"` : '';
   return html
-    .replace(/<html([^>]*)>/, (m, a) => `<html${a.replace(/\s*data-mode="[^"]*"/, '')} data-mode="mini">`)
+    .replace(/<html([^>]*)>/, (m, a) => `<html${a.replace(/\s*data-mode="[^"]*"/, '')} data-mode="mini"${botAttr}>`)
     .replace('</head>', `  <script src="${TG_SCRIPT}"></script>\n</head>`);
 }
 
@@ -36,7 +39,7 @@ export function mountMini(app, db, opts = {}) {
   let page = null;   // on Vercel the file never changes; locally an edited page is read again
 
   app.get('/mini', (req, res) => {
-    if (!page || !process.env.VERCEL) page = miniPage(fs.readFileSync(path.join(publicDir, 'building.html'), 'utf8'));
+    if (!page || !process.env.VERCEL) page = miniPage(fs.readFileSync(path.join(publicDir, 'building.html'), 'utf8'), String(env.TELEGRAM_BOT_USERNAME ?? '').replace(/^@/, ''));
     res.removeHeader('X-Frame-Options');   // Telegram Web opens /mini in a frame: telegram.org only (MINI_CSP)
     res.set({ 'Cache-Control': 'no-cache', 'X-Robots-Tag': 'noindex, nofollow', 'Content-Security-Policy': MINI_CSP }).type('html').send(page);
   });
@@ -108,6 +111,8 @@ export function mountMini(app, db, opts = {}) {
     res.status(201).json({ bookingNo: r.booking.no, link: r.link, expiresAt: tz(r.booking.expires_at), holdSeconds: r.holdSeconds,
       depositAmount: Number(r.booking.deposit_amount) });
   }));
+
+  mountMiniViewings(app, db, opts);   // 13 §7: /api/mini/viewings and /slots
 
   // 13 §7: as /api/payments; the booking of the ref must be the initData client's — someone else's answers as a wrong link.
   app.post('/api/mini/payments', handler(async (req, res) => {

@@ -40,6 +40,7 @@ import { createSettings } from './server/core/settings.js';
 import { mountPersonalPages } from './server/http/personalPages.js';
 import { sendNotFound } from './server/http/notFound.js';
 import { mountMini } from './server/http/mini.js';
+import { mountViewings } from './server/http/viewings.js';
 import { mountVisits } from './server/http/visits.js';
 import { requestId, noStore, apiErrors } from './server/http/common.js';
 import { afterCommit } from './server/events/runner.js';
@@ -83,6 +84,7 @@ mountJobs(app, db, { ...notifyOpts });                      // deadlines: tick, 
 mountStripeWebhook(app, db, coreOpts);     // the raw body for the Stripe signature — before the JSON parser (05 §6.4)
 mountTelegram(app, db, { core: coreOpts, turns, tools });  // Telegram webhook (10 §3): the secret, the answer at once, the bot in waitUntil
 mountBookings(app, db, coreOpts);          // booking: hold, personal link (13 §4); own 64 KB JSON parser
+mountViewings(app, db, coreOpts);          // viewings: the slot grid and the site form (13 §5, 11 §7.2)
 mountChat(app, db, { turns, tools }, coreOpts);   // the site chat: POST /api/chat (SSE), confirm, feedback, messages (13 §6)
 mountVisits(app, db);                      // the funnel counter: POST /api/visit, the cookie dvid (11 §11.1)
 mountOrders(app, db, coreOpts);            // the furniture order page data: GET /api/orders/by-ref/:ref (03 §13, S)

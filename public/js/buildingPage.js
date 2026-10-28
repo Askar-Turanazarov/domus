@@ -347,6 +347,8 @@ function syncCard(a) {
   if (link) $('aptMine').textContent = t('bk.hold.mineUntil', { time: hhmm(m.expiresAt) });
   $('aptRequest').classList.toggle('primary', a.status !== 'free' && !link);
   $('aptRequest').disabled = a.status === 'sold';
+  $('aptView').hidden = a.status === 'sold';
+  $('aptAsk').hidden = document.documentElement.dataset.mode === 'mini' ? !document.documentElement.dataset.bot : !chat;
   $('aptRequest').title = a.status === 'sold' ? t('bld.soldNote') : '';
 }
 
@@ -510,6 +512,118 @@ async function sendHold(e) {
   $('holdErr').textContent = res.status === 429 ? t('bk.hold.tooMany')
     : ['apartment_held', 'apartment_not_free'].includes(data.error) ? t('bk.hold.taken') : (data.message || t('bk.hold.fail'));
   renderHold();
+}
+
+// ---------- the viewing (11 §7.2, J7): name, phone, a day of the nearest 14, a free 30-minute slot → POST /api/viewings ----------
+// In the mini app the same requests go to /api/mini/viewings* (mini.js renames them and adds initData).
+
+let vw = null;   // { apt, key, openedAt, at, busy, done } of the open form
+
+const tashkentDay = (offset = 0) => new Date(Date.now() + 5 * 3600e3 + offset * 864e5).toISOString().slice(0, 10);
+
+function openView(a) {
+  vw = { apt: a, key: crypto.randomUUID(), openedAt: Date.now(), at: null, busy: false, done: false };
+  $('viewForm').reset();
+  const fmt = new Intl.DateTimeFormat(getLang() === 'uz' ? 'uz-Latn' : getLang(), { weekday: 'short', day: 'numeric', month: 'long', timeZone: 'UTC' });
+  $('viewDate').replaceChildren(...Array.from({ length: 14 }, (_, i) => {
+    const d = tashkentDay(i);
+    return el('option', { value: d, textContent: fmt.format(new Date(d + 'T00:00Z')) });
+  }));
+  $('viewFields').hidden = false;
+  $('viewDone').hidden = true;
+  $('viewErr').textContent = '';
+  renderView();
+  $('viewDlg').showModal();
+  loadSlots();
+}
+
+function renderView() {
+  if (!vw) return;
+  $('viewTitle').textContent = t('vw.title', { no: vw.apt.no });
+  $('viewGo').hidden = vw.done;
+  $('viewGo').textContent = vw.busy ? t('vw.sending') : t('vw.submit');
+  $('viewCancel').textContent = vw.done ? t('vw.close') : t('order.cancel');
+  syncView();
+}
+
+function syncView() {
+  const f = $('viewForm').elements;
+  $('viewGo').disabled = vw.busy || !vw.at || f.name.value.trim().length < 2 || f.phone.value.replace(/\D/g, '').length < 9;
+}
+
+async function loadSlots() {
+  const date = $('viewDate').value, no = vw.apt.no;
+  vw.at = null;
+  $('viewSlots').replaceChildren();
+  syncView();
+  let data;
+  try {
+    const res = await fetch(`/api/viewings/slots?no=${no}&date=${date}`);
+    if (!res.ok) throw new Error(res.status);
+    data = await res.json();
+  } catch {
+    $('viewSlots').replaceChildren(el('p', { textContent: t('vw.slotsFail') }));
+    return;
+  }
+  if (!vw || vw.apt.no !== no || $('viewDate').value !== date) return;
+  const pick = (b, s) => {
+    vw.at = `${date}T${s.at}`;
+    for (const x of $('viewSlots').children) x.classList.toggle('on', x === b);
+    syncView();
+  };
+  $('viewSlots').replaceChildren(...(data.slots.some(s => s.free) ? data.slots.map(s => {
+    const b = el('button', { type: 'button', textContent: s.at, disabled: !s.free });
+    b.addEventListener('click', () => pick(b, s));
+    return b;
+  }) : [el('p', { textContent: t('vw.noSlots') })]));
+}
+
+async function sendView(e) {
+  e.preventDefault();
+  if (!vw || vw.busy || vw.done || $('viewGo').disabled) return;
+  const f = e.target.elements, a = vw.apt;
+  vw.busy = true;
+  $('viewErr').textContent = '';
+  renderView();
+  let res, data;
+  try {
+    res = await fetch('/api/viewings', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': vw.key },
+      body: JSON.stringify({ apartmentNo: a.no, at: vw.at, name: f.name.value, phone: f.phone.value, lang: getLang(), website: f.website.value,
+        openedAt: new Date(vw.openedAt).toISOString() }) });
+    data = await res.json().catch(() => ({}));
+  } catch {
+    vw.busy = false;
+    $('viewErr').textContent = t('vw.fail');   // no answer: the same key goes again, the server repeats its answer
+    return renderView();
+  }
+  vw.busy = false;
+  if (res.status === 201 && data.viewing) {
+    const [date, time] = String(data.viewing.local).split(' ');
+    vw.done = true;
+    $('viewFields').hidden = true;
+    $('viewDone').hidden = false;
+    $('viewDone').textContent = t('vw.done', { date: date.split('-').reverse().join('.'), time });
+    return renderView();
+  }
+  vw.key = crypto.randomUUID();
+  $('viewErr').textContent = res.status === 429 ? t('vw.tooMany') : data.error === 'slot_taken' ? t('vw.taken') : (data.message || t('vw.fail'));
+  if (data.error === 'slot_taken') loadSlots();
+  renderView();
+}
+
+// «Спросить консультанта» (11 §3.3): on the site — the chat widget with the apartment as the context of the first question
+// (the card closes: the modal card would cover the chat); in the mini app — the bot with /start apt_<no> (11 §8), the app closes.
+let chat = null, chatApt = null;
+function askAbout(a) {
+  const tg = window.Telegram?.WebApp, bot = document.documentElement.dataset.bot;
+  if (document.documentElement.dataset.mode === 'mini') {
+    if (tg && bot) { tg.openTelegramLink(`https://t.me/${bot}?start=apt_${a.no}`); tg.close(); }
+    return;
+  }
+  if (!chat) return;
+  chatApt = a.no;
+  $('aptDlg').close();
+  chat.open();
 }
 
 // ---------- live statuses (11 §3.2) ----------
@@ -744,6 +858,13 @@ function bind() {
   $('reqCancel').addEventListener('click', () => $('reqDlg').close());
   $('reqForm').addEventListener('submit', sendRequest);
   $('aptBook').addEventListener('click', () => openHold(cardApt));
+  $('aptView').addEventListener('click', () => openView(cardApt));
+  $('aptAsk').addEventListener('click', () => askAbout(cardApt));
+  $('viewCancel').addEventListener('click', () => $('viewDlg').close());
+  $('viewForm').addEventListener('submit', sendView);
+  $('viewForm').addEventListener('input', () => vw && syncView());
+  $('viewDate').addEventListener('change', () => vw && loadSlots());
+  $('viewForm').elements.phone.addEventListener('change', e => { e.target.value = fmtPhone(e.target.value) || e.target.value; syncView(); });
   $('holdCancel').addEventListener('click', () => $('holdDlg').close());
   $('holdForm').addEventListener('submit', sendHold);
   $('holdForm').addEventListener('input', () => hold && syncHold());
@@ -764,6 +885,7 @@ function bind() {
     if ($('aptDlg').open) openCard(cardApt);
     if ($('reqDlg').open) $('reqTitle').textContent = t('bld.reqTitle', { no: cardApt.no });
     if ($('holdDlg').open) renderHold();
+    if ($('viewDlg').open) renderView();
   });
 }
 
@@ -804,9 +926,9 @@ async function start() {
   addEventListener('pageshow', e => { if (e.persisted) live.refresh(); });
   // The consultant (11 §5): loaded in the background. An apartment from the chat is shown here: its floor, the card, the hold form.
   // The mini app has no widget (11 §8): the chat is the bot itself.
-  if (document.documentElement.dataset.mode !== 'mini') (window.requestIdleCallback || (f => setTimeout(f, 1500)))(() => import('./chat/widget.js').then(m => m.mountChat({
+  if (document.documentElement.dataset.mode !== 'mini') (window.requestIdleCallback || (f => setTimeout(f, 1500)))(() => import('./chat/widget.js').then(m => { chat = m.mountChat({
     page: 'building',
-    getApartmentNo: () => ($('aptDlg').open ? cardApt?.no ?? null : null),
+    getApartmentNo: () => ($('aptDlg').open ? cardApt?.no ?? null : chatApt),
     onOpen: (no, { book }) => {
       const a = byNo(no);
       if (!a) return;
@@ -814,7 +936,7 @@ async function start() {
       openCard(a);
       if (book && a.status === 'free') openHold(a);
     }
-  })), { timeout: 4000 });
+  }); if ($('aptDlg').open && cardApt) syncCard(cardApt); }), { timeout: 4000 });
 }
 
 start();
