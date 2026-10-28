@@ -228,3 +228,11 @@ test('the sender: edit goes to editMessageText with the saved message id; an unk
   assert.equal((await send({ op: 'send_document', chat_id: 1, rendered })).status, 400);
   assert.equal((await send({ op: 'send', chat_id: 1, rendered: null })).status, 400);
 });
+
+test('a row written without its message is rendered at delivery from template, lang and vars; without render → 400 failed', async () => {
+  const { calls, api } = fakeApi();
+  const row = { op: 'send', chat_id: 77, template: 'hold_created', lang: 'uz', vars: { apt: 41, min: 15, deposit: 1000000, link: 'https://domus.test/b/1-x' }, rendered: null };
+  assert.equal((await createSender({ api, render: createRender(ENV) })(row)).ok, true);
+  assert.match(calls[0].text, /^41-kvartira/);
+  assert.deepEqual(await createSender({ api })(row), { ok: false, status: 400, description: 'no rendered message' });
+});

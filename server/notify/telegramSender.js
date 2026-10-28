@@ -11,10 +11,12 @@ const options = r => ({ parse_mode: r.parse_mode, reply_markup: r.reply_markup, 
 
 // → send(row) | null (no token: the bot is off, rows wait in the Outbox). api — a ready Api (tests).
 // document(row) → { bytes, filename } builds the file of a send_document row at delivery (the booking PDF, 05 §10.4).
-export function createSender({ token, api = token ? new Api(token) : null, document = null } = {}) {
+// render(template, lang, vars) — for a row written without its message (a core call without render in its options, 04 §3.2):
+// it is rendered at delivery from its template, language and variables instead of failing with 400.
+export function createSender({ token, api = token ? new Api(token) : null, document = null, render = null } = {}) {
   if (!api) return null;
   return async function send(row) {
-    const r = row.rendered;
+    const r = row.rendered?.text ? row.rendered : (row.template && render?.(row.template, row.lang, row.vars ?? {}));
     if (!r?.text) return { ok: false, status: 400, description: 'no rendered message' };       // a template bug: repeating will not help
     const signal = AbortSignal.timeout(TIMEOUT_MS);
     try {
