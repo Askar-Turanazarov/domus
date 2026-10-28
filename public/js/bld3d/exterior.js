@@ -108,8 +108,8 @@ function splitNo(text) {
   return m ? [text.replace(m[0], '').replace(/^[\s-]+|[\s-]+$/g, ''), m[0]] : [text, ''];
 }
 
-export function createExterior(container, { bld, fac, title = '', entrance = 'ENTRANCE 1', onHover = () => {}, onPick = () => {}, onFloor = () => {}, onDoor = null, onWalk = null, onCue = null }) {
-  const tierName = tierFor(readPref()), tier = SETTINGS[tierName];
+export function createExterior(container, { bld, fac, title = '', entrance = 'ENTRANCE 1', onHover = () => {}, onPick = () => {}, onFloor = () => {}, onDoor = null, onWalk = null, onCue = null, tier: forced = null }) {
+  const tierName = forced ?? tierFor(readPref()), tier = SETTINGS[tierName];   // forced 'low' — the mini app (11 §8)
   let entranceText = entrance;
   const renderer = new THREE.WebGLRenderer({ antialias: tier.antialias });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, tier.pixelRatio));

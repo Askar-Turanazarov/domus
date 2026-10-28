@@ -744,6 +744,14 @@ function loadPhotoFacade() {
   return photoRun;
 }
 
+// The mini app (11 §8): no 3D on start — the button «Показать в 3D» over the box, then the facade in «low», without photo textures.
+const MINI = document.documentElement.dataset.mode === 'mini';
+function offer3d() {
+  const btn = el('button', { type: 'button', className: 'btn primary bld3d-start', textContent: t('bld3d.show') });
+  btn.addEventListener('click', () => { btn.remove(); init3d(); });
+  $('bld3dView').append(btn);
+}
+
 async function init3d() {
   try {
     const [{ createExterior }, { facadeOf }] = await Promise.all([import('./bld3d/exterior.js'), import('./facade.js')]);
@@ -757,7 +765,8 @@ async function init3d() {
       onFloor: n => { if (n !== floorN) setFloor(n); },
       onDoor: enterLobby,
       onWalk: () => sync3dHud(),
-      onCue: showCue
+      onCue: showCue,
+      tier: MINI ? 'low' : null
     });
   } catch {
     $('bld3dCard').hidden = true;   // no WebGL: the floor grid and plan remain
@@ -785,7 +794,7 @@ async function init3d() {
     paint3d(); sync3dHud();
   });
   $('bld3dPhoto').addEventListener('click', loadPhotoFacade);
-  syncPhotoBtn().then(() => { if (photoTotal && !$('bld3dPhoto').hidden && photoAuto()) loadPhotoFacade(); });
+  if (!MINI) syncPhotoBtn().then(() => { if (photoTotal && !$('bld3dPhoto').hidden && photoAuto()) loadPhotoFacade(); });
   // The facade stands still while a dialog covers it (the floor 3D has its own scene).
   const pause = () => ext.pause(['aptDlg', 'floor3dDlg', 'reqDlg'].some(id => $(id).open));
   for (const id of ['aptDlg', 'floor3dDlg', 'reqDlg']) new MutationObserver(pause).observe($(id), { attributes: true, attributeFilter: ['open'] });
@@ -918,7 +927,7 @@ async function start() {
   floorN = n >= 1 && n <= b.floors ? n : 2;
   bind();
   renderAll();
-  init3d();
+  if (MINI) offer3d(); else init3d();
   openFromHash();
   live = createLiveStatus({ onUpdate: onLive, onStale });
   live.start();

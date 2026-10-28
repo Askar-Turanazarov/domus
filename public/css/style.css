@@ -1315,3 +1315,6 @@ body.embed .site-foot { display: none; }
 .purpose-row select { flex: 1; min-width: 0; }
 .furn-purpose p { margin: 4px 8px 6px; color: var(--muted); font-size: 12px; }
 .furn-purpose #furnPurposeList { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }
+
+/* The mini app: 3D only on the button (11 §8) */
+.bld3d-start { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 2; }
