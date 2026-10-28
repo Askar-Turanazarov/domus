@@ -169,7 +169,7 @@ export function initOrder() {
       lastSent = { id: data.id, key: roomsKey(rooms) };
       dlg.close();
       form.reset();
-      if (/^/o/d+-[w-]{32}$/.test(data.link ?? '')) showPayLink(data);
+      if (/^\/o\/\d+-[\w-]{32}$/.test(data.link ?? '')) showPayLink(data);
       else toast(t('order.ok', { id: data.id }));
     } catch {
       toast(t('order.fail'), true);
