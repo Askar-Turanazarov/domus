@@ -9,7 +9,7 @@ import { parseRef, checkSig, bookingPath } from '../core/links.js';
 import { issueLinkCode } from '../core/clients.js';
 import { context } from '../core/tx.js';
 import { failureText, t } from '../i18n/index.js';
-import { handler, jsonBody, parseBody, z, langOf, idempotencyKey, limit, ipKey, hashKey, readDcl, setDcl, tz, HOUR } from './common.js';
+import { handler, jsonBody, parseBody, z, langOf, idempotencyKey, limit, ipKey, hashKey, readDcl, setDcl, tz, HOUR, foreignOrigin } from './common.js';
 
 const LANGS = ['ru', 'uz', 'en'];
 const MIN_FILL_MS = 3000;                                    // 14 §6: a form filled faster than this is a script
@@ -40,6 +40,7 @@ export function mountBookings(app, db, opts = {}) {
 
   // 03 §4: the hold from the site form. A filled honeypot gets a made-up 201 and nothing is created.
   app.post('/api/bookings/hold', handler(async (req, res) => {
+    if (foreignOrigin(req)) throw new DomainError('forbidden');      // 14 §15: a hold from another site's page
     const body = parseBody({
       apartmentNo: z.number().int().min(1).max(100000),
       name: z.string().max(200).optional(),

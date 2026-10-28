@@ -5,7 +5,7 @@ import { DomainError } from '../core/errors.js';
 import { now as clockNow } from '../core/clock.js';
 import { staffById, staffByLogin, touchLogin } from '../core/staff.js';
 import * as auth from '../adminAuth.js';
-import { handler, jsonBody, parseBody, z, ipKey, hashKey, tz, sendError, langOf } from './common.js';
+import { handler, jsonBody, parseBody, z, ipKey, hashKey, tz, sendError, langOf, foreignOrigin } from './common.js';
 
 export const CSRF_HEADER = 'domus-admin';
 const FAILS_PER_LOGIN = 5, FAILS_PER_IP = 20, WINDOW = 15 * 60e3;
@@ -15,12 +15,6 @@ const SAFE = new Set(['GET', 'HEAD', 'OPTIONS']);
 export const publicStaff = s => ({ id: s.id, login: s.login, name: s.name, role: s.role, lang: s.lang, telegramLinked: s.telegram_user_id != null });
 
 // An Origin from another site on a change is refused (SameSite=Strict already stops it; this is a second lock).
-function foreignOrigin(req) {
-  const origin = req.get('origin');
-  if (SAFE.has(req.method) || !origin) return false;
-  try { return new URL(origin).host !== req.get('host'); } catch { return true; }   // "null" and junk count as foreign
-}
-
 // opts — { env, cacheMs (staff row cache, 30 s by default; 0 in tests), now }.
 export function createStaffAuth(db, opts = {}) {
   const env = opts.env ?? process.env;

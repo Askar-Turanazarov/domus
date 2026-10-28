@@ -75,6 +75,13 @@ export function apiErrors(err, req, res, next) {
 // Own JSON parser of a small route (13 §1.1: 64 KB); the Domus order keeps its 4 MB parser.
 export const jsonBody = express.json({ limit: '64kb' });
 
+// 14 §2.3, §15: a change whose Origin is another site ("null" and junk count as foreign); no Origin — not a browser form.
+export function foreignOrigin(req) {
+  const origin = req.get('origin');
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method) || !origin) return false;
+  try { return new URL(origin).host !== req.get('host'); } catch { return true; }
+}
+
 // The `run` wrapper: security headers of personal pages, one place for errors.
 export const handler = fn => async (req, res) => {
   res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });

@@ -1,0 +1,8 @@
+User-agent: *
+Disallow: /b/
+Disallow: /o/
+Disallow: /pay/
+Disallow: /mini
+Disallow: /admin
+Disallow: /dashboard
+Disallow: /api/

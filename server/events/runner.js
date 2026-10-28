@@ -3,6 +3,7 @@
 // the Cron and `npm run jobs:run` still close every deadline.
 import { Client, Receiver } from '@upstash/qstash';
 import { now as clockNow } from '../core/clock.js';
+import { secretOk } from '../telegram/webhook.js';
 import { runDue } from '../core/jobs.js';
 import { deliver } from '../core/outbox.js';
 import { sweepDue, bookingJobHandlers } from '../core/bookings.js';
@@ -127,7 +128,7 @@ export async function verifyQstash(raw, signature, { env = process.env } = {}) {
   }
 }
 
-// GET /api/cron/daily: Vercel sends Authorization: Bearer <CRON_SECRET>.
+// GET /api/cron/daily: Vercel sends Authorization: Bearer <CRON_SECRET>, compared in constant time (14 §8).
 export function cronAllowed(header, { env = process.env } = {}) {
-  return Boolean(env.CRON_SECRET) && header === `Bearer ${env.CRON_SECRET}`;
+  return Boolean(env.CRON_SECRET) && secretOk(header, `Bearer ${env.CRON_SECRET}`);
 }

@@ -184,3 +184,12 @@ test('the card emulator: 10 requests a minute per payment, then 429', async () =
   for (let i = 0; i < 11; i++) last = await api.call('POST', `/api/payments/${paymentId}/card`, { number: '1', expiry: '12/29' });
   assert.deepEqual([last.status, last.body.error], [429, 'rate_limited']);
 });
+
+test('14 §15: a hold sent from another site\'s page (foreign Origin) is 403; the own Origin and no Origin pass', async () => {
+  for (const origin of ['https://evil.example', 'null']) {
+    const r = await hold(HOLD, { headers: { origin } });
+    assert.deepEqual([r.status, r.body.error], [403, 'forbidden'], origin);
+  }
+  assert.equal((await db.query('SELECT 1 FROM bookings')).length, 0);
+  assert.equal((await hold(HOLD, { headers: { origin: api.base } })).status, 201);
+});
