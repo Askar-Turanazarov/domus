@@ -41,7 +41,7 @@ export function targetsFor(l) {
     // By day the eye is used to the sun: the same lamps read dimmer (no washed-out rooms with the lights on).
     ceil: on ? (s.scene === 'day' ? 0.5 : 1) : 0,
     fix: on ? (s.scene === 'day' ? 0.6 : 1) : 0,
-    shade: on ? (s.scene === 'day' ? 1 : 1.8) : 0,
+    shade: on ? (s.scene === 'day' ? 1.4 : 1.8) : 0,
     bounce: on ? Math.max(0, BOUNCE - p.hemi) : 0
   };
 }

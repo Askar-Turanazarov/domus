@@ -77,7 +77,7 @@ function addSpec(g, spec, main) {
 // Luxe chandeliers by the room's furniture collection (the same light source, other fixture geometry):
 // couture — a cascade of crystal drops under a brass ring, deco — a brass ring of opal tubes,
 // milano — an opal globe on a slim rod, organic — a linen drum.
-let glass = null, linenShade = null;
+let glass = null, linenShade = null, bulbMat = null, haloMat = null;
 const crystal = () => glass ??= new THREE.MeshStandardMaterial({ color: '#fff6e6', emissive: '#ffe2b0', emissiveIntensity: 0.6,
   roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.72 });
 
@@ -152,6 +152,31 @@ const LUXE_FIXTURE = {
   }
 };
 
+// A bulb inside a shade: grey glass when off, warm white when the ceiling lights are on, with a small soft
+// halo (no bloom: a faint additive sprite a little larger than the bulb).
+function haloTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const g = c.getContext('2d'), grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grad.addColorStop(0, 'rgba(255,236,200,1)'); grad.addColorStop(0.35, 'rgba(255,226,180,.45)'); grad.addColorStop(1, 'rgba(255,220,170,0)');
+  g.fillStyle = grad; g.fillRect(0, 0, 64, 64);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+const BULB = new THREE.SphereGeometry(0.022, 14, 10);
+function bulb(g, x, y, z, halo = 0.2) {
+  bulbMat ??= new THREE.MeshStandardMaterial({ color: '#d9d5cc', emissive: '#fff1d2', emissiveIntensity: 0, roughness: 0.2 });
+  haloMat ??= new THREE.SpriteMaterial({ map: haloTexture(), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
+  const b = new THREE.Mesh(BULB, bulbMat);
+  b.position.set(x, y, z);
+  const s = new THREE.Sprite(haloMat);
+  s.scale.set(halo, halo, 1);
+  s.position.set(x, y, z);
+  s.raycast = () => {};       // not picked as the fixture
+  g.add(b, s);
+}
+
 // Chandelier at (cx, cz): stem, hub, five arms with glowing shades (luxe collections: their own fixture).
 function chandelier(g, cx, cz, H, look) {
   if (LUXE_FIXTURE[look]) return LUXE_FIXTURE[look](g, cx, cz, H);
@@ -170,6 +195,7 @@ function chandelier(g, cx, cz, H, look) {
     const shade = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.07, 0.1, 16, 1, true), M.lampShade);
     shade.position.set(cx + Math.cos(a) * r, y + 0.05, cz + Math.sin(a) * r);
     g.add(arm, shade);
+    bulb(g, cx + Math.cos(a) * r, y + 0.03, cz + Math.sin(a) * r);
   }
 }
 
@@ -185,6 +211,7 @@ function pendant(g, cx, cz, H, look) {
   inner.rotation.x = Math.PI / 2;
   inner.position.set(cx, y + 0.002, cz);
   g.add(dome, inner);
+  bulb(g, cx, y - 0.01, cz, 0.3);
 }
 
 // A recessed spot: a flush housing in the ceiling.
@@ -305,6 +332,8 @@ function applyLevels(group) {
   // Crystal drops and linen drums glow only while the ceiling lights are on.
   if (glass) glass.emissiveIntensity = 0.6 * c.ceil;
   if (linenShade) linenShade.emissiveIntensity = 0.45 * c.ceil;
+  if (bulbMat) bulbMat.emissiveIntensity = 2.2 * c.ceil;
+  if (haloMat) haloMat.opacity = 0.35 * c.ceil;
   u.sun.color.set(c.sunColor);
   u.sun.intensity = c.sunPower * u.sunScale;
   u.place(c.sunHeight);

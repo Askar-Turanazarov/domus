@@ -536,7 +536,7 @@ export function getMats() {
     sky: new THREE.MeshBasicMaterial({ color: '#bfe3ff' }),
     door: new THREE.MeshStandardMaterial({ ...maps(wood), color: tint('#d9c7ad', wood.photo), roughness: 0.6 }),
     metal: new THREE.MeshStandardMaterial({ color: '#c0c4cc', roughness: 0.3, metalness: 0.9 }),
-    lampShade: new THREE.MeshStandardMaterial({ color: '#fff7e0', emissive: '#ffe9b0', emissiveIntensity: 2 })
+    lampShade: new THREE.MeshStandardMaterial({ color: '#e8dcc6', emissive: '#ffe4a8', emissiveIntensity: 2, side: THREE.DoubleSide })
   };
   return mats;
 }
