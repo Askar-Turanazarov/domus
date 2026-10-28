@@ -131,6 +131,20 @@ async function aiActivity(q, p, head, opts) {
   return out;
 }
 
+// The funnel and the AI activity of a period of Tashkent days (08 §3.2, the head's tools funnel / ai_activity): the same figures as
+// the dashboard, for any from/to. → { from, to, funnel, conversions } / { from, to, turns, …, costUsd, byModel }.
+export async function funnel(q, period = {}, opts = {}) {
+  const p = periodOf(period, opts.now ?? clockNow);
+  return { from: p.fromDay, to: p.toDay, ...await funnelOf(q, p) };
+}
+export async function aiActivityOf(q, period = {}, opts = {}) {
+  const p = periodOf(period, opts.now ?? clockNow);
+  const { gemini, ...a } = await aiActivity(q, p, true, opts);
+  const byModel = await q.query(`SELECT provider, model, count(*)::int AS calls, count(*) FILTER (WHERE NOT ok)::int AS failed,
+      COALESCE(sum(cost_usd), 0)::float AS "costUsd" FROM ai_calls WHERE at >= $1 AND at < $2 GROUP BY 1, 2 ORDER BY 3 DESC`, [p.from, p.to]);
+  return { from: p.fromDay, to: p.toDay, ...a, costUsd: byModel.reduce((s, m) => s + m.costUsd, 0), agentCostUsd: a.costUsd, byModel };
+}
+
 // → { period, tiles, funnel, conversions, ai, compare? }. A manager gets no sold / deposits tiles, no compare and no AI money.
 export async function dashboardSummary(q, { period = 'today' } = {}, actor, opts = {}) {
   need(actor, 'manager', 'head');

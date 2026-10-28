@@ -12,7 +12,9 @@ export const AGENTS = {
   apt_finder: { steps: 3, tools: ['search_apartments', 'get_apartment'] },
   finance: { steps: 4, tools: ['get_apartment', 'calc_installment', 'calc_mortgage', 'compare_finance'] },
   booking: { steps: 3, tools: ['get_apartment', 'book_viewing', 'create_booking', 'my_bookings', 'request_extension'] },
-  kb_consultant: { steps: 2, tools: ['search_kb'] }
+  kb_consultant: { steps: 2, tools: ['search_kb'] },
+  // §14: the head's analyst — only the reading reports; its own prompt without the client-facing _common.md (own).
+  analyst: { steps: 4, tools: ['sales_summary', 'funnel', 'list_bookings', 'list_payments', 'list_viewings', 'ai_activity'], own: true }
 };
 const MAX_OUTPUT = { finance: 1200 };
 
@@ -32,7 +34,7 @@ export async function runAgent({ ai, tools, agent, task = null, message, context
   onEvent = () => {}, deadline = null, signal = null, turn = { pending: [] } }) {
   const cfg = AGENTS[agent];
   if (!cfg) throw new Error(`no agent ${agent}`);
-  const system = prompt(agent).text;
+  const system = prompt(agent, { common: !cfg.own }).text;
   const schemas = tools.schemas(toolCtx).filter(s => cfg.tools.includes(s.name));
   const ask = task ? `${message}\n\n[task] ${task}` : message;
   const messages = [{ role: 'user', parts: [{ type: 'text', text: context }] }, ...history, { role: 'user', parts: [{ type: 'text', text: ask }] }];

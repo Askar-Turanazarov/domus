@@ -1,7 +1,7 @@
-// The pages behind a personal link or a payment id (11 §2): the booking page /b/:ref and the emulators /pay/card|click/:id.
+// The pages behind a personal link or a payment id (11 §2): the booking page /b/:ref, the order page /o/:ref (S) and the emulators /pay/card|click/:id.
 // They are never cached, never indexed and never leak the address in a Referer (03 §14). The page itself carries nothing
 // personal: the client script asks the API with the link. Also /legal/:doc (11 §9): the files legal/<doc>.<lang>.html
-// when they exist, a short stub until D5-07 writes them.
+// (D5-07); a missing file — a short stub.
 import fs from 'node:fs';
 import path from 'node:path';
 import { langOf } from './common.js';
@@ -40,6 +40,7 @@ export function mountPersonalPages(app, { publicDir, legalDir }) {
       .send(lang ? html.replace(/<html lang="[a-z]+">/, `<html lang="${lang}">`) : html);
   };
   app.get('/b/:ref', send('booking.html'));
+  app.get('/o/:ref', send('order.html'));
   app.get('/pay/card/:id', send('pay-card.html'));
   app.get('/pay/click/:id', send('pay-click.html'));
 

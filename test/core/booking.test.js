@@ -58,7 +58,7 @@ test('T2: payment → booked for 72 h; hold.expire cancelled; reminders 24 h and
   const jobs = await db.query("SELECT type, payload FROM jobs WHERE status = 'scheduled' ORDER BY run_at");
   assert.deepEqual(jobs.map(j => j.type), ['booking.remind', 'booking.remind', 'booking.expire']);
   assert.deepEqual(jobs.slice(0, 2).map(j => j.payload.hoursBefore), [24, 3]);
-  assert.deepEqual(await templates(), ['hold_created', 'booking_confirmed', 'staff_booking_paid']);
+  assert.deepEqual(await templates(), ['hold_created', 'booking_confirmed', 'booking_pdf', 'staff_booking_paid']);
   const staff = await db.one("SELECT vars FROM outbox WHERE template = 'staff_booking_paid'");
   assert.equal(staff.vars.provider, 'card');
   assert.equal((await statusMap(db))[41], 'booked');

@@ -16,7 +16,7 @@ export const STATUS = {
   booking_limit: 409, booking_not_found: 404, booking_closed: 409, booking_not_active: 409, consent_required: 422,
   phone_invalid: 422, name_invalid: 422, reason_required: 422, extend_too_long: 422, refund_not_allowed: 409, datetime_invalid: 422,
   datetime_past: 422, datetime_too_far: 422, outside_hours: 422, slot_taken: 409, down_payment_too_low: 422, term_not_available: 422,
-  order_not_found: 404, stage_invalid: 409, telegram_linked_elsewhere: 409,
+  order_not_found: 404, stage_invalid: 409, prepay_required: 409, telegram_linked_elsewhere: 409,
   payment_not_found: 404, payment_closed: 409, booking_already_paid: 409, hold_expiring: 409, provider_unavailable: 409,
   provider_error: 502, card_invalid: 422, card_expired: 422, card_not_supported: 422, wrong_code: 422, order_already_paid: 409,
   order_closed: 409, refund_in_progress: 409, pdf_unavailable: 404,
@@ -163,3 +163,18 @@ export function setDcl(res, req, clientId, env = process.env) {
 
 // Tashkent time for answers (13 §1.1): 2026-10-27T18:15:00+05:00.
 export const tz = d => (d == null ? null : new Date(new Date(d).getTime() + 5 * 3600e3).toISOString().slice(0, 19) + '+05:00');
+
+// Idempotency-Key of a staff change (13 §1.3): the same key with the same request returns the stored answer, with another
+// request — 409. Only a finished answer is stored: after an error the repeat runs again and meets the same error.
+export async function once(db, ctx, scope, key, payload, run) {
+  const hash = crypto.createHash('sha256').update(JSON.stringify(payload)).digest('hex');
+  const k = await db.one('SELECT * FROM idempotency_keys WHERE scope = $1 AND key = $2', [scope, key]);
+  if (k) {
+    if (k.request_hash !== hash) throw new DomainError('idempotency_conflict');
+    if (k.response) return { status: k.status, body: k.response };
+  }
+  const out = await run();
+  await db.query(`INSERT INTO idempotency_keys (scope, key, request_hash, status, response, created_at) VALUES ($1, $2, $3, $4, $5, $6)
+    ON CONFLICT DO NOTHING`, [scope, key, hash, out.status, JSON.stringify(out.body), ctx.now()]);
+  return out;
+}

@@ -118,6 +118,18 @@ export function mountBookings(app, db, opts = {}) {
     });
   }));
 
+  // The confirmation PDF (05 §10.4, 13 §4): only after the deposit was paid; built each time, never stored or cached (03 §14).
+  app.get('/b/:ref/confirmation.pdf', handler(async (req, res) => {
+    const ctx = context(opts);
+    await limit(db, `pdf:ip:${ipKey(req, env)}`, 20, HOUR, ctx);
+    const b = await bookingByRef(db, req.params.ref, env);
+    const { bookingPdf } = await import('../payments/pdf.js');
+    const pdf = await bookingPdf(db, b.id, { lang: LANGS.includes(req.query.lang) ? req.query.lang : undefined, env, now: ctx.now,
+      base: env.PUBLIC_URL || `${req.protocol}://${req.get('host')}` });
+    res.set({ 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'no-referrer' })
+      .attachment(pdf.filename).type('application/pdf').send(Buffer.from(pdf.bytes));
+  }));
+
   app.post('/api/bookings/by-ref/:ref/consent', handler(async (req, res) => {
     const { version } = parseBody({ version: z.string().max(20) }, req.body);
     const b = await bookingByRef(db, req.params.ref, env);

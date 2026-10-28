@@ -28,7 +28,8 @@ export default defineTool({
     const rows = await listBookings(ctx.db, { status, expiringWithinHours, from: p.from, to: p.to, limit: status ? 200 : limit }, ctx.core);
     const items = rows.slice(0, limit);
     const who = await clientsOf(ctx, items.map(b => b.client_id));
-    return { total: items.length, items: items.map(b => ({ bookingNo: b.no, apartmentNo: b.apartment_no, status: b.status,
+    // total — all that matched (with a status up to 200), not only the items shown: «how many burned this week?» is total
+    return { total: rows.length, items: items.map(b => ({ bookingNo: b.no, apartmentNo: b.apartment_no, status: b.status,
       heldAt: new Date(b.held_at).toISOString(), until: new Date(b.expires_at).toISOString(), paid: Boolean(b.booked_at),
       deposit: Number(b.deposit_amount), price: Number(b.price_at_booking), extended: b.extended_count, client: who(b.client_id) })) };
   }

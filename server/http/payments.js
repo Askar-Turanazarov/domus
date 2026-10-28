@@ -9,6 +9,7 @@ import { handleClick, submitClickCard, confirmClick } from '../payments/click.js
 import { handleStripeWebhook, stripeReturn } from '../payments/stripe.js';
 import { parseRef } from '../core/links.js';
 import { bookingByRef, holderOf } from './bookings.js';
+import { orderByRef } from '../core/orders.js';
 import { sendError, langOf, jsonBody, parseBody, z, idempotencyKey, limit, ipKey, HOUR, MINUTE } from './common.js';
 
 export { sendError };
@@ -43,11 +44,13 @@ export function mountPayments(app, db, opts = {}) {
         consent: z.strictObject({ version: z.string().max(20) }).optional(), lang: z.enum(['ru', 'uz', 'en']).optional()
       }, req.body);
       const key = idempotencyKey(req);
-      if (!parseRef(body.ref)) throw new DomainError('invalid_input', { fields: ['ref'] });   // 'o:501-…' — with the orders
-      const b = await bookingByRef(db, body.ref, env);
-      await limit(db, `pay:ref:${b.no}`, 10, HOUR, context(opts));
-      const r = await startPayment(db, { target: { bookingId: b.id }, provider: body.provider, consent: body.consent ?? null,
-        lang: langOf(req), idempotencyKey: key }, holderOf(b), opts);
+      const isOrder = body.ref.startsWith('o:');                                                     // 'o:501-<sig>' — a furniture order
+      const ref = isOrder ? body.ref.slice(2) : body.ref;
+      if (!parseRef(ref)) throw new DomainError('invalid_input', { fields: ['ref'] });
+      const row = isOrder ? await orderByRef(db, ref, env) : await bookingByRef(db, ref, env);
+      await limit(db, `pay:ref:${isOrder ? 'o' : ''}${row.no}`, 10, HOUR, context(opts));
+      const r = await startPayment(db, { target: isOrder ? { orderId: row.id } : { bookingId: row.id }, provider: body.provider,
+        consent: body.consent ?? null, lang: langOf(req), idempotencyKey: key }, holderOf(row), opts);
       res.status(201).json(r);
     } catch (e) {
       sendError(res, e, langOf(req));

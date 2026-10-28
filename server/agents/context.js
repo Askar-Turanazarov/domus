@@ -29,6 +29,13 @@ export function memoryLine(state = {}) {
   return parts.join('; ') || null;
 }
 
+// 07 §14: the analyst's context — today with its weekday (for «this week»), the language of the answer.
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+export function analystContext({ now, lang }) {
+  const weekday = WEEKDAYS[new Date(new Date(now).getTime() + 5 * 3600e3).getUTCDay()];
+  return ['[context]', `today: ${day(now)} (${weekday}, Asia/Tashkent)`, `language: ${lang}`].join('\n');
+}
+
 // client: { known, phone: 'no' | 'yes' | 'yes(verified)', holds: [{ apartmentNo, until }] } — never the phone itself (§6.1).
 export function contextBlock({ now, channel, lang, client = {}, state = {}, digest = null }) {
   const holds = client.holds ?? [];

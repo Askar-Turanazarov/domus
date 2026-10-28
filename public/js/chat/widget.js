@@ -7,6 +7,7 @@ import { renderBlock, phoneForm } from './blocks.js';
 
 const KEY = 'domus.chat.cid';
 const SLOW_MS = 20000;
+const POLL_MS = 15_000;            // 11 §5.6: the manager's replies while the widget is open
 const store = {
   get() { try { return sessionStorage.getItem(KEY); } catch { return null; } },
   set(v) { try { v ? sessionStorage.setItem(KEY, v) : sessionStorage.removeItem(KEY); } catch { /* private mode */ } }
@@ -50,7 +51,8 @@ export function mountChat({ page = 'building', getApartmentNo = () => null, onOp
   panel.append(head, log, note, form);
   doc.body.append(fab, panel);
 
-  const state = { cid: store.get(), busy: false, ctl: null, started: false, lastId: 0, bubble: null };
+  const state = { cid: store.get(), busy: false, ctl: null, started: false, lastId: 0, bubble: null, mode: 'ai' };
+  let pollTimer = null;
 
   function applyTexts() {
     fab.textContent = t('chat.open');
@@ -150,7 +152,7 @@ export function mountChat({ page = 'building', getApartmentNo = () => null, onOp
       else if (event === 'reset') { m.raw = ''; m.body.replaceChildren(); showStatus(m, t('chat.reset')); }
       else if (event === 'block') addBlock(m, data);
       else if (event === 'suggestions') addBlock(m, { type: 'suggestions', data });
-      else if (event === 'done') { clearStatus(m); if (data.messageId) feedback(m, data.messageId); }
+      else if (event === 'done') { clearStatus(m); if (data.messageId) { feedback(m, data.messageId); state.lastId = Math.max(state.lastId, data.messageId); } }
       else if (event === 'error') fail(m, data.text ?? t('chat.failed'));
     };
     try {
@@ -164,9 +166,11 @@ export function mountChat({ page = 'building', getApartmentNo = () => null, onOp
     } finally {
       clearTimeout(slow);
       clearStatus(m);
+      if (!m.raw && !m.blocks.isConnected && !m.root.querySelector('.chat-error')) m.root.remove();   // with a manager: no answer bubble
       state.ctl = null;
       setBusy(false);
     }
+    poll();   // the mode may have changed (a manager was called)
   }
 
   function say(text) {
@@ -248,18 +252,37 @@ export function mountChat({ page = 'building', getApartmentNo = () => null, onOp
     try {
       const res = await fetch(`/api/chat/${state.cid}/messages?after=0`, { credentials: 'same-origin' });
       if (!res.ok) { store.set(null); state.cid = null; return false; }
-      const { items } = await res.json();
+      const { items, mode } = await res.json();
+      state.mode = mode ?? 'ai';
       if (!items.length) return false;
-      for (const it of items) {
-        const m = bubble(it.role === 'user' ? 'user' : 'assistant');
-        if (it.role === 'staff') m.root.prepend(mk('div', 'chat-who', t('chat.staff')));
-        setText(m, it.text ?? '');
-        if (it.role !== 'user') for (const b of it.blocks ?? []) if (b.type !== 'confirm') addBlock(m, b);
-        state.lastId = it.id;
-      }
+      for (const it of items) show(it);
       state.started = true;
       return true;
     } catch { return false; }
+  }
+
+  function show(it) {
+    const m = bubble(it.role === 'user' ? 'user' : 'assistant');
+    if (it.role === 'staff') m.root.prepend(mk('div', 'chat-who', t('chat.staff')));
+    setText(m, it.text ?? '');
+    if (it.role !== 'user') for (const b of it.blocks ?? []) if (b.type !== 'confirm') addBlock(m, b);
+    state.lastId = Math.max(state.lastId, it.id);
+  }
+
+  // 11 §5.6: while the widget is open and the dialog is with a manager, his replies come every 15 s (the client's own lines
+  // are already on screen). After a turn — once, to learn the mode.
+  async function poll() {
+    clearTimeout(pollTimer);
+    if (!state.cid || panel.hidden || state.busy) return;
+    try {
+      const res = await fetch(`/api/chat/${state.cid}/messages?after=${state.lastId}`, { credentials: 'same-origin' });
+      if (res.ok) {
+        const { items, mode } = await res.json();
+        for (const it of items) { if (it.role === 'user') state.lastId = Math.max(state.lastId, it.id); else show(it); }
+        state.mode = mode ?? state.mode;
+      }
+    } catch { /* offline: the next round */ }
+    if (!panel.hidden && state.mode === 'human') pollTimer = setTimeout(poll, POLL_MS);
   }
 
   async function open() {
@@ -268,8 +291,10 @@ export function mountChat({ page = 'building', getApartmentNo = () => null, onOp
     if (!state.started && !(await restore())) greet();
     input.focus();
     scroll();
+    if (state.mode === 'human') pollTimer = setTimeout(poll, POLL_MS);
   }
   function shut() {
+    clearTimeout(pollTimer);
     panel.hidden = true;
     fab.hidden = false;
     fab.focus();

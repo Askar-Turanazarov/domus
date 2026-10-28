@@ -1,14 +1,13 @@
 // Admin bookings and payments (12 §4, 13 §9.2, §9.5, 05 §12): lists and cards for managers and the head, extend / cancel for both,
 // manual refund and its retry for the head only. Mounted after mountAdmin, so the staff gate is already in front; the head gate
 // is added on the two refund routes and the core checks the role again (actor.role).
-import crypto from 'node:crypto';
 import { DomainError } from '../core/errors.js';
 import { bookingsList, bookingCard, paymentsList, paymentCard } from '../core/adminLists.js';
 import { extend, cancel, shiftDeadline, SHIFT_TARGETS } from '../core/bookings.js';
 import { refundManual, retryRefund } from '../core/refunds.js';
 import { bookingPath } from '../core/links.js';
 import { now as clockNow } from '../core/clock.js';
-import { handler, idempotencyKey, parseBody, z, tz } from './common.js';
+import { handler, idempotencyKey, once, parseBody, z, tz } from './common.js';
 
 const bookingNo = raw => {
   const no = Number(raw);
@@ -16,21 +15,6 @@ const bookingNo = raw => {
   return no;
 };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-// Idempotency-Key of a staff change (13 §1.3): the same key with the same request returns the stored answer, with another
-// request — 409. Only a finished answer is stored: after an error the repeat runs again and meets the same error.
-async function once(db, ctx, scope, key, payload, run) {
-  const hash = crypto.createHash('sha256').update(JSON.stringify(payload)).digest('hex');
-  const k = await db.one('SELECT * FROM idempotency_keys WHERE scope = $1 AND key = $2', [scope, key]);
-  if (k) {
-    if (k.request_hash !== hash) throw new DomainError('idempotency_conflict');
-    if (k.response) return { status: k.status, body: k.response };
-  }
-  const out = await run();
-  await db.query(`INSERT INTO idempotency_keys (scope, key, request_hash, status, response, created_at) VALUES ($1, $2, $3, $4, $5, $6)
-    ON CONFLICT DO NOTHING`, [scope, key, hash, out.status, JSON.stringify(out.body), ctx.now()]);
-  return out;
-}
 
 // opts — { env, onCommit, now } for the core.
 export function mountAdminBookings(app, db, staffAuth, opts = {}) {
@@ -74,6 +58,16 @@ export function mountAdminBookings(app, db, staffAuth, opts = {}) {
     const b = await db.one('SELECT id, no, access_version FROM bookings WHERE no = $1', [bookingNo(req.params.no)]);
     if (!b) throw new DomainError('booking_not_found');
     res.json({ link: bookingPath(b, env) });
+  }));
+
+  // The same confirmation PDF the client gets (05 §10.4, the «PDF» button of the card); 404 until the deposit is paid.
+  app.get('/api/admin/bookings/:no/pdf', handler(async (req, res) => {
+    const b = await db.one('SELECT id FROM bookings WHERE no = $1', [bookingNo(req.params.no)]);
+    if (!b) throw new DomainError('booking_not_found');
+    const { bookingPdf } = await import('../payments/pdf.js');
+    const lang = ['ru', 'uz', 'en'].includes(req.query.lang) ? req.query.lang : undefined;
+    const pdf = await bookingPdf(db, b.id, { lang, env, now: ctx.now, base: env.PUBLIC_URL || `${req.protocol}://${req.get('host')}` });
+    res.set('Cache-Control', 'no-store').attachment(pdf.filename).type('application/pdf').send(Buffer.from(pdf.bytes));
   }));
 
   app.post('/api/admin/bookings/:no/extend', handler(async (req, res) => {

@@ -67,7 +67,8 @@ function renderShell() {
   document.title = `${section ? t(section.title) + ' — ' : ''}Chinor Park`;
   const nav = el('nav', { class: 'adm2-nav', 'aria-label': 'Sections' },
     sections.filter(s => s.roles.includes(staff.role)).map(s =>
-      el('a', { href: '#/' + s.id, class: s.id === id ? 'active' : '' }, t(s.title))));
+      el('a', { href: '#/' + s.id, class: s.id === id ? 'active' : '' }, t(s.title),
+        s.badge && el('span', { class: 'adm2-navbadge', dataset: { badge: s.badge }, hidden: true }))));
   const head = el('header', { class: 'adm2-top' },
     el('div', { class: 'adm2-brand' }, el('b', {}, 'Chinor Park'), el('span', {}, 'admin')),
     el('div', { class: 'adm2-who' }, el('span', { class: 'adm2-name' }, staff.name), el('span', { class: 'adm2-role' }, t('role.' + staff.role))),
@@ -79,6 +80,19 @@ function renderShell() {
   app.replaceChildren(head, !staff.telegramLinked && el('div', { class: 'adm2-warn' }, t('tg.warn'), ' ', el('button', { type: 'button', class: 'adm2-link', on: { click: linkTelegram } }, t('tgl.link'))), el('div', { class: 'adm2-body' }, nav, view));
   if (!section) { view.append(el('p', { class: 'adm2-empty' }, t('nav.notfound'))); return; }
   stopView = section.mount(view, { staff, params, go });
+  badges();
+}
+
+// 12 §5.4: the number of dialogs waiting for a manager next to «С менеджером»; refreshed every 15 s while signed in.
+let badgeTimer = null;
+async function badges() {
+  clearTimeout(badgeTimer);
+  if (!staff) return;
+  if (!document.hidden) try {
+    const r = await api('/api/admin/conversations?mode=human&limit=1');
+    for (const b of document.querySelectorAll('[data-badge="inbox"]')) { b.textContent = String(r.waiting); b.hidden = !r.waiting; }
+  } catch { /* the badge waits for the next round */ }
+  badgeTimer = setTimeout(badges, 15_000);
 }
 
 async function logout() {

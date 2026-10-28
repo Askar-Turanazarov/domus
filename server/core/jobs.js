@@ -44,7 +44,8 @@ async function claim(db, { at, limit, hint }) {
     [new Date(at.getTime() + SLACK_MS), at, hint ?? null, limit, new Date(at.getTime() + LOCK_MS)]);
 }
 
-// handlers — { [type]: (job, {q, now}) → 'done' | 'skipped' }, each run in its own transaction.
+// handlers — { [type]: (job, {q, now}) → 'done' | 'skipped' }, each run in its own transaction; or { prepare, run }: prepare(job, {db, now})
+// runs first outside the transaction (a slow call such as a model must not hold it) and its result goes to run(job, {q, now, prepared}).
 // → { done, skipped, retried, failed } counts. budgetMs: no new job is started with less than 10 s left.
 export async function runDue(db, handlers, { now = clockNow, limit = 10, hint = null, budgetMs = 40_000 } = {}) {
   const started = performance.now();
@@ -59,8 +60,10 @@ export async function runDue(db, handlers, { now = clockNow, limit = 10, hint = 
     try {
       const handler = handlers[job.type];
       if (!handler) throw new Error(`no handler for ${job.type}`);
+      const run = typeof handler === 'function' ? handler : handler.run;
+      const prepared = handler.prepare ? await handler.prepare(job, { db, now }) : undefined;
       const result = await db.tx(async q => {
-        const r = await handler(job, { q, now });
+        const r = await run(job, { q, now, prepared });
         const status = r === 'skipped' ? 'skipped' : 'done';
         await q.query(`UPDATE jobs SET status = $2, done_at = $3, updated_at = $3, locked_until = NULL, last_error = NULL WHERE id = $1`,
           [job.id, status, now()]);

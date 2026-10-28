@@ -159,6 +159,7 @@ export function mount(root, { staff, params }) {
         b.canExtend && el('button', { type: 'button', class: 'btn primary sm', dataset: { act: 'extend' }, on: { click: askExtend } }, t('bks.extend')),
         b.canCancel && el('button', { type: 'button', class: 'btn danger sm', dataset: { act: 'cancel' }, on: { click: askCancel } }, t('bks.cancel')),
         el('button', { type: 'button', class: 'btn sm', dataset: { act: 'link' }, on: { click: copyLink } }, t('bks.copyLink')),
+        b.bookedAt && el('a', { class: 'btn ghost sm', dataset: { act: 'pdf' }, href: `/api/admin/bookings/${b.no}/pdf`, download: '' }, 'PDF'),
         el('a', { class: 'btn ghost sm', href: `#/units/${a.no}` }, t('bks.openApt'))),
       staff.role === 'head' && shiftBlock(b, () => refreshAfter()),
       section(t('bks.payments'), card.payments.map(paymentRow)),

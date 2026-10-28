@@ -49,7 +49,7 @@ afterEach(() => fakeClock.reset());
 
 async function get(path, role = 'head') {
   const res = await fetch(base + path, { headers: role ? { cookie: cookies[role] } : {} });
-  return { status: res.status, body: await res.json().catch(() => null) };
+  return { status: res.status, timing: res.headers.get('server-timing'), body: await res.json().catch(() => null) };
 }
 const ago = ms => new Date(now().getTime() - ms);
 
@@ -84,7 +84,9 @@ test('tiles: sold with the price of its booking, in booking now, free, burning i
   await book(c.id, 3, { status: 'booked', left: 2 * DAY });
   await book(c.id, 4, { status: 'held', paidAgo: null, left: 10 * MIN });
   await book(c.id, 5, { status: 'expired', heldAgo: 5 * DAY });               // not active
-  const s = (await get('/api/dashboard/summary?period=today')).body;
+  const sr = await get('/api/dashboard/summary?period=today');
+  assert.match(sr.timing, /^app;dur=\d+\.\d$/, '12 §9: the server time for npm run bench');
+  const s = sr.body;
   assert.equal(s.tiles.sold.count, 1);
   assert.equal(s.tiles.sold.sum, 777_000_000);
   assert.equal(s.tiles.booked.count, 2);

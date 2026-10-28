@@ -112,7 +112,7 @@ test('personal link: a wrong number, a wrong signature, a junk ref all answer li
   }
   assert.equal((await api.call('POST', `/api/bookings/by-ref/${no}-${'b'.repeat(32)}/release`, {})).body.error, 'link_invalid');
   assert.equal((await api.call('POST', '/api/payments', { ref: `${no}-${'c'.repeat(32)}`, provider: 'card' })).body.error, 'link_invalid');
-  assert.equal((await api.call('POST', '/api/payments', { ref: 'o:501-' + sig, provider: 'card' })).body.error, 'invalid_input');
+  assert.equal((await api.call('POST', '/api/payments', { ref: 'o:' + ref.replace(/^\d+/, '501'), provider: 'card' })).body.error, 'link_invalid', 'an order ref with a wrong signature');
 });
 
 test('release and cancel: a hold is released, a paid booking cancelled by the client (deposit stays)', async () => {

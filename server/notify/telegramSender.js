@@ -1,6 +1,6 @@
 // send(row) for core/outbox.deliver (04 §3.2): one Outbox row → one Telegram call → a result classify() understands.
 // It never throws: a Telegram error is a { ok: false, status, … }, a network failure or timeout is { ok: false, network: true }.
-import { Api, GrammyError, HttpError } from 'grammy';
+import { Api, GrammyError, HttpError, InputFile } from 'grammy';
 
 // 04 §3.2 says 10 s; raised to 25 s (author's decision, 27.10): on a slow network Telegram delivered the message but its answer came
 // later, the row went to «retry» and the client got it twice.
@@ -10,7 +10,8 @@ const TIMEOUT_MS = 25_000;
 const options = r => ({ parse_mode: r.parse_mode, reply_markup: r.reply_markup, link_preview_options: r.link_preview_options });
 
 // → send(row) | null (no token: the bot is off, rows wait in the Outbox). api — a ready Api (tests).
-export function createSender({ token, api = token ? new Api(token) : null } = {}) {
+// document(row) → { bytes, filename } builds the file of a send_document row at delivery (the booking PDF, 05 §10.4).
+export function createSender({ token, api = token ? new Api(token) : null, document = null } = {}) {
   if (!api) return null;
   return async function send(row) {
     const r = row.rendered;
@@ -25,7 +26,13 @@ export function createSender({ token, api = token ? new Api(token) : null } = {}
         const m = await api.sendMessage(row.chat_id, r.text, options(r), signal);
         return { ok: true, messageId: m.message_id };
       }
-      return { ok: false, status: 400, description: `op ${row.op} is not supported yet` };     // send_document: the PDF (S, 05 §10)
+      if (row.op === 'send_document' && document) {
+        const file = await document(row);                                                       // a closed or unpaid booking throws: 400 below
+        const m = await api.sendDocument(row.chat_id, new InputFile(Buffer.from(file.bytes), file.filename),
+          { caption: r.text, parse_mode: r.parse_mode }, signal);
+        return { ok: true, messageId: m.message_id };
+      }
+      return { ok: false, status: 400, description: `op ${row.op} is not supported` };
     } catch (e) {
       if (e instanceof GrammyError) {
         return { ok: false, status: e.error_code, description: e.description, retryAfter: e.parameters?.retry_after };
@@ -33,6 +40,7 @@ export function createSender({ token, api = token ? new Api(token) : null } = {}
       if (e instanceof HttpError || e?.name === 'TimeoutError' || e?.name === 'AbortError') {
         return { ok: false, network: true, description: String(e.message ?? e.name) };
       }
+      if (e?.code === 'pdf_unavailable') return { ok: false, status: 400, description: 'pdf_unavailable' };   // repeating will not help
       throw e;                                                                                  // deliver() counts a throw as a network error
     }
   };

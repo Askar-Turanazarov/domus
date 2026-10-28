@@ -14,14 +14,14 @@ import crypto from 'node:crypto';
 import { normalizePhone } from '../core/phone.js';
 
 const LIMIT = { max: 5, windowMs: 10 * 60 * 1000 };
-const ipHash = ip => crypto.createHash('sha256').update('fsp3d:' + String(ip || '')).digest('hex').slice(0, 32);
+export const ipHash = ip => crypto.createHash('sha256').update('fsp3d:' + String(ip || '')).digest('hex').slice(0, 32);
 
 // Domus order statuses ↔ order stages (02 §3.8).
 const TO_STAGE = { new: 'new', inWork: 'in_work', measure: 'accepted', done: 'done', cancelled: 'cancelled' };
 const FROM_STAGE = Object.fromEntries(Object.entries(TO_STAGE).map(([k, v]) => [v, k]));
 // What lives in columns, not in the order document.
 const OWN = ['id', 'createdAt', 'status', 'name', 'phone', 'files'];
-const docOf = o => Object.fromEntries(Object.entries(o).filter(([k]) => !OWN.includes(k)));
+export const docOf = o => Object.fromEntries(Object.entries(o).filter(([k]) => !OWN.includes(k)));
 const phoneOf = p => normalizePhone(p) ?? String(p ?? '').trim();
 // 2026-10-29T05:00Z → '2026-10-29T10:00+05:00' (Tashkent, as Domus wrote it)
 const tashkent = d => new Date(d.getTime() + 5 * 3600e3).toISOString().slice(0, 16) + '+05:00';

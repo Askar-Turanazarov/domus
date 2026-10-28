@@ -5,6 +5,7 @@ import { DomainError } from './errors.js';
 import { emit } from './events.js';
 import { normalizePhone, maskPhone } from './phone.js';
 import { bookingPath } from './links.js';
+import { pdfMessage } from './bookings.js';
 import { context, inTx, notify } from './tx.js';
 
 const LINK_DAYS = 7;
@@ -208,6 +209,7 @@ export async function attachTelegram(db, { code, telegram }, opts = {}) {
       if (missed) {
         await notify(q, fx, ctx, { template: 'booking_confirmed', audience: 'client', clientId: client.id, vars: missed.vars,
           dedupeKey: `booking_confirmed:${b.id}:linked` });
+        await notify(q, fx, ctx, pdfMessage({ ...b, client_id: client.id }, ':linked'));
       }
     }
     return { client, bookingId: link.booking_id };
@@ -264,7 +266,13 @@ export async function requestHandoff(db, { clientId, conversationId = null, reas
     const at = ctx.now();
     const c = await canonical(q, clientId);
     if (!c) throw new DomainError('not_found');
-    if (conversationId) await q.query(`UPDATE conversations SET mode = 'human', updated_at = $2 WHERE id = $1`, [conversationId, at]);
+    // 07 §9: the dialog goes to a person; humanSince starts the 24 h after which it comes back to the AI without a manager's reply
+    const was = conversationId ? await q.one('SELECT mode FROM conversations WHERE id = $1 FOR UPDATE', [conversationId]) : null;
+    if (was && was.mode !== 'human') {
+      await q.query(`UPDATE conversations SET mode = 'human', updated_at = $2, state = COALESCE(state, '{}'::jsonb) || $3::jsonb WHERE id = $1`,
+        [conversationId, at, JSON.stringify({ humanSince: at.toISOString() })]);
+      await emit(q, 'conversation.mode_changed', { clientId: c.id }, { conversationId, to: 'human', by: 'client' }, actor, ctx);
+    }
     const recent = await q.one(`SELECT id FROM events WHERE type = 'client.handoff_requested' AND client_id = $1 AND at > $2 LIMIT 1`,
       [c.id, new Date(at.getTime() - HANDOFF_DEDUPE_MS)]);
     if (recent) return { requested: true, repeated: true };
@@ -274,4 +282,14 @@ export async function requestHandoff(db, { clientId, conversationId = null, reas
       eventId: ev, dedupeKey: `staff_handoff:${ev}` });
     return { requested: true, repeated: false };
   });
+}
+
+// The lead qualifier's score (07 §13.1, FR-CRM-04, S): score, summary, next step and the last message it saw, with client.scored.
+export async function setLeadScore(q, { clientId, score, summary = null, nextStep = null, messageId = null }, actor = { type: 'system' }, opts = {}) {
+  const ctx = context(opts);
+  const at = ctx.now();
+  await q.query(`UPDATE clients SET lead_score = $2, lead_summary = $3, lead_next_step = $4, lead_scored_at = $5, lead_scored_message_id = $6
+    WHERE id = $1`, [clientId, score, summary, nextStep, at, messageId]);
+  await emit(q, 'client.scored', { clientId }, { score }, actor, ctx);
+  return { score };
 }

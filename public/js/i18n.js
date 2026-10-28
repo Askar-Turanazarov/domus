@@ -1,5 +1,6 @@
 // RU / UZ / EN dictionaries. t('key', {param}) substitutes {param}.
 import { bookingTexts } from './i18nBooking.js';
+import { orderTexts } from './i18nOrder.js';
 import { chatTexts } from './chat/texts.js';
 export const dict = {
   ru: {
@@ -335,7 +336,7 @@ export const dict = {
 };
 
 for (const l of Object.keys(chatTexts)) Object.assign(dict[l], chatTexts[l]);   // the chat widget
-for (const l of Object.keys(bookingTexts)) Object.assign(dict[l], bookingTexts[l]);   // booking, payment emulators, legal stub
+for (const l of Object.keys(bookingTexts)) Object.assign(dict[l], bookingTexts[l], orderTexts[l]);   // booking, payment emulators, legal stub, order page
 
 const LANGS = ['ru', 'uz', 'en'];
 // The language of the page: /en… in the address, ?lang= (the embedded 3D), "/" and the showcase without a language are

@@ -2,7 +2,7 @@
 // the card with contacts (a mask; «Show» asks the server for the full number and leaves a trace), the score of the lead, bookings,
 // payments, viewings, orders, merges, dialogs with the feed of messages, and «take for myself». Everything from the server goes into
 // the page as text. The list, the card and the open dialog are refreshed by polling every 5 s.
-import { api, ApiError } from '../api.js';
+import { api, ApiError, newKey } from '../api.js';
 import { el, toast, money, dateTime } from '../ui.js';
 import { t, addTexts } from '../i18n.js';
 import { label, payBadge } from './common.js';
@@ -16,7 +16,8 @@ addTexts({
     'cls.noName': 'Без имени', 'cls.card': 'Клиент', 'cls.phone': 'Телефон', 'cls.show': 'Показать', 'cls.noPhone': 'не оставил', 'cls.verified': 'подтверждён', 'cls.notVerified': 'не подтверждён',
     'cls.telegram': 'Telegram', 'cls.tgBlocked': 'бот заблокирован', 'cls.lang': 'Язык', 'cls.firstChannel': 'Пришёл из', 'cls.created': 'Создан', 'cls.seen': 'Был на сайте',
     'cls.duplicate': 'Возможный дубль другой карточки', 'cls.assignee': 'Ответственный', 'cls.none': 'Не назначен', 'cls.take': 'Взять себе',
-    'cls.taken': 'Клиент ваш', 'cls.takenBy': 'Клиента уже взял {who}', 'cls.lead': 'Оценка и резюме', 'cls.leadNext': 'Следующий шаг', 'cls.leadAt': 'Оценено',
+    'cls.taken': 'Клиент ваш', 'cls.takenBy': 'Клиента уже взял {who}', 'cls.lead': 'Оценка и резюме', 'cls.leadNext': 'Следующий шаг', 'cls.leadAt': 'Оценено', 'cls.noLead': 'Ещё не оценён', 'cls.rescore': 'Переоценить', 'cls.rescored': 'Оценка поставлена в очередь',
+    'cls.hint': 'Что ответить?', 'cls.hintNote': 'Черновик ИИ — проверьте перед отправкой', 'cls.hintBusy': 'ИИ пишет черновик…', 'cls.reply': 'Ответ клиенту', 'cls.send': 'Отправить', 'cls.sent': 'Ответ отправлен', 'cls.returnAi': 'Вернуть ИИ-консультанту', 'cls.returned': 'Диалог снова у ИИ',
     'cls.bookings': 'Брони', 'cls.payments': 'Оплаты', 'cls.viewings': 'Показы', 'cls.orders': 'Заказы', 'cls.dialogs': 'Диалоги с ИИ', 'cls.merges': 'Склейки', 'cls.nothing': 'Пока ничего',
     'cls.booking': 'Бронь №{no}', 'cls.aptLine': 'кв. №{no} · {rooms} · {floor} эт.', 'cls.until': 'до {when}', 'cls.order': 'Заказ №{no}', 'cls.apt': 'кв. №{no}',
     'cls.vst.scheduled': 'запланирован', 'cls.vst.done': 'состоялся', 'cls.vst.no_show': 'не пришёл', 'cls.vst.cancelled': 'отменён',
@@ -33,7 +34,8 @@ addTexts({
     'cls.noName': 'No name', 'cls.card': 'Client', 'cls.phone': 'Phone', 'cls.show': 'Show', 'cls.noPhone': 'not left', 'cls.verified': 'verified', 'cls.notVerified': 'not verified',
     'cls.telegram': 'Telegram', 'cls.tgBlocked': 'bot blocked', 'cls.lang': 'Language', 'cls.firstChannel': 'Came from', 'cls.created': 'Created', 'cls.seen': 'Last seen',
     'cls.duplicate': 'May duplicate another card', 'cls.assignee': 'Assignee', 'cls.none': 'Not assigned', 'cls.take': 'Take it',
-    'cls.taken': 'The client is yours', 'cls.takenBy': '{who} has already taken the client', 'cls.lead': 'Score and summary', 'cls.leadNext': 'Next step', 'cls.leadAt': 'Scored',
+    'cls.taken': 'The client is yours', 'cls.takenBy': '{who} has already taken the client', 'cls.lead': 'Score and summary', 'cls.leadNext': 'Next step', 'cls.leadAt': 'Scored', 'cls.noLead': 'Not scored yet', 'cls.rescore': 'Rescore', 'cls.rescored': 'Scoring is queued',
+    'cls.hint': 'What to reply?', 'cls.hintNote': 'AI draft — check before sending', 'cls.hintBusy': 'The AI is writing a draft…', 'cls.reply': 'Reply to the client', 'cls.send': 'Send', 'cls.sent': 'The reply is sent', 'cls.returnAi': 'Return to the AI consultant', 'cls.returned': 'The dialog is back with the AI',
     'cls.bookings': 'Bookings', 'cls.payments': 'Payments', 'cls.viewings': 'Viewings', 'cls.orders': 'Orders', 'cls.dialogs': 'AI dialogs', 'cls.merges': 'Merges', 'cls.nothing': 'Nothing yet',
     'cls.booking': 'Booking {no}', 'cls.aptLine': 'apt. {no} · {rooms} · floor {floor}', 'cls.until': 'until {when}', 'cls.order': 'Order {no}', 'cls.apt': 'apt. {no}',
     'cls.vst.scheduled': 'scheduled', 'cls.vst.done': 'done', 'cls.vst.no_show': 'no show', 'cls.vst.cancelled': 'cancelled',
@@ -50,7 +52,8 @@ addTexts({
     'cls.noName': 'Ismsiz', 'cls.card': 'Mijoz', 'cls.phone': 'Telefon', 'cls.show': 'Ko‘rsatish', 'cls.noPhone': 'qoldirmagan', 'cls.verified': 'tasdiqlangan', 'cls.notVerified': 'tasdiqlanmagan',
     'cls.telegram': 'Telegram', 'cls.tgBlocked': 'bot bloklangan', 'cls.lang': 'Til', 'cls.firstChannel': 'Qayerdan kelgan', 'cls.created': 'Yaratilgan', 'cls.seen': 'Oxirgi tashrif',
     'cls.duplicate': 'Boshqa kartaning dubli bo‘lishi mumkin', 'cls.assignee': 'Mas’ul', 'cls.none': 'Tayinlanmagan', 'cls.take': 'O‘zimga olish',
-    'cls.taken': 'Mijoz sizniki', 'cls.takenBy': 'Mijozni allaqachon {who} oldi', 'cls.lead': 'Baho va xulosa', 'cls.leadNext': 'Keyingi qadam', 'cls.leadAt': 'Baholangan',
+    'cls.taken': 'Mijoz sizniki', 'cls.takenBy': 'Mijozni allaqachon {who} oldi', 'cls.lead': 'Baho va xulosa', 'cls.leadNext': 'Keyingi qadam', 'cls.leadAt': 'Baholangan', 'cls.noLead': 'Hali baholanmagan', 'cls.rescore': 'Qayta baholash', 'cls.rescored': 'Baholash navbatga qo‘yildi',
+    'cls.hint': 'Nima deb javob berish?', 'cls.hintNote': 'AI qoralamasi — yuborishdan oldin tekshiring', 'cls.hintBusy': 'AI qoralama yozmoqda…', 'cls.reply': 'Mijozga javob', 'cls.send': 'Yuborish', 'cls.sent': 'Javob yuborildi', 'cls.returnAi': 'AI maslahatchiga qaytarish', 'cls.returned': 'Suhbat yana AI’da',
     'cls.bookings': 'Bronlar', 'cls.payments': 'To‘lovlar', 'cls.viewings': 'Ko‘rsatuvlar', 'cls.orders': 'Buyurtmalar', 'cls.dialogs': 'AI bilan suhbatlar', 'cls.merges': 'Birlashtirishlar', 'cls.nothing': 'Hozircha hech narsa',
     'cls.booking': '{no}-bron', 'cls.aptLine': '{no}-kv. · {rooms} · {floor}-qavat', 'cls.until': '{when} gacha', 'cls.order': '{no}-buyurtma', 'cls.apt': '{no}-kv.',
     'cls.vst.scheduled': 'rejalashtirilgan', 'cls.vst.done': 'bo‘lib o‘tdi', 'cls.vst.no_show': 'kelmadi', 'cls.vst.cancelled': 'bekor qilingan',
@@ -73,6 +76,7 @@ export function mount(root, { params }) {
   let selected = params[0] || null, card = null, cardSig = '', cardToken = 0, listToken = 0, timer = null, searchTimer = null, dead = false;
   let phone = null;                                                        // the full number of the open card, after «Show»
   let openDialog = null, feed = null, feedSig = '', feedToken = 0;
+  let replyBox = null;                                                     // the reply field of the open dialog: kept between redraws
 
   const filters = el('div', { class: 'adm2-filters' });
   const info = el('p', { class: 'adm2-muted adm2-info' });
@@ -169,13 +173,71 @@ export function mount(root, { params }) {
     }
     return t('cls.block.other', { type: String(b?.type ?? '?') });
   };
+  // 12 §5.3: the reply field; «Что ответить?» puts the AI draft into it, marked — nothing goes to the client by itself.
+  function makeReplyBox(id) {
+    const text = el('textarea', { class: 'adm2-reply', name: 'reply', rows: 3, maxLength: 2000, placeholder: t('cls.reply'), 'aria-label': t('cls.reply') });
+    const note = el('p', { class: 'adm2-muted adm2-draft', hidden: true }, t('cls.hintNote'));
+    const hint = el('button', { type: 'button', class: 'btn ghost sm', dataset: { act: 'hint' }, on: { click: () => askHint(id) } }, t('cls.hint'));
+    const send = el('button', { type: 'button', class: 'btn primary sm', dataset: { act: 'send' }, on: { click: () => sendReply(id) } }, t('cls.send'));
+    const back = el('button', { type: 'button', class: 'btn ghost sm', dataset: { act: 'return-ai' }, hidden: true, on: { click: () => returnAi(id) } }, t('cls.returnAi'));
+    text.addEventListener('input', () => { if (!text.value) note.hidden = true; box.key = null; });
+    const box = { id, text, note, hint, back, key: null, node: el('div', { class: 'adm2-replybox' }, note, text, el('div', { class: 'adm2-actions' }, send, hint, back)) };
+    return box;
+  }
+
+  // 12 §5.4: the reply goes as a staff message (Telegram — staff_reply); one Idempotency-Key per text, so a double click sends once.
+  async function sendReply(id) {
+    const box = replyBox;
+    const text = box?.text.value.trim();
+    if (!box || box.id !== id || !text) return;
+    box.key ??= newKey();
+    try {
+      await api(`/api/admin/conversations/${encodeURIComponent(id)}/reply`, { method: 'POST', body: { text }, key: box.key });
+      if (dead || replyBox !== box) return;
+      box.text.value = ''; box.note.hidden = true; box.key = null;
+      toast(t('cls.sent'));
+      await loadFeed();
+    } catch (ex) {
+      toast(ex.message || t('app.fail'), true);
+    }
+  }
+
+  async function returnAi(id) {
+    try {
+      await api(`/api/admin/conversations/${encodeURIComponent(id)}/return-ai`, { method: 'POST', body: {} });
+      if (dead) return;
+      toast(t('cls.returned'));
+      cardSig = ''; feedSig = '';
+      await Promise.all([loadCard(), loadFeed()]);
+    } catch (ex) {
+      toast(ex.message || t('app.fail'), true);
+    }
+  }
+
+  async function askHint(id) {
+    const box = replyBox;
+    if (!box || box.id !== id) return;
+    box.hint.disabled = true; box.hint.textContent = t('cls.hintBusy');
+    try {
+      const r = await api(`/api/admin/conversations/${encodeURIComponent(id)}/suggest-reply`, { method: 'POST', body: {} });
+      if (dead || replyBox !== box) return;
+      box.text.value = r.draft; box.note.hidden = false; box.text.focus();
+    } catch (ex) {
+      toast(ex.message || t('app.fail'), true);
+    } finally {
+      box.hint.disabled = false; box.hint.textContent = t('cls.hint');
+    }
+  }
+
   function drawFeed() {
     if (!feed) return el('p', { class: 'adm2-muted' }, t('app.loading'));
     if (feed === 'fail') return el('p', { class: 'adm2-err' }, t('cls.dlgFail'));
     if (!feed.messages.length) return el('p', { class: 'adm2-muted' }, t('cls.dlgEmpty'));
+    if (replyBox) replyBox.back.hidden = feed.conversation.mode !== 'human';
     return el('div', {}, el('ol', { class: 'adm2-feed' }, feed.messages.map(m => el('li', { class: `msg-${m.role}`, dataset: { role: m.role } },
       el('span', { class: 'adm2-muted' }, `${label('cls.role.', m.role)} · ${dateTime(m.createdAt)}`), el('div', { class: 'adm2-msg' }, m.text),
       (m.blocks ?? []).map(b => el('div', { class: 'adm2-muted' }, blockLine(b)))))),
+    replyBox?.node,
     el('button', { type: 'button', class: 'btn ghost sm', on: { click: () => toggleDialog(openDialog) } }, t('cls.dlgClose')));
   }
 
@@ -200,9 +262,12 @@ export function mount(root, { params }) {
         c.possibleDuplicate && el('p', { class: 'adm2-muted' }, t('cls.duplicate'))),
       el('div', { class: 'adm2-actions' }, kv(t('cls.assignee'), c.assignee?.name || t('cls.none')),
         !c.assignee && el('button', { type: 'button', class: 'btn primary sm', dataset: { act: 'take' }, on: { click: take } }, t('cls.take'))),
-      c.lead && el('section', { class: 'adm2-sec' }, el('h3', {}, t('cls.lead')), c.lead.summary && el('p', {}, c.lead.summary),
-        c.lead.nextStep && el('p', {}, el('b', {}, t('cls.leadNext') + ': '), c.lead.nextStep),
-        c.lead.scoredAt && el('p', { class: 'adm2-muted' }, `${t('cls.leadAt')}: ${dateTime(c.lead.scoredAt)}`)),
+      el('section', { class: 'adm2-sec' }, el('h3', {}, t('cls.lead')),
+        !c.lead && el('p', { class: 'adm2-muted' }, t('cls.noLead')),
+        c.lead?.summary && el('p', {}, c.lead.summary),
+        c.lead?.nextStep && el('p', {}, el('b', {}, t('cls.leadNext') + ': '), c.lead.nextStep),
+        c.lead?.scoredAt && el('p', { class: 'adm2-muted' }, `${t('cls.leadAt')}: ${dateTime(c.lead.scoredAt)}`),
+        card.dialogs.length > 0 && el('button', { type: 'button', class: 'btn ghost sm', dataset: { act: 'rescore' }, on: { click: rescore } }, t('cls.rescore'))),
       section(t('cls.bookings'), card.bookings.map(bookingRow)),
       section(t('cls.payments'), card.payments.map(paymentRow)),
       section(t('cls.viewings'), card.viewings.map(viewingRow)),
@@ -229,7 +294,7 @@ export function mount(root, { params }) {
 
   function pick(id) {
     selected = selected === id ? null : id;
-    card = null; cardSig = ''; cardToken++; phone = null; openDialog = null; feed = null; feedSig = ''; feedToken++;
+    card = null; cardSig = ''; cardToken++; phone = null; openDialog = null; feed = null; feedSig = ''; feedToken++; replyBox = null;
     history.replaceState(null, '', '#/clients' + (selected ? '/' + selected : ''));
     drawList(); drawCard(); loadCard();
   }
@@ -242,6 +307,16 @@ export function mount(root, { params }) {
       if (dead || id !== selected) return;
       phone = r.phone;
       drawCard();
+    } catch (ex) {
+      toast(ex.message || t('app.fail'), true);
+    }
+  }
+
+  async function rescore() {
+    const id = selected;
+    try {
+      await api(`/api/admin/clients/${encodeURIComponent(id)}/rescore`, { method: 'POST', body: {} });
+      if (!dead && id === selected) toast(t('cls.rescored'));
     } catch (ex) {
       toast(ex.message || t('app.fail'), true);
     }
@@ -266,7 +341,7 @@ export function mount(root, { params }) {
     try {
       const f = await api(`/api/admin/conversations/${encodeURIComponent(id)}`);
       if (dead || mine !== feedToken) return;
-      const sig = JSON.stringify(f.messages.map(m => m.id));
+      const sig = JSON.stringify([f.conversation.mode, f.messages.map(m => m.id)]);
       feed = f;
       if (sig !== feedSig) { feedSig = sig; drawCard(); }
     } catch (ex) {
@@ -278,6 +353,7 @@ export function mount(root, { params }) {
   function toggleDialog(id) {
     openDialog = openDialog === id ? null : id;
     feed = null; feedSig = ''; feedToken++;
+    replyBox = openDialog ? makeReplyBox(openDialog) : null;
     drawCard();
     loadFeed();
   }
@@ -289,6 +365,7 @@ export function mount(root, { params }) {
 
   drawFilters(); drawList(); drawCard();
   load(); loadCard();
+  if (selected && params[1]) toggleDialog(params[1]);   // #/clients/<id>/<dialog> — from the inbox
   return () => {
     dead = true; clearInterval(timer); clearTimeout(searchTimer);
     document.removeEventListener('visibilitychange', onVisible); document.body.classList.remove('adm2-card-open');

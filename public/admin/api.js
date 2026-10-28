@@ -9,12 +9,13 @@ export class ApiError extends Error {
   }
 }
 
+export const CSRF = 'domus-admin';
 const outListeners = new Set();
 export const onSignedOut = fn => outListeners.add(fn);
 
 // opts — { method, body, key (Idempotency-Key: one per intention, 13 §1.3), lang }.
 export async function api(path, { method = 'GET', body, key, lang } = {}) {
-  const headers = { 'X-Requested-With': 'domus-admin' };
+  const headers = { 'X-Requested-With': CSRF };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   if (key) headers['Idempotency-Key'] = key;
   if (lang) headers['Accept-Language'] = lang;

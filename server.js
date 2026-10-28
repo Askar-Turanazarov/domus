@@ -20,12 +20,15 @@ import { mountAdminOutbox } from './server/http/adminOutbox.js';
 import { mountAdminAi } from './server/http/adminAi.js';
 import { mountAdminSystem } from './server/http/adminSystem.js';
 import { mountAdminDashboard } from './server/http/adminDashboard.js';
+import { mountAdminAnalyst } from './server/http/adminAnalyst.js';
 import * as pages from './server/pages.js';
 import { loadEnv } from './server/env.js';
 import { mountJobs, background } from './server/events/routes.js';
 import { createNotify } from './server/notify/index.js';
 import { mountPayments, mountStripeWebhook } from './server/http/payments.js';
 import { mountBookings } from './server/http/bookings.js';
+import { mountOrders, mountAdminOrders } from './server/http/orders.js';
+import { createOrder } from './server/core/orders.js';
 import { mountTelegram } from './server/telegram/webhook.js';
 import { mountChat } from './server/http/chat.js';
 import { createAi } from './server/ai/index.js';
@@ -56,15 +59,16 @@ const buildings = createBuildings(path.join(__dirname, 'buildings'), { read: () 
 
 // What the core hands over after COMMIT (Outbox rows, jobs): delivered and published after the answer (03 §1 step 4).
 // render writes the message into the Outbox row; send exists only with a bot token (without it rows wait in the Outbox window).
-const notifyOpts = createNotify(process.env);
+const notifyOpts = createNotify(process.env, { db });
 const coreOpts = { render: notifyOpts.render, onCommit: fx => background(afterCommit(db, fx, notifyOpts), 'after commit') };
 
 // The consultant: the models (Gemini → Claude → scripts), the tools of the registry, the turn (07). One stack for the site chat.
 const settings = createSettings(db);
 const ai = createAi({ db, env: process.env, settings });
+notifyOpts.ai = ai;                       // the jobs run the lead qualifier with the models (07 §13.1)
 const kb = createKb({ db, ai, env: process.env });
 const tools = createTools({ db, settings, env: process.env, kb });
-const turns = createTurns({ db, ai, tools, env: process.env, settings, waitUntil: p => background(p, 'chat summary') });
+const turns = createTurns({ db, ai, tools, env: process.env, settings, waitUntil: p => background(p, 'chat summary'), core: coreOpts });
 
 app.set('trust proxy', 1);                 // the client's IP behind the Vercel / reverse proxy
 app.use(securityHeaders);                 // 14 §7: CSP, frames only from this site (the floor 3D iframe), short Referer…
@@ -75,15 +79,18 @@ mountStripeWebhook(app, db, coreOpts);     // the raw body for the Stripe signat
 mountTelegram(app, db, { core: coreOpts, turns, tools });  // Telegram webhook (10 §3): the secret, the answer at once, the bot in waitUntil
 mountBookings(app, db, coreOpts);          // booking: hold, personal link (13 §4); own 64 KB JSON parser
 mountChat(app, db, { turns, tools }, coreOpts);   // the site chat: POST /api/chat (SSE), confirm, feedback, messages (13 §6)
+mountOrders(app, db, coreOpts);            // the furniture order page data: GET /api/orders/by-ref/:ref (03 §13, S)
 mountPayments(app, db, coreOpts);          // payments: start, emulators (05 §12); own 64 KB JSON parser
 mountMini(app, db, { ...coreOpts, buildings, buildingId: BUILDING_ID, publicDir: path.join(__dirname, 'public') });   // /mini and /api/mini/* (Tg, 10 §7)
 const staffAuth = mountAdmin(app, db, { env: process.env });   // /api/admin/login|logout|me and the gate on /api/admin/*, /api/dashboard/* (12 §2)
 mountAdminBoard(app, db);                  // the chessboard and the apartment card (12 §3)
 mountAdminBookings(app, db, staffAuth, coreOpts);   // bookings and payments: lists, cards, extend, cancel, refunds (12 §4)
-mountAdminClients(app, db, staffAuth, coreOpts);    // clients, dialogs, the Telegram link of the staff member (12 §5, §12.3)
+mountAdminOrders(app, db, staffAuth, coreOpts);      // requests and furniture orders: list, card, files, stage (12 §12.2)
+mountAdminClients(app, db, staffAuth, { ...coreOpts, ai });    // clients, dialogs, the Telegram link of the staff member (12 §5, §12.3)
 mountAdminOutbox(app, db, staffAuth, coreOpts);      // the Outbox window (12 §6)
 mountAdminAi(app, db, staffAuth, { ...coreOpts, ai });   // AI journals, costs, the knowledge base (12 §8)
 mountAdminSystem(app, db, staffAuth, { ...coreOpts, ai, settings });   // settings, services, AI providers (12 §10)
+mountAdminAnalyst(app, db, staffAuth, { turns }, coreOpts);   // the head's read-only analyst: POST /api/admin/analyst (SSE, 07 §14)
 mountAdminDashboard(app, db, coreOpts);   // summary, charts and the live feed of the dashboard (12 §9)
 mountPersonalPages(app, { publicDir: path.join(__dirname, 'public'), legalDir: path.join(__dirname, 'legal') });   // /b/…, /pay/card|click/…, /legal/…
 app.use(express.json({ limit: '4mb' }));   // the order carries the drawing PNG and a 3D picture (≤ 1.5 MB each); Vercel takes ≤ 4.5 MB
@@ -198,9 +205,11 @@ app.post('/api/order', async (req, res) => {
   try {
     if (!(await store.allowOrder(req.ip))) return res.status(429).json({ error: 'too_many' });
     // Drawing and 3D picture: plan.png, 3d.jpg next to the order (orders/<id>/ or the order_files table).
-    const id = await store.addOrder(v.order, v.files, req.ip);
-    res.json({ ok: true, id });
+    // 03 §13: the client by the rules of §9, order.created; a furniture order with an estimate gets its prepayment page /o/…
+    const r = await createOrder(db, { order: v.order, files: v.files, ip: req.ip }, coreOpts);
+    res.json({ ok: true, id: r.no, ...(r.link && { link: r.link }) });
   } catch (e) {
+    if (e.code === 'phone_invalid' || e.code === 'name_invalid') return res.status(400).json({ error: 'invalid_order', field: e.code === 'phone_invalid' ? 'phone' : 'name' });
     res.status(500).json({ error: 'save_failed' });
   }
 });

@@ -22,6 +22,11 @@ body.adm2 { display: block; min-height: 100%; }
 .adm2-nav { display: flex; flex-direction: column; gap: 2px; padding: 14px 10px; border-right: 1px solid var(--line); background: var(--bg-2); }
 .adm2-nav a { padding: 8px 12px; border-radius: 8px; color: var(--muted); text-decoration: none; font-size: 13px; }
 .adm2-nav a:hover { color: var(--text); background: var(--surface-hi); }
+.adm2-navbadge { display: inline-block; min-width: 18px; margin-left: 6px; padding: 0 5px; border-radius: 9px; background: var(--st-held, #b7791f); color: #fff; font-size: 11px; line-height: 18px; text-align: center; }
+.adm2-navbadge[hidden] { display: none; }
+.adm2-inbox-row { cursor: pointer; padding: 8px 10px; border-left: 3px solid var(--line-2); }
+.adm2-inbox-row.waiting { border-left-color: var(--st-held, #b7791f); }
+.adm2-inbox-row:hover, .adm2-inbox-row:focus { background: var(--surface-hi); }
 .adm2-nav a.active { color: var(--gold-2); background: var(--gold-soft, rgba(201, 169, 110, .12)); }
 .adm2-view { padding: 18px 20px 40px; min-width: 0; }
 .adm2-h1 { margin: 0 0 12px; font: 600 26px/1.1 var(--f-display, serif); }
@@ -132,6 +137,9 @@ body.adm2-card-open .adm2-split.list { grid-template-columns: minmax(0, 1fr) min
 .adm2-badge.sc-none { color: var(--muted); }
 .adm2-feed { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 8px; font-size: 13px; }
 .adm2-feed li { border-left: 3px solid var(--line-2); padding: 2px 0 2px 10px; }
+.adm2-replybox { display: grid; gap: 6px; margin: 8px 0; }
+.adm2-reply { width: 100%; box-sizing: border-box; font: inherit; font-size: 13px; padding: 8px; border: 1px solid var(--line-2); border-radius: 8px; resize: vertical; background: transparent; color: inherit; }
+.adm2-draft { margin: 0; font-size: 12px; color: var(--st-held, #b7791f); }
 .adm2-feed li.msg-user { border-left-color: var(--st-booked); }
 .adm2-feed li.msg-assistant { border-left-color: var(--gold); }
 .adm2-feed li.msg-staff { border-left-color: var(--st-free); }
@@ -161,3 +169,22 @@ button.adm2-link { background: none; border: 0; padding: 0; font: inherit; curso
 .adm2-tree { margin: 0; padding-left: 18px; display: grid; gap: 10px; font-size: 13px; }
 .adm2-json { margin: 2px 0 0; padding: 4px 6px; font: 11px/1.4 ui-monospace, monospace; white-space: pre-wrap; overflow-wrap: anywhere; background: color-mix(in srgb, var(--text) 6%, transparent); border-radius: 4px; }
 .adm2-meter { width: 100%; height: 8px; accent-color: var(--st-held); }
+
+/* «Аналитик» (12 §11): the dialog, the starter questions, the table under the answer */
+.an-starters { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.an-log { display: flex; flex-direction: column; gap: 12px; margin: 12px 0; max-width: 900px; }
+.an-msg { padding: 10px 14px; border-radius: 12px; line-height: 1.5; }
+.an-msg.user { align-self: flex-end; background: var(--line, #ece6db); max-width: 70%; white-space: pre-wrap; }
+.an-msg.bot { align-self: stretch; border: 1px solid var(--line, #ece6db); }
+.an-text p { margin: 0 0 6px; }
+.an-table { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.an-table .adm2-tablewrap { width: 100%; }
+.an-form { display: flex; gap: 8px; align-items: flex-end; max-width: 900px; }
+.an-input { flex: 1; resize: vertical; min-height: 44px; font: inherit; padding: 8px 10px; }
+@media (max-width: 640px) { .an-form { flex-wrap: wrap; } .an-msg.user { max-width: 90%; } }
+
+/* Orders (12 §12.2) */
+.adm2-order-row { padding: 8px 10px; border-left: 3px solid var(--line-2); display: grid; gap: 4px; }
+.adm2-order-row .adm2-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.adm2-order-row textarea { width: 100%; }
+.adm2-filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }

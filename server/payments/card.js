@@ -5,8 +5,7 @@ import { fakeRef } from './index.js';
 import { checkCard } from './testCards.js';
 import { DomainError } from '../core/errors.js';
 import { context, inTx } from '../core/tx.js';
-import { markProcessing, markSucceeded, markFailed } from '../core/payments.js';
-import { bookingPath } from '../core/links.js';
+import { markProcessing, markSucceeded, markFailed, targetOf } from '../core/payments.js';
 import { failureText } from '../i18n/index.js';
 
 const CODE_MS = 5 * 60e3;
@@ -36,7 +35,8 @@ export function inspectByBase(payment) {
 
 const hashOf = (code, paymentId) => crypto.createHash('sha256').update(code + paymentId).digest('hex');
 const sum = n => Number(n).toLocaleString('ru-RU').replace(/\s/g, ' ');
-const live = (b, at) => b?.status === 'held' && b.expires_at > at;
+// the payment can no longer be taken: the hold is over, or the order prepayment's 30 min are
+export const goneReason = tg => (tg.type === 'order' ? 'session_expired' : 'hold_expired');
 
 // The closed payment as err:payment_closed carries it: the status and the reason.
 const closedError = p => new DomainError('payment_closed', { status: p.status, reason: p.failure_reason });
@@ -58,11 +58,11 @@ export async function submitCard(db, { paymentId, number, expiry }, opts = {}, p
     if (!['pending', 'processing'].includes(p.status)) throw closedError(p);                     // 2
     const checked = checkCard({ number, expiry }, at);                                           // 3–5
     if (checked.error) throw new DomainError(checked.error);
-    const b = await q.one('SELECT * FROM bookings WHERE id = $1 FOR UPDATE', [p.booking_id]);   // 6
-    if (!live(b, at)) return { closed: await markFailed(q, fx, ctx, { paymentId: p.id, reason: 'hold_expired' }) };
+    const tg = await targetOf(q, p, at, ctx.env, { lock: true });                                 // 6
+    if (!tg.live) return { closed: await markFailed(q, fx, ctx, { paymentId: p.id, reason: goneReason(tg) }) };
     const { brand, mask, scenario } = checked.card;
     const code = String(crypto.randomInt(0, 1_000_000)).padStart(6, '0');
-    const expiresAt = new Date(Math.min(at.getTime() + CODE_MS, b.expires_at.getTime()));
+    const expiresAt = new Date(Math.min(at.getTime() + CODE_MS, tg.until.getTime()));
     await q.query(`INSERT INTO payment_challenges (payment_id, code_hash, attempts, scenario, card_brand, card_mask, expires_at, created_at)
       VALUES ($1, $2, 0, $3, $4, $5, $6, $7)
       ON CONFLICT (payment_id) DO UPDATE SET code_hash = EXCLUDED.code_hash, attempts = 0, scenario = EXCLUDED.scenario,
@@ -94,8 +94,7 @@ export async function checkCode(q, fx, ctx, p, code) {
 
 // The answer of the confirm step: the status, the reason and where the page goes next.
 export async function resultOf(q, p, lang, env) {
-  const b = await q.one('SELECT * FROM bookings WHERE id = $1', [p.booking_id]);
-  const link = b ? bookingPath(b, env) : null;
+  const { link } = await targetOf(q, p, new Date(0), env);   // only the link: the time does not matter
   return {
     status: p.status, failureReason: p.failure_reason ?? null, failureText: failureText(p.failure_reason, lang),
     redirect: link && (p.status === 'succeeded' ? `${link}?paid=1` : link)
@@ -113,8 +112,8 @@ export async function confirmCard(db, { paymentId, code, lang = 'ru' }, opts = {
     const c = await checkCode(q, fx, ctx, p, code);                                              // 2–3
     if (c.wrong != null) return { wrong: c.wrong };
     if (c.failed) return resultOf(q, c.failed, lang, ctx.env);
-    const b = await q.one('SELECT * FROM bookings WHERE id = $1 FOR UPDATE', [p.booking_id]);   // 4: before the «charge»
-    if (!live(b, at)) p = await markFailed(q, fx, ctx, { paymentId: p.id, reason: 'hold_expired' });
+    const tg = await targetOf(q, p, at, ctx.env, { lock: true });                                 // 4: before the «charge»
+    if (!tg.live) p = await markFailed(q, fx, ctx, { paymentId: p.id, reason: goneReason(tg) });
     else if (c.challenge.scenario === 'success') {                                               // 5
       p = (await markSucceeded(q, fx, ctx, { paymentId: p.id, providerRef: fakeRef('card'),
         cardBrand: c.challenge.card_brand, cardMask: c.challenge.card_mask })).payment;

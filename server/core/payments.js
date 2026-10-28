@@ -8,6 +8,7 @@ import { context, inTx, notify, later } from './tx.js';
 import { confirmPaid, sweepExpired, settingsOf, effectiveStatus } from './bookings.js';
 import { requestRefund } from './refunds.js';
 import { bookingPath } from './links.js';
+import { confirmPrepaid, orderPath } from './orders.js';
 import { getProvider } from '../payments/index.js';
 import { failureText } from '../i18n/index.js';
 
@@ -15,6 +16,7 @@ export const OPEN = ['pending', 'processing'];
 const PAID = ['succeeded', 'refund_due', 'refunded'];
 const CODE_ABC = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';   // no look-alike letters (02 §3.6)
 const MIN_LEFT_MS = 60e3;                             // less left of the hold — the payment would almost surely be late
+const ORDER_PAY_MS = 30 * 60e3;                       // an order prepayment lives as long as the shortest Stripe session (05 §3.3)
 const SYSTEM = { type: 'system', id: null, role: 'system', channel: 'system' };
 const iso = d => new Date(d).toISOString();
 
@@ -27,11 +29,11 @@ async function lockPayment(q, id) {
   return p;
 }
 
-// startPayment (05 §3): input — { target: {bookingId}, provider, consent: {version} | null, lang, idempotencyKey }.
+// startPayment (05 §3): input — { target: {bookingId} | {orderId}, provider, consent: {version} | null, lang, idempotencyKey }.
 // Phase A — one transaction; phase B — provider.begin after COMMIT. → { paymentId, code, url }.
 export async function startPayment(db, input, actor, opts = {}) {
   const { target = {}, provider: providerId, consent = null, lang = 'ru', idempotencyKey = null } = input;
-  if (!target.bookingId) throw new DomainError('invalid_input');   // order prepayment (05 §3.3) comes with furniture orders
+  if (!target.bookingId === !target.orderId) throw new DomainError('invalid_input');
   const ctx = context(opts);
   const provider = await getProvider(providerId, ctx);
   const hash = crypto.createHash('sha256').update(JSON.stringify({ target, providerId, consent, lang })).digest('hex');
@@ -43,31 +45,8 @@ export async function startPayment(db, input, actor, opts = {}) {
       if (k && k.request_hash !== hash) throw new DomainError('idempotency_conflict');
       if (k) return { saved: k.response };
     }
-    await sweepExpired(q, fx, ctx, { bookingId: target.bookingId });                           // 2
-    const b = await q.one('SELECT * FROM bookings WHERE id = $1 FOR UPDATE', [target.bookingId]);
-    if (!b) throw new DomainError('booking_not_found');
-    if (actor?.type === 'client' && actor.id && actor.id !== b.client_id) throw new DomainError('forbidden');
-    if (b.status === 'booked') throw new DomainError('booking_already_paid');
-    if (b.status !== 'held') throw new DomainError('booking_closed');
-    const left = b.expires_at.getTime() - at.getTime();                                         // 3
-    if (left < MIN_LEFT_MS) throw new DomainError('hold_expiring', { n: Math.max(0, Math.round(left / 1000)) });
-    const s = await settingsOf(q, ctx);                                                         // 4
-    if (b.consent_version !== s.offer_version) {
-      if (consent?.version !== s.offer_version) throw new DomainError('consent_required');
-      await q.query('UPDATE bookings SET consent_version = $2, consent_at = $3, updated_at = $3 WHERE id = $1', [b.id, s.offer_version, at]);
-    }
-    if (!provider?.enabled()) throw new DomainError('provider_unavailable');                   // 5
-    await closeOpenPayments(q, fx, ctx, { bookingId: b.id, why: 'replaced' });                  // 6
-    const { currency, providerAmount } = provider.money(Number(b.deposit_amount));
-    let p = null;
-    for (let i = 0; !p && i < 5; i++) {                                                         // 7
-      p = await q.one(`INSERT INTO payments (code, kind, booking_id, client_id, provider, amount, currency, provider_amount,
-          status, expires_at, created_by, created_at, updated_at)
-        VALUES ($1, 'deposit', $2, $3, $4, $5, $6, $7, 'pending', $8, $9, $10, $10)
-        ON CONFLICT (code) DO NOTHING RETURNING *`,
-      [newCode(), b.id, b.client_id, provider.id, b.deposit_amount, currency, providerAmount, b.expires_at, JSON.stringify(actor), at]);
-    }
-    if (!p) throw new Error('no free payment code');
+    const p = target.orderId ? await openOrderPayment(q, fx, ctx, { orderId: target.orderId, provider, consent, actor })
+      : await openDepositPayment(q, fx, ctx, { bookingId: target.bookingId, provider, consent, actor });
     await emit(q, 'payment.started', refsOf(p), { provider: p.provider, amount: Number(p.amount), kind: p.kind }, actor, ctx);  // 8
     if (idempotencyKey) {
       await q.query(`INSERT INTO idempotency_keys (scope, key, request_hash, status, response, created_at)
@@ -80,8 +59,10 @@ export async function startPayment(db, input, actor, opts = {}) {
   const payment = a.payment ?? await db.one('SELECT * FROM payments WHERE id = $1', [a.saved.paymentId]);
   let begun;
   try {                                                                                          // 10
-    const booking = await db.one('SELECT no, apartment_no FROM bookings WHERE id = $1', [payment.booking_id]);  // Stripe names the line
-    begun = await provider.begin(payment, { lang, origin: ctx.env.PUBLIC_URL ?? '', booking });
+    // Stripe names the line by the booking or the order
+    const booking = payment.booking_id && await db.one('SELECT no, apartment_no FROM bookings WHERE id = $1', [payment.booking_id]);
+    const order = payment.order_id && await db.one('SELECT no, apartment_no FROM orders WHERE id = $1', [payment.order_id]);
+    begun = await provider.begin(payment, { lang, origin: ctx.env.PUBLIC_URL ?? '', booking: booking || {}, order: order || null });
   } catch (e) {                                                                                  // 12
     console.error('payment begin failed:', provider.id, e.message);
     await inTx(db, ctx, (q, fx) => markFailed(q, fx, ctx, { paymentId: payment.id, reason: 'provider_error' }));
@@ -98,6 +79,75 @@ export async function startPayment(db, input, actor, opts = {}) {
   return res;
 }
 
+// A new payment row with a free code (step 7). → the row.
+async function insertPayment(q, { kind, bookingId = null, orderId = null, clientId, provider, amount, expiresAt, actor, at }) {
+  const { currency, providerAmount } = provider.money(Number(amount));
+  for (let i = 0; i < 5; i++) {
+    const p = await q.one(`INSERT INTO payments (code, kind, booking_id, order_id, client_id, provider, amount, currency, provider_amount,
+        status, expires_at, created_by, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending', $10, $11, $12, $12)
+      ON CONFLICT (code) DO NOTHING RETURNING *`,
+    [newCode(), kind, bookingId, orderId, clientId, provider.id, amount, currency, providerAmount, expiresAt, JSON.stringify(actor), at]);
+    if (p) return p;
+  }
+  throw new Error('no free payment code');
+}
+
+// Steps 2–7 of 05 §3 for the deposit of a held booking. → the payment row.
+async function openDepositPayment(q, fx, ctx, { bookingId, provider, consent, actor }) {
+  const at = ctx.now();
+  await sweepExpired(q, fx, ctx, { bookingId });                                                // 2
+  const b = await q.one('SELECT * FROM bookings WHERE id = $1 FOR UPDATE', [bookingId]);
+  if (!b) throw new DomainError('booking_not_found');
+  if (actor?.type === 'client' && actor.id && actor.id !== b.client_id) throw new DomainError('forbidden');
+  if (b.status === 'booked') throw new DomainError('booking_already_paid');
+  if (b.status !== 'held') throw new DomainError('booking_closed');
+  const left = b.expires_at.getTime() - at.getTime();                                           // 3
+  if (left < MIN_LEFT_MS) throw new DomainError('hold_expiring', { n: Math.max(0, Math.round(left / 1000)) });
+  const s = await settingsOf(q, ctx);                                                           // 4
+  if (b.consent_version !== s.offer_version) {
+    if (consent?.version !== s.offer_version) throw new DomainError('consent_required');
+    await q.query('UPDATE bookings SET consent_version = $2, consent_at = $3, updated_at = $3 WHERE id = $1', [b.id, s.offer_version, at]);
+  }
+  if (!provider?.enabled()) throw new DomainError('provider_unavailable');                     // 5
+  await closeOpenPayments(q, fx, ctx, { bookingId: b.id, why: 'replaced' });                    // 6
+  return insertPayment(q, { kind: 'deposit', bookingId: b.id, clientId: b.client_id, provider, amount: b.deposit_amount,   // 7
+    expiresAt: b.expires_at, actor, at });
+}
+
+// 05 §3.3: the prepayment of a furniture order — no hold, so no step 3; the payment lives 30 min.
+async function openOrderPayment(q, fx, ctx, { orderId, provider, consent, actor }) {
+  const at = ctx.now();
+  const o = await q.one('SELECT * FROM orders WHERE id = $1 FOR UPDATE', [orderId]);
+  if (!o || o.kind !== 'furniture') throw new DomainError('order_not_found');
+  if (actor?.type === 'client' && actor.id && actor.id !== o.client_id) throw new DomainError('forbidden');
+  if (o.prepaid_at) throw new DomainError('order_already_paid');
+  if (o.stage === 'cancelled' || !(Number(o.prepay_amount) > 0)) throw new DomainError('order_closed');
+  const s = await settingsOf(q, ctx);
+  if (o.consent_version !== s.offer_version) {
+    if (consent?.version !== s.offer_version) throw new DomainError('consent_required');
+    await q.query('UPDATE orders SET consent_version = $2, updated_at = $3 WHERE id = $1', [o.id, s.offer_version, at]);
+  }
+  if (!provider?.enabled()) throw new DomainError('provider_unavailable');
+  await closeOpenPayments(q, fx, ctx, { orderId: o.id, why: 'replaced' });
+  return insertPayment(q, { kind: 'furniture_prepay', orderId: o.id, clientId: o.client_id, provider, amount: o.prepay_amount,
+    expiresAt: new Date(at.getTime() + ORDER_PAY_MS), actor, at });
+}
+
+// What a payment pays for, as the providers and pages need it (05 §4–§6): live — the money may still be taken; until — the
+// latest moment for it; link — where the client goes back; status — of the booking or the order. lock — FOR UPDATE on it.
+export async function targetOf(q, p, at, env, { lock = false } = {}) {
+  const forUpdate = lock ? ' FOR UPDATE' : '';
+  if (p.order_id) {
+    const o = await q.one(`SELECT * FROM orders WHERE id = $1${forUpdate}`, [p.order_id]);
+    return { type: 'order', row: o, live: !!o && o.stage !== 'cancelled' && !o.prepaid_at && p.expires_at > at,
+      until: p.expires_at, link: o ? orderPath(o, env) : null, status: o?.stage ?? null };
+  }
+  const b = p.booking_id ? await q.one(`SELECT * FROM bookings WHERE id = $1${forUpdate}`, [p.booking_id]) : null;
+  return { type: 'booking', row: b, live: !!b && b.status === 'held' && b.expires_at > at,
+    until: b?.expires_at ?? null, link: b ? bookingPath(b, env) : null, status: b ? effectiveStatus(b, at) : null };
+}
+
 // pending → processing (card accepted and the code given / Click Prepare). Only from an open status. → the row | null.
 export async function markProcessing(q, fx, ctx, { paymentId, providerRef = null, clickPrepareId = null, cardBrand = null, cardMask = null }) {
   const p = await lockPayment(q, paymentId);
@@ -109,7 +159,7 @@ export async function markProcessing(q, fx, ctx, { paymentId, providerRef = null
 }
 
 // 05 §7.1. The money came: confirmPaid decides booking or late payment; a repeat changes nothing (FR-PAY-05).
-// → { result: 'booked' | 'late' | 'duplicate' | 'already' | 'invalid', payment }.
+// → { result: 'booked' | 'prepaid' | 'late' | 'duplicate' | 'already' | 'invalid', payment }.
 export async function markSucceeded(q, fx, ctx, { paymentId, providerRef = null, providerPaymentRef = null, cardBrand = null, cardMask = null }) {
   const at = ctx.now();
   const p = await lockPayment(q, paymentId);                                                    // 1
@@ -122,9 +172,10 @@ export async function markSucceeded(q, fx, ctx, { paymentId, providerRef = null,
     }
     late = true;                                                                                // Stripe paid after we closed it (§6.7)
   }
-  if (p.kind !== 'deposit') throw new DomainError('invalid_input');                              // orders.confirmPrepaid — with the orders
-  const result = await confirmPaid(q, fx, ctx, { bookingId: p.booking_id, payment: p, late });   // 4
-  const ok = result === 'booked';
+  const result = p.kind === 'furniture_prepay'                                                   // 4
+    ? await confirmPrepaid(q, fx, ctx, { orderId: p.order_id, payment: p })
+    : await confirmPaid(q, fx, ctx, { bookingId: p.booking_id, payment: p, late });
+  const ok = result === 'booked' || result === 'prepaid';
   let row = await q.one(`UPDATE payments SET status = $2, succeeded_at = $3, provider_ref = COALESCE($4, provider_ref),
       provider_payment_ref = COALESCE($5, provider_payment_ref), card_brand = COALESCE($6, card_brand),
       card_mask = COALESCE($7, card_mask), failure_reason = NULL, updated_at = $3, version = version + 1
@@ -186,12 +237,12 @@ export async function paymentView(q, id, lang = 'ru', opts = {}) {
   const ctx = context(opts);
   const p = await q.one('SELECT * FROM payments WHERE id = $1', [id]);
   if (!p) throw new DomainError('payment_not_found');
-  const b = p.booking_id && await q.one('SELECT * FROM bookings WHERE id = $1', [p.booking_id]);
+  const tg = await targetOf(q, p, ctx.now(), ctx.env);
   return {
     code: p.code, provider: p.provider, status: p.status, failureReason: p.failure_reason,
     failureText: failureText(p.failure_reason, lang), amount: Number(p.amount), expiresAt: p.expires_at && iso(p.expires_at),
     cardBrand: p.card_brand, cardMask: p.card_mask,
-    target: b ? { type: 'booking', no: b.no, status: effectiveStatus(b, ctx.now()), link: bookingPath(b, ctx.env) } : null
+    target: tg.row ? { type: tg.type, no: tg.row.no, status: tg.status, link: tg.link } : null
   };
 }
 
@@ -204,9 +255,9 @@ export function paymentJobHandlers(opts = {}, fx = { outbox: [], jobs: [] }) {
       const p = await q.one('SELECT * FROM payments WHERE id = $1 FOR UPDATE', [job.payload.paymentId]);
       const stripeClosed = p?.provider === 'stripe' && p.status === 'cancelled';
       if (!p || (!OPEN.includes(p.status) && !stripeClosed)) return 'skipped';
-      const b = p.booking_id && await q.one('SELECT * FROM bookings WHERE id = $1', [p.booking_id]);
-      const status = b ? effectiveStatus(b, now()) : null;
-      if (OPEN.includes(p.status) && status === 'held') return 'skipped';                     // the hold is alive: nothing to close
+      const tg = await targetOf(q, p, now(), ctx.env);
+      const status = tg.type === 'booking' ? tg.status : null;
+      if (OPEN.includes(p.status) && tg.live) return 'skipped';                               // the hold is alive: nothing to close
       if (p.provider === 'stripe') {
         const provider = await getProvider('stripe', ctx);
         if (await provider.close(p) === 'paid') {
@@ -216,7 +267,7 @@ export function paymentJobHandlers(opts = {}, fx = { outbox: [], jobs: [] }) {
         }
         if (stripeClosed) return 'done';
       }
-      await cancelPayment(q, fx, ctx, { paymentId: p.id, why: status === 'hold_expired' ? 'hold_expired' : 'booking_closed' });
+      await cancelPayment(q, fx, ctx, { paymentId: p.id, why: status === 'hold_expired' ? 'hold_expired' : tg.type === 'order' ? 'session_expired' : 'booking_closed' });
       return 'done';
     }
   };

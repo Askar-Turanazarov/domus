@@ -1,8 +1,7 @@
 // Stripe Checkout (05 §6, D-05): test mode only. The SDK is loaded lazily (01 §6): the emulators do not need it.
 // opts.stripe — a client given by tests instead of the real one; the signature is always checked by the real library.
 import { context, inTx } from '../core/tx.js';
-import { markSucceeded, markFailed, cancelPayment, OPEN } from '../core/payments.js';
-import { bookingPath } from '../core/links.js';
+import { markSucceeded, markFailed, cancelPayment, OPEN, targetOf } from '../core/payments.js';
 import { applyRefundResult } from '../core/refunds.js';
 
 const SESSION_MIN = 31;                                    // Stripe takes no less than 30 minutes (§6.3)
@@ -11,6 +10,11 @@ const NAME = {
   ru: (apt, no) => [`Депозит за бронь квартиры №${apt} — ЖК Chinor Park`, `Бронь №${no} · учебный проект Domus Estate`],
   uz: (apt, no) => [`№${apt} xonadonni bron qilish uchun depozit — Chinor Park TJM`, `Bron №${no} · Domus Estate o‘quv loyihasi`],
   en: (apt, no) => [`Deposit for apartment No. ${apt} — Chinor Park`, `Booking No. ${no} · Domus Estate training project`]
+};
+const ORDER_NAME = {
+  ru: no => [`Предоплата 30% за мебель — заказ №${no}`, 'Учебный проект Domus Estate'],
+  uz: no => [`Mebel uchun 30% oldindan to‘lov — buyurtma №${no}`, 'Domus Estate o‘quv loyihasi'],
+  en: no => [`30% furniture prepayment — order No. ${no}`, 'Domus Estate training project']
 };
 
 // 05 §6.1–6.2, 16 §5: the key must be a test one; sk_live_ turns Stripe off (14 §9).
@@ -74,9 +78,9 @@ export function stripeProvider(env = process.env, opts = {}) {
     enabled: () => cfg.ok,
     money: amount => stripeMoney(amount, cfg),
 
-    // §6.3. ctx — { lang, origin, booking: { no, apartment_no } }. → { url, ref: session id }.
-    begin: async (payment, { lang = 'ru', origin = '', booking = {} } = {}) => {
-      const [name, description] = (NAME[lang] ?? NAME.ru)(booking.apartment_no, booking.no);
+    // §6.3. ctx — { lang, origin, booking: { no, apartment_no }, order: { no, apartment_no } | null }. → { url, ref: session id }.
+    begin: async (payment, { lang = 'ru', origin = '', booking = {}, order = null } = {}) => {
+      const [name, description] = order ? (ORDER_NAME[lang] ?? ORDER_NAME.ru)(order.no) : (NAME[lang] ?? NAME.ru)(booking.apartment_no, booking.no);
       const back = `${origin}/pay/return?payment=${payment.id}`;
       const s = await (await client()).checkout.sessions.create({
         mode: 'payment',
@@ -85,7 +89,7 @@ export function stripeProvider(env = process.env, opts = {}) {
         locale: LOCALE[lang] ?? 'auto',
         line_items: [{ quantity: 1, price_data: { currency: String(payment.currency).toLowerCase(),
           unit_amount: Number(payment.provider_amount), product_data: { name, description } } }],
-        metadata: { paymentId: payment.id, paymentCode: payment.code, kind: payment.kind, bookingNo: String(booking.no ?? '') },
+        metadata: { paymentId: payment.id, paymentCode: payment.code, kind: payment.kind, bookingNo: String(booking.no ?? ''), ...(order && { orderNo: String(order.no) }) },
         payment_intent_data: { description: `Domus Estate ${payment.code}`, metadata: { paymentId: payment.id, paymentCode: payment.code } },
         expires_at: Math.floor(now().getTime() / 1000) + SESSION_MIN * 60,
         success_url: `${back}&session_id={CHECKOUT_SESSION_ID}`,
@@ -191,8 +195,7 @@ export async function stripeReturn(db, query, opts = {}) {
   const ctx = context(opts);
   const p = await db.one('SELECT * FROM payments WHERE id = $1', [query.payment]);
   if (!p) return null;
-  const b = p.booking_id && await db.one('SELECT * FROM bookings WHERE id = $1', [p.booking_id]);
-  const link = b ? bookingPath(b, ctx.env) : '/';
+  const link = (await targetOf(db, p, ctx.now(), ctx.env)).link ?? '/';
   if (p.provider === 'click') return `${link}?pending=${p.id}`;
   if (p.provider !== 'stripe' || !OPEN.includes(p.status)) return p.status === 'succeeded' ? `${link}?paid=1` : link;
   const provider = stripeProvider(ctx.env, ctx);

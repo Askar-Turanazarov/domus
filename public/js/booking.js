@@ -184,6 +184,8 @@ function bookedBlocks() {
       t('bk.page.paidBy', { method: `${methodName(p.provider)}${p.mask ? ` ${p.mask}` : ''}` })].join(' · ') }))];
   out.push(el('section', { className: 'bkp-card' }, el('h3', { textContent: t('bk.page.next') }),
     el('ol', { className: 'bkp-steps' }, ...['next1', 'next2', 'next3'].map(k => el('li', { textContent: t(`bk.page.${k}`) })))));
+  out.push(el('div', { className: 'bkp-row' }, el('a', { className: 'btn', href: `/b/${encodeURIComponent(ref)}/confirmation.pdf?lang=${getLang()}`,
+    download: '', textContent: t('bk.page.pdf') })));
   out.push(el('div', { className: 'bkp-row' }, data.telegramLinked
     ? el('p', { className: 'hint', textContent: t('bk.page.tgOn') })
     : el('button', { type: 'button', className: 'btn', textContent: t('bk.page.tg'), onclick: e => telegramLink(e.currentTarget) })));

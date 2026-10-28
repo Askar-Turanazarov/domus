@@ -114,6 +114,19 @@ function summary() {
     : head + t('order.summary', { L, W, H, n: state.items.length });
 }
 
+// 11 §7.3 (S): a furniture order with an estimate answers with its page /o/… — the prepayment is made there.
+function showPayLink(data) {
+  const make = (tag, props) => Object.assign(document.createElement(tag), props);
+  const dlg = make('dialog', { className: 'order-paid' });
+  const row = make('div', { className: 'btn-row end' });
+  row.append(make('button', { type: 'button', className: 'btn ghost', textContent: t('order.cancel'), onclick: () => dlg.close() }),
+    make('a', { className: 'btn primary', href: data.link, textContent: t('order.goPay') }));
+  dlg.append(make('p', { textContent: t('order.okPay', { id: data.id }) }), row);
+  dlg.addEventListener('close', () => dlg.remove());
+  document.body.append(dlg);
+  dlg.showModal();
+}
+
 export function initOrder() {
   const dlg = $('orderDlg');
   const form = $('orderForm');
@@ -156,7 +169,8 @@ export function initOrder() {
       lastSent = { id: data.id, key: roomsKey(rooms) };
       dlg.close();
       form.reset();
-      toast(t('order.ok', { id: data.id }));
+      if (/^/o/d+-[w-]{32}$/.test(data.link ?? '')) showPayLink(data);
+      else toast(t('order.ok', { id: data.id }));
     } catch {
       toast(t('order.fail'), true);
     }

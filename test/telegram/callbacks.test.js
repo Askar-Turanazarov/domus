@@ -171,7 +171,7 @@ test('the bot is removed from the group: the Outbox skips the group («blocked»
   assert.equal((await db.one("SELECT value FROM settings WHERE key = 'staff_chat'")).value.state, 'ok');
 });
 
-test('the dead «Связаться с менеджером» button under a reminder answers with an alert instead of spinning', async () => {
+test('without the agent the «Связаться с менеджером» button under a reminder answers with an alert instead of spinning', async () => {
   const w = world();
   await w.press('mgr', FROM, { id: FROM.id, type: 'private' });
   assert.equal(w.answers().at(-1).show_alert, true);

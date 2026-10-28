@@ -237,6 +237,12 @@ export async function releaseHold(db, { bookingId }, actor, opts = {}) {
 }
 
 // booking.expire at the deadline and reminders still ahead (more than 30 s left, 04 §6.1).
+// The confirmation PDF right after «Бронь подтверждена» (05 §10.4): built when the row is delivered, not now.
+export function pdfMessage(b, suffix = '') {
+  return { template: 'booking_pdf', audience: 'client', clientId: b.client_id, vars: { bookingNo: b.no },
+    op: 'send_document', attachment: { kind: 'booking_pdf', bookingId: b.id }, dedupeKey: `pdf:${b.id}${suffix}` };
+}
+
 async function scheduleBookingJobs(q, fx, ctx, b, s) {
   const at = ctx.now().getTime();
   const exp = iso(b.expires_at);
@@ -277,6 +283,7 @@ export async function confirmPaid(q, fx, ctx, { bookingId, payment, late = false
   await notify(q, fx, ctx, { template: 'booking_confirmed', audience: 'client', clientId: b.client_id,
     vars: { apt: b.apartment_no, until: iso(booked.expires_at), bookingNo: b.no, deposit: b.deposit_amount, link },
     eventId: ev, dedupeKey: `booking_confirmed:${b.id}` });
+  await notify(q, fx, ctx, pdfMessage(b));
   const c = await q.one('SELECT * FROM clients WHERE id = $1', [b.client_id]);
   const apt = await q.one('SELECT rooms, area, price FROM apartments WHERE no = $1', [b.apartment_no]);
   await notify(q, fx, ctx, { template: 'staff_booking_paid', audience: 'staff_group',

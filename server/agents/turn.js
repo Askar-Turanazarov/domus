@@ -8,7 +8,11 @@ import { t } from '../i18n/index.js';
 import { aptUrl } from '../tools/common.js';
 import { route, shortcut } from './router.js';
 import { runAgent, smalltalk } from './agent.js';
-import { contextBlock, digestOf, memoryLine } from './context.js';
+import { contextBlock, digestOf, memoryLine, analystContext } from './context.js';
+import { analystTable } from './analystTable.js';
+import { scheduleQualify } from './qualifier.js';
+import { clientWroteToHuman } from '../core/dialogs.js';
+import { publishJobs } from '../events/runner.js';
 import { mask, forStorage } from './pii.js';
 import { confirmCard, textConsent } from './confirm.js';
 import { bookingCard } from './bookingCard.js';
@@ -23,8 +27,9 @@ const BOT = /(?:\bбот\b|\bробот|\bbot\b|\brobot|сунъий|sun[ʼ'‘]
 
 const usage0 = { input: 0, output: 0, cached: 0 };
 
-// deps — { db, ai, tools, env, settings?, log?, waitUntil? }; waitUntil(promise) keeps background work alive (Vercel).
-export function createTurns({ db, ai, tools, env = process.env, settings = null, log = console, waitUntil = null }) {
+// deps — { db, ai, tools, env, settings?, log?, waitUntil?, core? }; waitUntil(promise) keeps background work alive (Vercel);
+// core — { render, onCommit } of the core: the agent's changes write rendered Outbox rows and deliver them after COMMIT.
+export function createTurns({ db, ai, tools, env = process.env, settings = null, log = console, waitUntil = null, core = {} }) {
   const now = clockNow;
   const conf = () => settingsOf(db, { settings });
 
@@ -49,6 +54,18 @@ export function createTurns({ db, ai, tools, env = process.env, settings = null,
       RETURNING id`, [conv.id, role, text, blocks ? JSON.stringify(blocks) : null, turnId, at]);
     await db.query(`UPDATE conversations SET message_count = message_count + 1, last_message_at = $2, updated_at = $2 WHERE id = $1`, [conv.id, at]);
     return m.id;
+  }
+
+  // 07 §13.1: each message of the client moves the qualifier to «this message + 10 min»; a failure never stops the turn.
+  async function requalify(conv, messageId) {
+    if (conv.kind !== 'client' || !conv.client_id) return;
+    try {
+      const jobs = await db.tx(q => scheduleQualify(q, { conversationId: conv.id, messageId }, { now }));
+      const bg = publishJobs(db, jobs, { env, now }).catch(e => log.warn?.('qualify publish failed:', e.message));
+      if (waitUntil) waitUntil(bg); else await bg;
+    } catch (e) {
+      log.error?.('qualify schedule failed:', e.message);
+    }
   }
 
   async function journal(turnId, conv, run, role = 'tools') {
@@ -251,6 +268,7 @@ export function createTurns({ db, ai, tools, env = process.env, settings = null,
     const stored = forStorage(input, lang0);
     const userMsgId = await saveMessage(conv, 'user', stored || (intent ? `[${intent}]` : ''), { turnId,
       blocks: intent ? [{ type: 'press', data: { intent, payload } }] : null });
+    await requalify(conv, userMsgId);
     const got = await lock(conv.id, turnId);
     if (!got) return { turnId, status: 'queued' };
     conv = got;
@@ -282,7 +300,7 @@ export function createTurns({ db, ai, tools, env = process.env, settings = null,
     const deadline = now().getTime() + TURN_MS;
     const out = { lang: conv.lang, runs: [], texts: [], blocks: [], suggestions: null, more: [] };
     const toolCtx = { actor, source: 'agent', lang: out.lang, turnId, conversationId: conv.id, contactPhone: state.contactPhone ?? null,
-      summary: conv.summary ?? '', onCommit: null };
+      summary: conv.summary ?? '', onCommit: core.onCommit ?? null, render: core.render ?? null };
     // say — one more piece of the answer; streamed — its text already went to the sink as deltas.
     out.say = (agent, txt, { streamed = false } = {}) => {
       if (!txt) return;
@@ -292,9 +310,12 @@ export function createTurns({ db, ai, tools, env = process.env, settings = null,
     if (cut) out.say('scripted', t(out.lang, 'agent.long_message'));
     if (masked.card) out.say('scripted', t(out.lang, 'agent.card_in_chat'));
 
-    const sc = shortcut({ text: input, intent, payload, mode: conv.mode });
+    // 07 §9: with a manager the agent keeps quiet (the message is stored, the group hears of it); after 24 h without a manager's
+    // reply the dialog is back with the AI and this turn is answered as usual.
+    let mode = conv.mode;
+    if (mode === 'human') mode = (await clientWroteToHuman(db, { conversationId: conv.id, text: input }, { now, env, ...core })).mode;
+    const sc = shortcut({ text: input, intent, payload, mode });
     if (sc?.kind === 'human') {
-      // 07 §9: the manager answers; the agent keeps quiet (the message is stored).
       sink({ type: 'done', data: { turnId, messageId: null } });
       return { turnId, status: 'human' };
     }
@@ -414,6 +435,49 @@ export function createTurns({ db, ai, tools, env = process.env, settings = null,
     }
   }
 
+  // 07 §14: the head's analyst — no router, every message goes straight to the agent `analyst`, whose tools only read.
+  // The answer is the text and one table built by code from the last report of the turn (12 §11).
+  async function runAnalyst({ conversationId, text = '', actor, sink = () => {} }) {
+    const turnId = randomUUID();
+    let conv = await db.one('SELECT * FROM conversations WHERE id = $1', [conversationId]);
+    if (conv?.kind !== 'analyst') throw new Error('no conversation');
+    const lang = conv.lang;
+    const finish = (txt, messageId = null) => {
+      if (txt) sink({ type: 'text', agent: 'analyst', delta: txt });
+      sink({ type: 'done', data: { turnId, messageId } });
+    };
+    const limits = (await conf()).chat_limits;
+    const who = `chat:staff:${actor.id}`;
+    if (await over(`${who}:m`, limits.perMinute, 60e3) || await over(`${who}:d`, limits.perDay, 86400e3)) {
+      const txt = template('rate_limited', lang).text;
+      finish(txt);
+      return { turnId, status: 'rate_limited', text: txt };
+    }
+    const input = String(text ?? '').slice(0, MAX_TEXT);
+    const userMsgId = await saveMessage(conv, 'user', forStorage(input, lang), { turnId });
+    const got = await lock(conv.id, turnId);
+    if (!got) return { turnId, status: 'queued' };
+    conv = got;
+    try {
+      const h = await history(conv, userMsgId, lang);
+      const toolCtx = { actor, source: 'agent', lang, turnId, conversationId: conv.id };
+      const r = await runAgent({ ai, tools, agent: 'analyst', message: mask(input, lang).text, context: analystContext({ now: now(), lang }),
+        history: h.messages, toolCtx, lang, deadline: now().getTime() + TURN_MS, onEvent: sink });
+      let full = r.text;
+      if (r.error === 'unavailable') { full = t(lang, 'err.ai_unavailable'); sink({ type: 'text', agent: 'analyst', delta: full }); }
+      else if (r.error === 'turn_timeout') { full = template('turn_timeout', lang).text; sink({ type: 'text', agent: 'analyst', delta: full }); }
+      const table = r.ok !== false ? analystTable(r, lang) : null;
+      const blocks = [];
+      if (table) emitBlocks([table], { blocks }, sink);
+      const messageId = await saveMessage(conv, 'assistant', full, { turnId, blocks: blocks.length ? blocks : null });
+      await journal(turnId, conv, r);
+      finish(null, messageId);
+      return { turnId, status: 'answered', messageId, text: full, blocks, tools: r.calls.map(c => c.name) };
+    } finally {
+      await unlock(conv.id, turnId);
+    }
+  }
+
   // §6.3: more than 20 messages and the summary is 10 messages old → the fast model rewrites it (≤ 600 chars, no names or phones).
   async function summarize(conversationId) {
     const c = await db.one('SELECT id, summary, message_count, state, lang FROM conversations WHERE id = $1', [conversationId]);
@@ -435,7 +499,7 @@ export function createTurns({ db, ai, tools, env = process.env, settings = null,
     return text;
   }
 
-  return { runTurn, summarize };
+  return { runTurn, runAnalyst, summarize };
 }
 
 

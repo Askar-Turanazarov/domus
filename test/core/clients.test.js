@@ -113,12 +113,12 @@ test('R6: a confirmation skipped before the link is sent right after «Гото�
   const code = await db.tx(q => issueLinkCode(q, { clientId: web.id, bookingId: b.id }));
   await attachTelegram(db, { code, telegram: { userId: 77, chatId: 77 } });
   assert.deepEqual((await outboxOf()).map(r => [r.template, r.status, r.chat_id == null ? null : Number(r.chat_id)]),
-    [['booking_confirmed', 'skipped', null], ['link_telegram_done', 'pending', 77], ['booking_confirmed', 'pending', 77]]);
+    [['booking_confirmed', 'skipped', null], ['link_telegram_done', 'pending', 77], ['booking_confirmed', 'pending', 77], ['booking_pdf', 'pending', 77]]);
 
   const late = await site({ name: 'Борис', phone: '+998901112233' });
   const gone = await makeBooking(db, { apartmentNo: 42, clientId: late.id, status: 'hold_expired', minutes: -10 });
   await skippedConfirmation(gone, late.id);
   const code2 = await db.tx(q => issueLinkCode(q, { clientId: late.id, bookingId: gone.id }));
   await attachTelegram(db, { code: code2, telegram: { userId: 88, chatId: 88 } });
-  assert.equal((await outboxOf()).length, 5, 'only «Готово!» for the lost hold');
+  assert.equal((await outboxOf()).length, 6, 'only «Готово!» for the lost hold');
 });

@@ -2,10 +2,10 @@
 // real HTTP requests, the link to the live Click. The live mode is switched only by variables (FR-PAY-04).
 import crypto from 'node:crypto';
 import { fakeRef } from './index.js';
-import { inspectByBase, submitCard, checkCode, resultOf } from './card.js';
+import { inspectByBase, submitCard, checkCode, resultOf, goneReason } from './card.js';
 import { DomainError } from '../core/errors.js';
 import { context, inTx } from '../core/tx.js';
-import { markProcessing, markSucceeded, markFailed } from '../core/payments.js';
+import { markProcessing, markSucceeded, markFailed, targetOf } from '../core/payments.js';
 
 const KEYS = ['CLICK_SERVICE_ID', 'CLICK_MERCHANT_ID', 'CLICK_MERCHANT_USER_ID', 'CLICK_SECRET_KEY'];
 const EMULATOR = { CLICK_SERVICE_ID: '10000', CLICK_MERCHANT_ID: '20000', CLICK_MERCHANT_USER_ID: '30000', CLICK_SECRET_KEY: 'mock-click-secret-key' };
@@ -91,15 +91,13 @@ export async function handleClick(db, body = {}, action, opts = {}) {
     if (['succeeded', 'refund_due', 'refunded'].includes(p.status)) return done(-4);                                           // 6
     if (['failed', 'cancelled'].includes(p.status)) return done(-9);                                                           // 7
     const trans = String(body.click_trans_id);
-    const holdAlive = async () => {
-      const b = await q.one('SELECT * FROM bookings WHERE id = $1 FOR UPDATE', [p.booking_id]);
-      return b?.status === 'held' && b.expires_at > at;
-    };
+    const target = () => targetOf(q, p, at, ctx.env, { lock: true });
 
     if (action === 0) {
       if (p.status === 'processing') return done(p.provider_ref === trans ? 0 : -9, p.provider_ref === trans ? Number(p.click_prepare_id) : null);  // 2, 3
-      if (!(await holdAlive())) {                                                                                              // 4
-        await markFailed(q, fx, ctx, { paymentId: p.id, reason: 'hold_expired' });
+      const tg = await target();
+      if (!tg.live) {                                                                                              // 4
+        await markFailed(q, fx, ctx, { paymentId: p.id, reason: goneReason(tg) });
         return done(-9);
       }
       const { id } = await q.one(`SELECT nextval('click_prepare_seq')::int AS id`);                                            // 5
@@ -112,8 +110,9 @@ export async function handleClick(db, body = {}, action, opts = {}) {
       await markFailed(q, fx, ctx, { paymentId: p.id, reason: Number(body.error) === -5017 ? 'insufficient_funds' : 'bank_declined' });
       return done(-9);
     }
-    if (!(await holdAlive())) {                                                                                                // 4: Click cancels the charge itself
-      await markFailed(q, fx, ctx, { paymentId: p.id, reason: 'hold_expired' });
+    const tg = await target();
+    if (!tg.live) {                                                                                                // 4: Click cancels the charge itself
+      await markFailed(q, fx, ctx, { paymentId: p.id, reason: goneReason(tg) });
       return done(-9);
     }
     await markSucceeded(q, fx, ctx, { paymentId: p.id, providerRef: trans });                                                 // 5

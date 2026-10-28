@@ -1,3 +1,129 @@
+# Domus Estate — ЖК «Chinor Park»
+
+**[Domus Estate](#domus-estate--жк-chinor-park) · [Domus (planner): English](#english) · [O‘zbekcha](#ozbekcha) · [Русский](#русский)**
+
+Дипломный проект: платформа продаж новостройки поверх планировщика мебели Domus. Клиент выбирает квартиру в 3D, бронирует её с депозитом и оплачивает (эмуляторы UzCard/HUMO и Click, Stripe в тестовом режиме), ИИ-консультант отвечает на сайте и в Telegram, менеджеры работают в админке, руководитель смотрит дашборд и спрашивает Claude Desktop через MCP. ЖК и застройщик вымышленные.
+
+**Продакшен:** https://domus-askar.vercel.app
+
+![Витрина ЖК Chinor Park](public/og/building-ru.png)
+
+**Одно ядро — много входов.** Все правила (статусы квартир, брони, сроки, оплаты, права) живут в `server/core/`. Сайт, мини-апп Telegram, бот, ИИ-агенты, админка, дашборд и MCP только зовут ядро — поэтому двойная бронь или оплата мимо правил невозможна ни с одного входа.
+
+```mermaid
+flowchart LR
+  W[Сайт и 3D-витрина] --> C
+  M[Мини-апп Telegram] --> C
+  B[Telegram-бот] --> C
+  A[ИИ-агенты: Gemini / Claude] --> C
+  D[Админка и дашборд] --> C
+  P[MCP: Claude Desktop] --> C
+  C[server/core: брони, оплаты, сроки, права] --> DB[(Postgres: Neon / PGlite)]
+  C --> O[Outbox → Telegram]
+```
+
+### Быстрый старт локально
+
+Нужен Node 24 (`engines`; работает и на 22+). Ключи не обязательны: без `DATABASE_URL` база — PGlite в папке `.pglite/`, без ключа Gemini чат отвечает сценариями.
+
+```bash
+npm ci
+cp .env.example .env          # заполнить SESSION_SECRET, LINK_SECRET, LOG_SALT (любые длинные случайные строки)
+npm run db:migrate
+npm run seed -- --base --demo # квартиры, настройки и 30 дней демо-истории
+npm run staff -- add --login aziz --name "Азиз" --role head   # пароль спросит скрыто
+npm start                     # http://localhost:3000
+```
+
+Витрина — `/ru` (`/uz`, `/en`), планировщик — `/ru/planner`, админка — `/admin`, дашборд — `/dashboard`, мини-апп — `/mini`.
+
+### Тесты
+
+| Команда | Что | Нужно |
+|---|---|---|
+| `npm test` | Все автотесты (≈ 940) на PGlite в памяти | Ничего |
+| `npm run test:neon` | Параллельные брони и повтор вебхуков на настоящем Neon | `TEST_DATABASE_URL` (ветка `test`) |
+| `npm run eval:agents` | 20 контрольных вопросов агентам (`eval/agents-control.json`) | `GEMINI_API_KEY` |
+| `npm run eval:kb` | Поиск по базе знаний (`eval/kb-golden.json`) | `GEMINI_API_KEY`, после `npm run kb:index` |
+| `npm run bench -- --url …` | Замеры NFR-PERF (см. «Результаты») | Чат — ключ Gemini; `--write` — только локально или на тестовой базе |
+
+### Деплой (Vercel + Neon + QStash)
+
+1. Neon: проект, ветка `main` (продакшен), регион Франкфурт. Строку подключения — в `DATABASE_URL` на Vercel.
+2. Vercel: импорт репозитория, регион функций `fra1` (уже в `vercel.json`). Переменные — по `.env.example` (только имена; значения вводит владелец): `PUBLIC_URL`, `SESSION_SECRET`, `LINK_SECRET`, `LOG_SALT`, `CRON_SECRET`, `DATABASE_URL`, `TELEGRAM_*`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `STRIPE_*`, `QSTASH_*`, `MCP_*`, `BLOB_*`.
+3. Схема и данные — **до** деплоя кода: `node --env-file=.env.neon scripts/migrate.js --yes`, затем `npm run seed -- --base --yes` с той же строкой.
+4. Push в `main` → Vercel собирает.
+5. Telegram: `npm run tg:setup` ставит вебхук и команды бота.
+6. База знаний: `npm run kb:index`.
+7. Смоук: `/api/health` (база, миграция, Telegram, Stripe, ИИ), витрина, удержание и тестовая оплата.
+
+Откат — Instant Rollback в Vercel; миграции только добавляющие, схему откатывать не нужно.
+
+### MCP в Claude Desktop
+
+Settings → Developer → Edit Config → `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "chinor-park": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote@0.14.3", "https://domus-askar.vercel.app/mcp", "--header", "Authorization:${CHINOR_AUTH}"],
+      "env": { "CHINOR_AUTH": "Bearer <MCP_HEAD_TOKEN>" }
+    }
+  }
+}
+```
+
+- Токен — значение `MCP_HEAD_TOKEN` (руководитель) или `MCP_CLIENT_TOKEN` (клиент; `MCP_CLIENT_ID` создаёт `npm run mcp:client`). Токены задаёт владелец в переменных окружения, в репозитории их нет.
+- Локально: адрес `http://localhost:3000/mcp` и флаг `--allow-http`.
+- Проверка: полностью перезапустить Claude Desktop → в списке инструментов «chinor-park» → «Какие брони сгорают завтра?» вызывает `list_bookings`.
+
+### Тестовые карты
+
+Эмуляторы принимают **только** эти номера, срок — любой будущий (`MM/YY`). Код «SMS» показывается на странице оплаты (эмуляция банка).
+
+| Номер | Бренд | Итог |
+|---|---|---|
+| `9860 0000 0009 0001` | HUMO | Оплата прошла |
+| `8600 0000 0006 0001` | UzCard | Оплата прошла |
+| `5614 0000 0006 0001` | UzCard | Оплата прошла (запасная) |
+| `9860 0000 0000 0000` | HUMO | «Банк отклонил оплату» |
+| `8600 0000 0007 0000` | UzCard | «Банк отклонил оплату» |
+| `8600 0000 0005 0002` | UzCard | «Недостаточно средств» |
+| `9860 0000 0008 0002` | HUMO | «Недостаточно средств» |
+
+- **Click** — эмулятор `/pay/click/<id>` с теми же картами; общается с нашим сервером по протоколу Click SHOP API (Prepare / Complete с подписью).
+- **Stripe** — тестовый режим, карта `4242 4242 4242 4242`, любой будущий срок и CVC.
+
+Учётки для проверяющих в README не публикуются — выдаются лично.
+
+### Результаты
+
+| NFR | Цель | Локально, 28.10.2026 |
+|---|---|---|
+| PERF-03 первое видимое событие чата | медиана < 2 с | 0,02 с |
+| PERF-04 полный ответ чата | медиана < 8 с | 1,35 с (p95 9,1 с) |
+| PERF-05 ответ вебхуку Telegram | p95 < 500 мс | 17 мс |
+| PERF-06 API ядра | p95 < 300 мс | 23–39 мс |
+| PERF-07 событие на дашборде | < 5 с | 0,69 с |
+| Дашборд summary (сервер) | < 100 мс | медиана 15 мс |
+
+Полная таблица, методика и что ещё снимается вручную (Lighthouse, `renderer.info`, продакшен) — [docs/perf.md](docs/perf.md). Отчёты прогонов — `eval/reports/` (агенты, параллельные брони на Neon). Ревью безопасности — [docs/security-review.md](docs/security-review.md).
+
+### Документы
+
+Замеры и ревью безопасности — в `docs/` репозитория. PRD, SPEC (разделы 00–19) и планы по дням лежат в папке диплома `docs/` рядом с репозиторием: `PRD.md`, `spec/00-index.md`, `plans/00-overview.md`.
+
+### Ограничения учебной версии
+
+- ЖК «Chinor Park» и застройщик «Chinor Development» вымышленные; адрес и телефон учебные.
+- Платежи — эмуляторы UzCard/HUMO и Click и Stripe в тестовом режиме: настоящие деньги не списываются, данные карт не хранятся.
+- Оферта и политика конфиденциальности (`/legal/offer`, `/legal/privacy`) — учебные, на трёх языках.
+- На бесплатном уровне Gemini запросы могут использоваться Google для обучения моделей — в демо только тестовые данные.
+
+---
+
 # Domus — квартиры и мебель в 3D
 
 **[English](#english) · [O‘zbekcha](#ozbekcha) · [Русский](#русский)**

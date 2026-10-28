@@ -214,7 +214,7 @@ export function createBot({ db, env = process.env, core = {}, token = env.TELEGR
     if (state) await db.tx(q => setStaffChatState(q, state, opts));
   });
 
-  // «Связаться с менеджером» under the reminders: the dialogue with a manager comes with D3.
+  // «Связаться с менеджером» without the agent (no AI stack mounted): the dialogue with a manager needs it.
   bot.callbackQuery('mgr', ctx => ctx.answerCallbackQuery({ text: t('ru', 'tg.soon'), show_alert: true }));
 
   // Any other button: the clock must stop spinning (10 §4.4).

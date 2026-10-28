@@ -41,6 +41,8 @@ globalThis.fetch = async (url, init = {}) => {
   const answer = (body, status = 200) => ({ ok: status < 400, status, json: async () => body });
   if (method === 'POST' && u.endsWith('/reveal-phone')) return postAnswer ?? answer({ phone: '+998901234567' });
   if (method === 'POST' && u.endsWith('/assign')) return postAnswer ?? answer({ client: { ...cardBody.client, assignee: { id: 's1', name: 'Азиз' } }, taken: true });
+  if (method === 'POST' && u.endsWith('/rescore')) return answer({ queued: true, conversationId: DLG }, 202);
+  if (method === 'POST' && u.endsWith('/suggest-reply')) return postAnswer ?? answer({ draft: 'Здравствуйте! <b>Да</b>, №41 свободна.' });
   if (method === 'POST' && u === '/api/admin/me/telegram-link') return postAnswer ?? answer({ url: 'https://t.me/ChinorParkBot?start=st_abc123', expiresAt: iso(900e3) });
   if (method === 'DELETE' && u === '/api/admin/me/telegram') { meLinked = false; return { ok: true, status: 204, json: async () => null }; }
   if (u === '/api/admin/me') return answer({ staff: { id: 's1', name: 'Азиз', role: 'manager', lang: 'ru', telegramLinked: meLinked } });
@@ -200,4 +202,26 @@ test('the Telegram dialog: «not connected» from the server stays in the dialog
   await tick();
   assert.match(document.querySelector('.adm2-modal .adm2-err').textContent, /не подключён/);
   assert.equal(document.querySelector('.adm2-modal [data-act="open"]'), null);
+});
+
+test('«Переоценить» posts rescore; «Что ответить?» puts the draft into the reply field, marked, and sends nothing', async t => {
+  const root = await open(t, [ID]);
+  root.querySelector('[data-act="rescore"]').click();
+  await tick();
+  assert.equal(calls.at(-1).method, 'POST');
+  assert.match(calls.at(-1).url, new RegExp(`/api/admin/clients/${ID}/rescore$`));
+  assert.match(document.getElementById('toast').textContent, /Оценка поставлена в очередь/);
+  root.querySelector(`[data-dialog="${DLG}"]`).click();
+  await tick();
+  const box = root.querySelector('.adm2-replybox');
+  assert.equal(box.querySelector('.adm2-draft').hidden, true);
+  box.querySelector('textarea').value = '';
+  box.querySelector('[data-act="hint"]').click();
+  await tick();
+  assert.match(calls.at(-1).url, new RegExp(`/api/admin/conversations/${DLG}/suggest-reply$`));
+  const again = root.querySelector('.adm2-replybox');
+  assert.equal(again.querySelector('textarea').value, 'Здравствуйте! <b>Да</b>, №41 свободна.');
+  assert.equal(again.querySelector('.adm2-draft').hidden, false);
+  assert.match(again.querySelector('.adm2-draft').textContent, /Черновик ИИ — проверьте перед отправкой/);
+  assert.ok(!calls.some(c => c.method === 'POST' && c.url.endsWith('/reply')), 'nothing sent');
 });

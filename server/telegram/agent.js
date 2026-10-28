@@ -193,6 +193,12 @@ export function createTelegramAgent({ db, turns, tools, env = process.env, core 
     await run(ctx, client, { intent, payload: n && PAYLOAD_KEY[intent] ? { [PAYLOAD_KEY[intent]]: Number(n) } : {} });
   }
 
+  // mgr — «💬 Связаться с менеджером» under a notification: the same as the menu's «manager» (07 §9).
+  async function onManager(ctx, client) {
+    await ctx.answerCallbackQuery();
+    await run(ctx, client, { intent: 'call_manager', payload: {} });
+  }
+
   // src:<messageId>:<n> — «Показать источник n»: the whole fragment the answer stands on (09 §6).
   async function onSource(ctx, client) {
     const [, id, n] = /^src:(\d{1,15}):(\d{1,2})$/.exec(ctx.match[0]) ?? [];
@@ -226,6 +232,7 @@ export function createTelegramAgent({ db, turns, tools, env = process.env, core 
     dm.callbackQuery(/^pa:[0-9a-f-]{36}:[yenr]$/, own(onDraft));
     dm.callbackQuery(/^sg:\d{1,15}:\d{1,2}$/, own(onSuggestion));
     dm.callbackQuery(SHORT, own(onShort));
+    dm.callbackQuery('mgr', own(onManager));
     dm.callbackQuery(/^src:\d{1,15}:\d{1,2}$/, own(onSource));
     dm.callbackQuery(/^fb:\d{1,15}:(?:1|-1)$/, own(onFeedback));
   }

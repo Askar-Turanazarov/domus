@@ -19,7 +19,8 @@ const FORMAT = {
   context: v => esc(v) || DASH,
   comment: v => esc(v) || DASH,
   channel: (v, lang) => text(lang, `tpl.channel.${v}`) ?? esc(v),
-  provider: (v, lang) => text(lang, `tpl.provider.${v}`) ?? esc(v)
+  provider: (v, lang) => text(lang, `tpl.provider.${v}`) ?? esc(v),
+  stage: (v, lang) => text(lang, `tpl.stage.${v}`) ?? esc(v)
 };
 
 // Texts built from a code in the variables.

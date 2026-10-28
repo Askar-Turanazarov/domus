@@ -10,11 +10,12 @@ import { sweepDue, bookingJobHandlers } from '../core/bookings.js';
 import { paymentJobHandlers } from '../core/payments.js';
 import { refundJobHandlers } from '../core/refunds.js';
 import { viewingJobHandlers } from '../core/viewingsDb.js';
+import { qualifyHandlers } from '../agents/qualifier.js';
 
 const WEEK = 7 * 24 * 3600e3;
 const HOUR = 3600e3;
 
-// opts — { now, env, send?, render?, handlers? }: send(row) → Telegram result (D2-16); handlers — extra job types (tests).
+// opts — { now, env, send?, render?, ai?, handlers? }: send(row) → Telegram result (D2-16); handlers — extra job types (tests).
 // outbox.retry only marks the row: it is delivered after the run, outside the job's transaction (a send is not undone).
 function allHandlers(opts) {
   const { handlers, fx } = bookingJobHandlers(opts);
@@ -28,6 +29,7 @@ function allHandlers(opts) {
       ...pay.handlers,
       ...refund.handlers,
       ...viewing.handlers,
+      ...qualifyHandlers(opts, fx),
       'outbox.retry': async job => {
         if (!opts.send) return 'skipped';
         fx.outbox.push(job.payload.outboxId);
