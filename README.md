@@ -41,7 +41,7 @@ npm start                     # http://localhost:3000
 
 | Команда | Что | Нужно |
 |---|---|---|
-| `npm test` | Все автотесты (≈ 940) на PGlite в памяти | Ничего |
+| `npm test` | Все автотесты (≈ 960) на PGlite в памяти | Ничего |
 | `npm run test:neon` | Параллельные брони и повтор вебхуков на настоящем Neon | `TEST_DATABASE_URL` (ветка `test`) |
 | `npm run eval:agents` | 20 контрольных вопросов агентам (`eval/agents-control.json`) | `GEMINI_API_KEY` |
 | `npm run eval:kb` | Поиск по базе знаний (`eval/kb-golden.json`) | `GEMINI_API_KEY`, после `npm run kb:index` |
