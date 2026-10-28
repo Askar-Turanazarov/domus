@@ -232,6 +232,19 @@ const TAKE_EDIT_HOURS = 48;
 // «Беру клиента» (10 §6.2, BR-20): the first manager wins, a race has one winner (the UPDATE is conditional). The group messages
 // with this client's «Беру» button (last 48 h) are edited to «✅ Взял …» through the Outbox (staff_lead_taken, op = edit).
 // → { taken: true, staff } | { taken: false, by: { id, name } }.
+// The group messages with a «Беру» button of this client and of every card merged into it (their buttons carry the old id).
+async function editTakeButtons(q, fx, ctx, clientId, staffName, eventId, at) {
+  const messages = await q.query(`WITH RECURSIVE ids AS (SELECT id FROM clients WHERE id = $1
+        UNION SELECT c.id FROM clients c JOIN ids ON c.merged_into = ids.id)
+      SELECT id, template, vars, tg_message_id FROM outbox
+      WHERE audience = 'staff_group' AND op = 'send' AND status = 'sent' AND tg_message_id IS NOT NULL AND sent_at > $2
+        AND vars->>'clientId' IN (SELECT id::text FROM ids) AND rendered::text LIKE '%take:%'`, [clientId, new Date(at.getTime() - TAKE_EDIT_HOURS * 3600e3)]);
+  for (const m of messages) {
+    await notify(q, fx, ctx, { template: 'staff_lead_taken', audience: 'staff_group', op: 'edit', editMessageId: m.tg_message_id,
+      vars: { ...m.vars, of: m.template, staffName }, eventId, dedupeKey: `staff_lead_taken:${m.id}` });
+  }
+}
+
 export async function assignClient(db, { clientId, staffId }, opts = {}) {
   const ctx = context(opts);
   return inTx(db, ctx, async (q, fx) => {
@@ -241,16 +254,15 @@ export async function assignClient(db, { clientId, staffId }, opts = {}) {
     const at = ctx.now();
     const won = await q.one(`UPDATE clients SET assigned_staff_id = $2, assigned_at = $3, updated_at = $3
       WHERE id = $1 AND assigned_staff_id IS NULL RETURNING id`, [c.id, staff.id, at]);
-    if (!won) return { taken: false, by: await q.one('SELECT s.id, s.name FROM clients c JOIN staff s ON s.id = c.assigned_staff_id WHERE c.id = $1', [c.id]) };
+    if (!won) {
+      // Already taken: a button left on a message of a card merged in later is tidied up now (already edited ones are deduped).
+      const by = await q.one('SELECT s.id, s.name FROM clients c JOIN staff s ON s.id = c.assigned_staff_id WHERE c.id = $1', [c.id]);
+      if (by) await editTakeButtons(q, fx, ctx, c.id, by.name, null, at);
+      return { taken: false, by };
+    }
     const ev = await emit(q, 'client.assigned', { clientId: c.id, staffId: staff.id }, { via: 'telegram' },
       { type: 'staff', id: staff.id, role: staff.role, channel: 'telegram' }, ctx);
-    const messages = await q.query(`SELECT id, template, vars, tg_message_id FROM outbox
-      WHERE audience = 'staff_group' AND op = 'send' AND status = 'sent' AND tg_message_id IS NOT NULL AND sent_at > $2
-        AND vars->>'clientId' = $1 AND rendered::text LIKE '%take:%'`, [c.id, new Date(at.getTime() - TAKE_EDIT_HOURS * 3600e3)]);
-    for (const m of messages) {
-      await notify(q, fx, ctx, { template: 'staff_lead_taken', audience: 'staff_group', op: 'edit', editMessageId: m.tg_message_id,
-        vars: { ...m.vars, of: m.template, staffName: staff.name }, eventId: ev, dedupeKey: `staff_lead_taken:${m.id}` });
-    }
+    await editTakeButtons(q, fx, ctx, c.id, staff.name, ev, at);
     return { taken: true, staff };
   });
 }

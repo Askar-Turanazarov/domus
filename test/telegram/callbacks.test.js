@@ -146,8 +146,26 @@ test('a merged client: the card that absorbed it is assigned', async () => {
   const winner = await makeClient(db, { name: 'Аня', phone: '+998901234567' });
   await db.query('UPDATE clients SET merged_into = $2 WHERE id = $1', [client.id, winner.id]);
   const w = world();
-  await w.press(`take:${client.id}`, AZIZ);
+  const own = await w.post(winner.id, 'staff_booking_paid', 'own');
+  const old = await w.post(client.id, 'staff_booking_paid', 'old');                     // its button carries the merged card's id
+  await w.press(`take:${winner.id}`, AZIZ);
   assert.equal((await owner(winner.id)).assigned_staff_id, aziz.id);
+  assert.deepEqual(w.edits().map(e => e.message_id).sort(), [Number(own.tg_message_id), Number(old.tg_message_id)].sort(), 'the messages of both cards are edited');
+});
+
+test('already taken: a button left on a message of a merged card is tidied up on the next press, edited messages are not edited again', async () => {
+  const { client, aziz } = await team();
+  const winner = await makeClient(db, { name: 'Аня', phone: '+998901234567' });
+  await db.query('UPDATE clients SET assigned_staff_id = $2, assigned_at = $3 WHERE id = $1', [winner.id, aziz.id, now()]);
+  await db.query('UPDATE clients SET merged_into = $2 WHERE id = $1', [client.id, winner.id]);
+  const w = world();
+  const old = await w.post(client.id, 'staff_booking_paid', 'old');
+  await w.press(`take:${client.id}`, AZIZ);
+  assert.equal(w.answers().at(-1).show_alert, true);
+  assert.deepEqual(w.edits().map(e => e.message_id), [Number(old.tg_message_id)]);
+  assert.match(w.edits()[0].text, /✅ Взял Азиз$/);
+  await w.press(`take:${client.id}`, AZIZ);
+  assert.equal(w.edits().length, 1);
 });
 
 test('the bot is removed from the group: the Outbox skips the group («blocked»); added back — messages go again', async () => {
