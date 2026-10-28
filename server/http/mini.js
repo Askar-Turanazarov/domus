@@ -32,7 +32,7 @@ const tgLang = code => (LANGS.includes(String(code ?? '').slice(0, 2)) ? String(
 export function mountMini(app, db, opts = {}) {
   const env = opts.env ?? process.env;
   const check = initDataChecker(env, opts.now ? { now: opts.now } : undefined);
-  const publicDir = opts.publicDir ?? path.join(import.meta.dirname, '..', '..', 'public');
+  const publicDir = opts.publicDir ?? path.join(import.meta.dirname, '..', '..', 'pages');
   let page = null;   // on Vercel the file never changes; locally an edited page is read again
 
   app.get('/mini', (req, res) => {

@@ -48,5 +48,5 @@ test('the page polls every 3 s and has the empty text', () => {
   const js = readFileSync(new URL('../public/js/bookings.js', import.meta.url), 'utf8');
   assert.match(js, /EVERY_MS = 3000/);
   assert.match(js, /setInterval\(load, EVERY_MS\)/);
-  assert.match(readFileSync(new URL('../public/bookings.html', import.meta.url), 'utf8'), /Заявок пока нет/);
+  assert.match(readFileSync(new URL('../pages/bookings.html', import.meta.url), 'utf8'), /Заявок пока нет/);
 });

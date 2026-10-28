@@ -8,8 +8,8 @@ import { CSP, STAFF_CSP, MINI_CSP, HEADERS, STAFF_HEADERS, COOP, noCoop, isStaff
   from '../server/http/securityHeaders.js';
 
 const root = path.join(import.meta.dirname, '..');
-const pub = path.join(root, 'public');
-const pages = ['', 'admin', 'dashboard'].flatMap(d => fs.readdirSync(path.join(pub, d)).filter(f => f.endsWith('.html')).map(f => path.join(d, f)));
+const pub = path.join(root, 'pages');
+const pages = fs.readdirSync(pub).filter(f => f.endsWith('.html'));
 const hashOf = s => `'sha256-${crypto.createHash('sha256').update(s).digest('base64')}'`;
 
 test('no inline scripts in the pages except the import map, allowed by its hash', () => {

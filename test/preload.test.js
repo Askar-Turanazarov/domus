@@ -15,6 +15,6 @@ test('the planner preloads its own modules at once and the 3D ones (three includ
   assert.ok(lazy.includes('/js/3d/scene3d.js') && lazy.includes('/vendor/three/build/three.module.js'));
   assert.ok(lazy.every(u => !now.includes(u)));
   for (const u of [...now, ...lazy]) assert.ok(u.startsWith('/vendor/') || fs.existsSync(new URL('../public' + u, import.meta.url)), u);
-  const html = fs.readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  const html = fs.readFileSync(new URL('../pages/index.html', import.meta.url), 'utf8');
   assert.ok(html.indexOf('type="importmap"') < html.indexOf('modulepreload'), 'the import map comes first');
 });

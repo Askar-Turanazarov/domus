@@ -38,12 +38,15 @@ import { createKb } from './server/kb/retrieve.js';
 import { createTurns } from './server/agents/turn.js';
 import { createSettings } from './server/core/settings.js';
 import { mountPersonalPages } from './server/http/personalPages.js';
+import { sendNotFound } from './server/http/notFound.js';
 import { mountMini } from './server/http/mini.js';
 import { mountVisits } from './server/http/visits.js';
 import { requestId, noStore, apiErrors } from './server/http/common.js';
 import { afterCommit } from './server/events/runner.js';
 
 const __dirname = import.meta.dirname;
+// Page templates live in pages/, not public/: Vercel serves public/ from its CDN by file name, past the function.
+const PAGES_DIR = path.join(__dirname, 'pages');
 
 loadEnv(__dirname);
 
@@ -84,7 +87,7 @@ mountChat(app, db, { turns, tools }, coreOpts);   // the site chat: POST /api/ch
 mountVisits(app, db);                      // the funnel counter: POST /api/visit, the cookie dvid (11 §11.1)
 mountOrders(app, db, coreOpts);            // the furniture order page data: GET /api/orders/by-ref/:ref (03 §13, S)
 mountPayments(app, db, coreOpts);          // payments: start, emulators (05 §12); own 64 KB JSON parser
-mountMini(app, db, { ...coreOpts, buildings, buildingId: BUILDING_ID, publicDir: path.join(__dirname, 'public') });   // /mini and /api/mini/* (Tg, 10 §7)
+mountMini(app, db, { ...coreOpts, buildings, buildingId: BUILDING_ID, publicDir: PAGES_DIR });   // /mini and /api/mini/* (Tg, 10 §7)
 const staffAuth = mountAdmin(app, db, { env: process.env });   // /api/admin/login|logout|me and the gate on /api/admin/*, /api/dashboard/* (12 §2)
 mountAdminBoard(app, db);                  // the chessboard and the apartment card (12 §3)
 mountAdminBookings(app, db, staffAuth, coreOpts);   // bookings and payments: lists, cards, extend, cancel, refunds (12 §4)
@@ -95,15 +98,26 @@ mountAdminAi(app, db, staffAuth, { ...coreOpts, ai });   // AI journals, costs, 
 mountAdminSystem(app, db, staffAuth, { ...coreOpts, ai, settings });   // settings, services, AI providers (12 §10)
 mountAdminAnalyst(app, db, staffAuth, { turns }, coreOpts);   // the head's read-only analyst: POST /api/admin/analyst (SSE, 07 §14)
 mountAdminDashboard(app, db, coreOpts);   // summary, charts and the live feed of the dashboard (12 §9)
-mountPersonalPages(app, { publicDir: path.join(__dirname, 'public'), legalDir: path.join(__dirname, 'legal') });   // /b/…, /pay/card|click/…, /legal/…
+mountPersonalPages(app, { pagesDir: PAGES_DIR, legalDir: path.join(__dirname, 'legal'), db });   // /b/…, /pay/card|click/…, /legal/…
 app.use(express.json({ limit: '4mb' }));   // the order carries the drawing PNG and a 3D picture (≤ 1.5 MB each); Vercel takes ≤ 4.5 MB
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));   // "/" is rendered below
-// The admin app (12 §1): a static shell; Vercel serves public/admin/ itself, the function only answers the bare /admin.
+// The admin app (12 §1): its shell is pages/admin-app.html (the sign-in form; the data comes from the API after it),
+// its scripts stay in public/admin/ for the CDN.
 app.get('/admin', (req, res, next) => (req.originalUrl.split('?')[0] === '/admin' ? res.redirect(302, '/admin/') : next()));   // routing is not strict: "/admin/" matches too
-app.get('/admin/', (req, res) => res.set({ 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' }).sendFile(path.join(__dirname, 'public', 'admin', 'index.html')));
+app.get('/admin/', (req, res) => res.set({ 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' }).sendFile(path.join(PAGES_DIR, 'admin-app.html')));
 // The dashboard (12 §9): full screen, the same sign-in; the API answers by role.
 app.get('/dashboard', (req, res, next) => (req.originalUrl.split('?')[0] === '/dashboard' ? res.redirect(302, '/dashboard/') : next()));
-app.get('/dashboard/', (req, res) => res.set({ 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' }).sendFile(path.join(__dirname, 'public', 'dashboard', 'index.html')));
+app.get('/dashboard/', (req, res) => res.set({ 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' }).sendFile(path.join(PAGES_DIR, 'dashboard.html')));
+// The Domus manager pages (furniture requests, viewings, call log): only for a signed-in staff member, else 404.
+for (const page of ['admin', 'bookings', 'calls']) {
+  app.get(`/${page}.html`, async (req, res) => {
+    const staff = await staffAuth.sessionOf(req).catch(() => null);
+    if (!staff) return sendNotFound(req, res);
+    res.set({ 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' }).sendFile(path.join(PAGES_DIR, `${page}.html`));
+  });
+}
+// The planner's print sheet (order.js opens it in a new tab).
+app.get('/print.html', (req, res) => res.set({ 'Cache-Control': 'public, max-age=300', 'X-Robots-Tag': 'noindex' }).sendFile(path.join(PAGES_DIR, 'print.html')));
 app.get('/favicon.ico', (req, res) => res.redirect(301, '/favicon.svg'));
 // Vercel serves public/ from its CDN but sends "/" to the function: the showcase from here (D-27; the planner is /:lang/planner/).
 // The pages with the language in the address (and "/" = Russian): link previews (Open Graph) and the interface in that language.
@@ -117,6 +131,7 @@ app.get('/', sendPage('building', pages.STATIC.building));
 app.get('/:lang(ru|uz|en)/?', sendPage('building'));
 app.get('/:lang(ru|uz|en)/building/?', sendPage('building'));   // the old Domus address, same page (its canonical is /:lang)
 app.get('/:lang(ru|uz|en)/planner/?', sendPage('planner'));
+app.get('/index.html', sendPage('planner', pages.STATIC.planner));   // the Russian planner: the embedded 3D of the showcase opens it (D-27)
 // three.js from the package (on Vercel this runs in the function: let the CDN keep the files, the version is pinned)
 app.use('/vendor/three', express.static(path.join(__dirname, 'node_modules', 'three'), {
   setHeaders: res => res.set('Cache-Control', 'public, max-age=604800, s-maxage=31536000')
@@ -356,6 +371,8 @@ app.post('/api/textures/fetch/:id', async (req, res) => {
 
 // Any other /api path: JSON, not the HTML "Cannot GET" page.
 app.use('/api', (req, res) => res.status(404).json({ error: 'not_found' }));
+// Any other address: the site's 404 page.
+app.use((req, res, next) => (['GET', 'HEAD'].includes(req.method) ? sendNotFound(req, res) : next()));
 app.use(apiErrors);                        // a broken or too big body, an unexpected error: 13 §1.2 format
 
 if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) app.listen(PORT, () => console.log(`Domus: http://localhost:${PORT}`));

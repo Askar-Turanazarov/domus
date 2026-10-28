@@ -7,6 +7,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const PUBLIC = path.join(import.meta.dirname, '..', 'public');
+const PAGES_DIR = path.join(import.meta.dirname, '..', 'pages');   // the page templates
 // Per page: the modules to preload at once (the entry's imports and what it imports on start), and the 3D modules
 // the planner imports later (window.preload3d() — at once in the embedded floor view, on idle or on «3D» otherwise).
 const PAGES = {
@@ -75,7 +76,7 @@ function block({ now, lazy }) {
 function update(write = true) {
   const out = {};
   for (const page of Object.keys(PAGES)) {
-    const file = path.join(PUBLIC, page);
+    const file = path.join(PAGES_DIR, page);
     const html = fs.readFileSync(file, 'utf8');
     const nl = html.includes('\r\n') ? '\r\n' : '\n';
     const l = lists(page);

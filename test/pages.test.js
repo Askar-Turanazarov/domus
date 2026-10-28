@@ -36,7 +36,7 @@ test('an unknown language is not a page', async () => {
 
 test('static "/index.html" and "/building.html" are the Russian pages with production URLs; "/" is the showcase', async () => {
   for (const [file, page] of [['index.html', 'planner'], ['building.html', 'building']]) {
-    const html = readFileSync(new URL(`../public/${file}`, import.meta.url), 'utf8');
+    const html = readFileSync(new URL(`../pages/${file}`, import.meta.url), 'utf8');
     assert.ok(html.includes(pages.ogBlock(page, 'ru', pages.SITE, pages.STATIC[page])), `${file}: run the block from server/pages.js again`);
     assert.match(html, /<html lang="ru">/);
   }
@@ -50,7 +50,7 @@ test('static "/index.html" and "/building.html" are the Russian pages with produ
 
 test('vercel.json ships the pages and the migrations with the function (16 §2)', () => {
   const v = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
-  for (const f of ['public/*.html', 'server/db/migrations/**']) assert.ok(v.functions['server.js'].includeFiles.includes(f), f);
+  for (const f of ['pages/**', 'server/db/migrations/**']) assert.ok(v.functions['server.js'].includeFiles.includes(f), f);
   // Vercel refuses the whole deploy when a glob is longer than 256 characters
   for (const k of ['includeFiles', 'excludeFiles']) assert.ok(v.functions['server.js'][k].length <= 256, k);
 });
@@ -67,7 +67,7 @@ test('preview pictures: one per page and language, PNG 1200×630, small enough f
 });
 
 test('links from the showcase lead to the planner at /:lang/planner, the embedded 3D to /index.html (D-27)', () => {
-  const read = f => readFileSync(new URL(`../public/${f}`, import.meta.url), 'utf8');
+  const read = f => readFileSync(new URL(`../${f.endsWith(".html") ? "pages" : "public"}/${f}`, import.meta.url), "utf8");
   assert.match(read('building.html'), /href="\/index\.html" data-lang-href="\/planner"/);
   assert.match(read('index.html'), /href="\/" data-lang-href="" id="buildingLink"/);
   const js = read('js/buildingPage.js');

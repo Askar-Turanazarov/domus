@@ -13,14 +13,14 @@ test('every glyph maps to a drawn icon', () => {
 
 test('every data-icon in the pages has a path', () => {
   for (const f of ['index.html', 'building.html', 'admin.html', 'bookings.html', 'calls.html']) {
-    const html = readFileSync(new URL(`../public/${f}`, import.meta.url), 'utf8');
+    const html = readFileSync(new URL(`../pages/${f}`, import.meta.url), 'utf8');
     for (const m of html.matchAll(/data-icon="(\w+)"/g)) assert.ok(paths.has(m[1]), `${f}: ${m[1]}`);
   }
 });
 
 test('pages set the theme before the first paint and have the toggle', () => {
   for (const f of ['index.html', 'building.html', 'admin.html', 'bookings.html', 'calls.html']) {
-    const html = readFileSync(new URL(`../public/${f}`, import.meta.url), 'utf8');
+    const html = readFileSync(new URL(`../pages/${f}`, import.meta.url), 'utf8');
     const head = html.slice(0, html.indexOf('</head>'));
     // a classic (blocking) script in <head>, before the styles — a file, not inline (14 §7 CSP)
     assert.match(head, /<script src="\/js\/theme-boot\.js"><\/script>/, f);

@@ -14,7 +14,7 @@
     "server.js": {
       "maxDuration": 60,
       "excludeFiles": "{public/vendor/**,public/js/**,public/css/**,public/textures/sets/**,public/textures/lib/**}",
-      "includeFiles": "{public/*.html,catalog.json,templates.json,apartment-templates.json,apartments.json,buildings/**,public/textures/{library.json,README.md,floor/**,wall/**,wood/**,fabric/**},server/db/migrations/**,server/i18n/**,legal/**,kb/**,assets/fonts/**}"
+      "includeFiles": "{pages/**,catalog.json,templates.json,apartment-templates.json,apartments.json,buildings/**,public/textures/{library.json,README.md,floor/**,wall/**,wood/**,fabric/**},server/db/migrations/**,server/i18n/**,legal/**,kb/**,assets/fonts/**}"
     }
   },
   "rewrites": [

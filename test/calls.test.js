@@ -45,5 +45,5 @@ test('the page polls every 3 s and has the empty text', () => {
   const js = readFileSync(new URL('../public/js/calls.js', import.meta.url), 'utf8');
   assert.match(js, /EVERY_MS = 3000/);
   assert.match(js, /setInterval\(load, EVERY_MS\)/);
-  assert.match(readFileSync(new URL('../public/calls.html', import.meta.url), 'utf8'), /Вызовов пока нет/);
+  assert.match(readFileSync(new URL('../pages/calls.html', import.meta.url), 'utf8'), /Вызовов пока нет/);
 });

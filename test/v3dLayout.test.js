@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+const html = readFileSync(new URL('../pages/index.html', import.meta.url), 'utf8');
 const between = (from, to) => html.slice(html.indexOf(from), html.indexOf(to, html.indexOf(from)));
 
 test('every 3D control the scripts look up is on the page once', () => {

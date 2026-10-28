@@ -47,7 +47,7 @@ test('security headers on pages, static files and the API', async () => {
   assert.equal((await fetch(base() + '/b/nope')).headers.get('cross-origin-opener-policy'), null);
 });
 
-test('unknown /api routes answer JSON 404; pages still work', async () => {
+test('unknown /api routes answer JSON 404; pages still work; templates by file name and unknown pages → the 404 page', async () => {
   for (const method of ['GET', 'POST']) {
     const res = await fetch(`${base()}/api/nope`, { method });
     assert.equal(res.status, 404, method);
@@ -56,5 +56,10 @@ test('unknown /api routes answer JSON 404; pages still work', async () => {
   }
   assert.equal((await fetch(`${base()}/api/catalog`)).status, 200);
   assert.equal((await fetch(`${base()}/`)).status, 200);
-  assert.equal((await fetch(`${base()}/building.html`)).status, 200);
+  for (const p of ['/building.html', '/booking.html', '/order.html', '/pay-card.html', '/admin/index.html', '/dashboard/index.html', '/admin.html', '/bookings.html', '/calls.html', '/nope']) {
+    const r = await fetch(`${base()}${p}`);
+    assert.equal(r.status, 404, p);
+    assert.match(await r.text(), /404/);
+  }
+  for (const p of ['/index.html', '/print.html', '/admin/', '/dashboard/', '/ru/planner']) assert.equal((await fetch(`${base()}${p}`)).status, 200, p);
 });

@@ -1,5 +1,5 @@
 // D2-13: the pages behind a personal link keep to 03 §14 (no-store, noindex, no-referrer); the status map carries the
-// terms of the hold form; the booking page data carries the terms of the booking.
+// terms of the hold form; the booking page data carries the terms of the booking. A wrong link or payment id → 404.
 import { test, before, after, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
@@ -9,9 +9,12 @@ import path from 'node:path';
 import { fakeClock } from '../../server/core/clock.js';
 import { mountPersonalPages } from '../../server/http/personalPages.js';
 import { createTestDb, resetDb } from '../support/db.js';
+import { makeClient, makeBooking } from '../support/factories.js';
+import { bookingPath } from '../../server/core/links.js';
+import { now } from '../../server/core/clock.js';
 import { startApi } from '../support/api.js';
 
-const PUBLIC = path.join(import.meta.dirname, '..', '..', 'public');
+const PAGES = path.join(import.meta.dirname, '..', '..', 'pages');
 let db, api, pages, base, legal;
 
 before(async () => {
@@ -19,7 +22,7 @@ before(async () => {
   api = await startApi(db);
   legal = fs.mkdtempSync(path.join(os.tmpdir(), 'legal-'));
   const app = express();
-  mountPersonalPages(app, { publicDir: PUBLIC, legalDir: legal });
+  mountPersonalPages(app, { pagesDir: PAGES, legalDir: legal, db });
   pages = app.listen(0);
   base = `http://127.0.0.1:${pages.address().port}`;
 });
@@ -27,9 +30,18 @@ after(async () => { api.close(); pages.close(); fs.rmSync(legal, { recursive: tr
 beforeEach(async () => { await resetDb(db); fakeClock.set('2026-10-28T10:00:00+05:00'); });
 afterEach(() => fakeClock.reset());
 
-for (const url of ['/b/1042-abc', '/pay/card/3f2a1c9e-0000-4000-8000-000000000000', '/pay/click/3f2a1c9e-0000-4000-8000-000000000000']) {
-  test(`${url.split('/').slice(0, 3).join('/')}…: no-store, noindex, no-referrer`, async () => {
-    const r = await fetch(base + url);
+// A real booking link and real payments of the emulators (the pages open only for them).
+async function realLinks() {
+  const c = await makeClient(db);
+  const b = await makeBooking(db, { clientId: c.id });
+  const pay = provider => db.one(`INSERT INTO payments (code, kind, booking_id, client_id, provider, amount, status, created_by, created_at, updated_at)
+    VALUES ($1, 'deposit', $2, $3, $4, 10000000, 'failed', '{"type":"client"}', $5, $5) RETURNING id`, [`P-${provider}`, b.id, c.id, provider, now()]);
+  return { booking: bookingPath(b), card: `/pay/card/${(await pay('card')).id}`, click: `/pay/click/${(await pay('click')).id}` };
+}
+
+for (const kind of ['booking', 'card', 'click']) {
+  test(`${kind} page: no-store, noindex, no-referrer`, async () => {
+    const r = await fetch(base + (await realLinks())[kind]);
     assert.equal(r.status, 200);
     assert.match(r.headers.get('content-type'), /text\/html/);
     assert.equal(r.headers.get('cache-control'), 'no-store');
@@ -43,9 +55,21 @@ for (const url of ['/b/1042-abc', '/pay/card/3f2a1c9e-0000-4000-8000-00000000000
 }
 
 test('the page takes its <html lang> from ?lang=', async () => {
-  const uz = await (await fetch(`${base}/b/1042-abc?lang=uz`)).text();
+  const { booking } = await realLinks();
+  const uz = await (await fetch(`${base}${booking}?lang=uz`)).text();
   assert.match(uz, /<html lang="uz">/);
-  assert.match(await (await fetch(`${base}/b/1042-abc?lang=xx`)).text(), /<html lang="ru">/);
+  assert.match(await (await fetch(`${base}${booking}?lang=xx`)).text(), /<html lang="ru">/);
+});
+
+test('a wrong signature, an unknown number, a foreign provider or a made-up payment id → the 404 page', async () => {
+  const { booking, card } = await realLinks();
+  const bad = [booking.slice(0, -1) + (booking.endsWith('A') ? 'B' : 'A'), '/b/99999-' + 'A'.repeat(32), '/b/1042-abc', '/o/1-' + 'A'.repeat(32),
+    '/pay/card/3f2a1c9e-0000-4000-8000-000000000000', '/pay/card/1', card.replace('/card/', '/click/')];
+  for (const url of bad) {
+    const r = await fetch(base + url);
+    assert.equal(r.status, 404, url);
+    assert.match(await r.text(), /Страница не найдена/);
+  }
 });
 
 test('/legal/:doc: a stub in the language until the real file exists; the real file wins', async () => {

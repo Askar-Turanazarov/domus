@@ -62,7 +62,7 @@ function ogBlock(page, lang, origin = SITE, self = `/${lang}${PAGES[page].path}`
 }
 
 const cache = new Map();   // on Vercel the files never change; locally an edited page is read again
-function render(page, lang, origin = SITE, self = undefined, publicDir = path.join(import.meta.dirname, '..', 'public')) {
+function render(page, lang, origin = SITE, self = undefined, publicDir = path.join(import.meta.dirname, '..', 'pages')) {
   const file = path.join(publicDir, PAGES[page].file);
   if (!cache.has(file) || !process.env.VERCEL) cache.set(file, fs.readFileSync(file, 'utf8'));
   return cache.get(file)

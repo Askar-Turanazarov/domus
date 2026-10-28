@@ -68,7 +68,8 @@ test('without credentials, no protected route answers with success', async () =>
       headers: { 'Content-Type': 'application/json' }, body: isRead(r.m) || r.m === 'ALL' ? undefined : '{}' });
     const allowed = r.unauth ?? [400, 401, 403, 404, 405, 503];
     if (!allowed.includes(res.status)) bad.push(`${key(r)} [${r.access}] → ${res.status}`);
-    if (['Staff', 'Head'].includes(r.access) && res.status !== 401) bad.push(`${key(r)} [${r.access}] should be 401, got ${res.status}`);
+    const want = r.hidden ? 404 : 401;   // a hidden staff page looks like any unknown address
+    if (['Staff', 'Head'].includes(r.access) && res.status !== want) bad.push(`${key(r)} [${r.access}] should be ${want}, got ${res.status}`);
     // the Click routes answer 200 with an error code in the body (05 §5.3)
     if (r.unauth?.includes(200) && !r.shell && res.status === 200) assert.ok((await res.json()).error < 0, `${key(r)} must carry a Click error code`);
   }

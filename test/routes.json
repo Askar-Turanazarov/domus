@@ -1,5 +1,5 @@
 {
-  "_": "Every route of the app with its access label (13 §1.6, 15 §6.2): Pub, Dcl, Ref, Pay, Tg, Staff, Head, Bearer, Sig. A new route must be added here, or test/security/rights.test.js fails. `unauth` lists the codes (`shell`: an HTML page shell, the data behind it is fetched through a protected API) an unauthenticated call may answer instead of the default 400/401/403/404/405/503; never 2xx otherwise.",
+  "_": "Every route of the app with its access label (13 §1.6, 15 §6.2): Pub, Dcl, Ref, Pay, Tg, Staff, Head, Bearer, Sig. A new route must be added here, or test/security/rights.test.js fails. `unauth` lists the codes (`shell`: an HTML page shell, the data behind it is fetched through a protected API) an unauthenticated call may answer instead of the default 400/401/403/404/405/503; never 2xx otherwise. `hidden`: a staff page that answers a visitor 404 (as any unknown address), not 401.",
   "routes": [
     { "m": "POST", "p": "/api/jobs/run", "access": "Sig" },
     { "m": "GET", "p": "/api/cron/daily", "access": "Bearer" },
@@ -89,10 +89,10 @@
     { "m": "GET", "p": "/mini", "access": "Pub" },
     { "m": "GET", "p": "/dashboard", "access": "Pub" },
     { "m": "GET", "p": "/dashboard/", "access": "Pub" },
-    { "m": "GET", "p": "/b/:ref", "access": "Ref", "unauth": [200], "shell": true },
-    { "m": "GET", "p": "/o/:ref", "access": "Ref", "unauth": [200], "shell": true },
-    { "m": "GET", "p": "/pay/card/:id", "access": "Pay", "unauth": [200], "shell": true },
-    { "m": "GET", "p": "/pay/click/:id", "access": "Pay", "unauth": [200], "shell": true },
+    { "m": "GET", "p": "/b/:ref", "access": "Ref" },
+    { "m": "GET", "p": "/o/:ref", "access": "Ref" },
+    { "m": "GET", "p": "/pay/card/:id", "access": "Pay" },
+    { "m": "GET", "p": "/pay/click/:id", "access": "Pay" },
     { "m": "GET", "p": "/legal/:doc(offer|privacy)", "access": "Pub" },
     { "m": "GET", "p": "/favicon.ico", "access": "Pub" },
     { "m": "GET", "p": "/", "access": "Pub" },
@@ -117,6 +117,11 @@
     { "m": "GET", "p": "/textures/lib/:id/:file", "access": "Pub" },
     { "m": "GET", "p": "/api/textures/hd", "access": "Pub" },
     { "m": "GET", "p": "/textures/2k/:id/:file", "access": "Pub" },
+    { "m": "GET", "p": "/print.html", "access": "Pub" },
+    { "m": "GET", "p": "/index.html", "access": "Pub" },
+    { "m": "GET", "p": "/admin.html", "access": "Staff", "hidden": true },
+    { "m": "GET", "p": "/bookings.html", "access": "Staff", "hidden": true },
+    { "m": "GET", "p": "/calls.html", "access": "Staff", "hidden": true },
     { "m": "POST", "p": "/api/textures/fetch/:id", "access": "Pub" }
   ]
 }
