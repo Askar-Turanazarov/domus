@@ -107,7 +107,7 @@ const soldIn = (q, from, to) => q.one(`SELECT count(*)::int AS c, COALESCE(sum(C
 async function funnelOf(q, p) {
   const [visits, dialogs, holds, paid, sold, expired, talk, median, handoff] = await Promise.all([
     q.one('SELECT count(*)::int AS c FROM analytics_visits WHERE day >= $1::date AND day <= $2::date', [p.fromDay, p.toDay]),
-    q.one(`SELECT count(*)::int AS c FROM conversations c WHERE c.kind = 'client' AND c.created_at >= $1 AND c.created_at < $2
+    q.one(`SELECT count(*)::int AS c, count(*) FILTER (WHERE c.channel = 'web')::int AS web FROM conversations c WHERE c.kind = 'client' AND c.created_at >= $1 AND c.created_at < $2
       AND EXISTS (SELECT 1 FROM messages m WHERE m.conversation_id = c.id AND m.role = 'user')`, [p.from, p.to]),
     q.one('SELECT count(*)::int AS c FROM bookings WHERE held_at >= $1 AND held_at < $2', [p.from, p.to]),
     q.one('SELECT count(*)::int AS c FROM bookings WHERE held_at >= $1 AND held_at < $2 AND booked_at IS NOT NULL', [p.from, p.to]),
@@ -126,7 +126,8 @@ async function funnelOf(q, p) {
   return {
     funnel: { visitors: visits.c, dialogs: dialogs.c, bookings: holds.c, paid: paid.c, sales: sold.c },
     conversions: {
-      visitorToDialog: share(dialogs.c, visits.c), dialogToBooking: share(talk.booked, talk.clients), bookingToSale: share(sold.c, paid.c),
+      // Visits are counted on the website only, so are the dialogs here: Telegram and the mini app have no visit (never above 100 %).
+      visitorToDialog: share(dialogs.web, visits.c), dialogToBooking: share(talk.booked, talk.clients), bookingToSale: share(sold.c, paid.c),
       expiredShare: share(expired.expired, expired.paid), medianFirstMessageToBookingMin: median?.minutes == null ? null : Math.round(Number(median.minutes)),
       handoffShare: share(handoff.c, dialogs.c)
     }

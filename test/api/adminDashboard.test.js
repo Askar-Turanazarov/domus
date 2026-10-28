@@ -137,26 +137,27 @@ test('the funnel counts the cohort of the period: a step never exceeds the previ
   const [a, b, c] = [await makeClient(db), await makeClient(db), await makeClient(db)];
   for (const d of [0, 0, 0, 1]) await db.query('INSERT INTO analytics_visits (day, visitor_hash, channel, first_at) VALUES ($1, $2, $3, $4)',
     [d === 0 ? '2026-10-28' : '2026-10-27', crypto.randomUUID(), 'web', now()]);
-  const dialog = async (client, { mode = 'ai', msgAgo = 3 * HOUR, withMessage = true } = {}) => {
-    const conv = await db.one(`INSERT INTO conversations (kind, client_id, channel, lang, mode, created_at, updated_at) VALUES ('client', $1, 'web', 'ru', $2, $3, $3) RETURNING id`, [client.id, mode, ago(msgAgo)]);
+  const dialog = async (client, { mode = 'ai', msgAgo = 3 * HOUR, withMessage = true, channel = 'web' } = {}) => {
+    const conv = await db.one(`INSERT INTO conversations (kind, client_id, channel, lang, mode, created_at, updated_at) VALUES ('client', $1, $4, 'ru', $2, $3, $3) RETURNING id`, [client.id, mode, ago(msgAgo), channel]);
     if (withMessage) await db.query("INSERT INTO messages (conversation_id, role, text, created_at) VALUES ($1, 'user', 'Привет', $2)", [conv.id, ago(msgAgo)]);
     return conv;
   };
   await dialog(a);                                                                        // a: talks, then holds, pays, buys
   await dialog(b, { mode: 'human' });                                                     // b: talks, hands off, holds, never pays
   await dialog(c, { withMessage: false });                                                // c: opened the chat, wrote nothing — not a dialog
+  await dialog(c, { channel: 'telegram' });                                               // c in Telegram: a dialog, but no website visit
   const sold = await book(a.id, 30, { status: 'converted', heldAgo: 2 * HOUR, paidAgo: HOUR });
   await sell(sold);
   await book(b.id, 31, { status: 'expired', heldAgo: HOUR, paidAgo: 30 * MIN });
   await book(b.id, 32, { status: 'hold_expired', heldAgo: HOUR / 2, paidAgo: null });
   const s = (await get('/api/dashboard/summary?period=today')).body;
-  assert.deepEqual(s.funnel, { visitors: 3, dialogs: 2, bookings: 3, paid: 2, sales: 1 });
+  assert.deepEqual(s.funnel, { visitors: 3, dialogs: 3, bookings: 3, paid: 2, sales: 1 });
   assert.ok(s.funnel.sales <= s.funnel.paid && s.funnel.paid <= s.funnel.bookings);
-  assert.equal(s.conversions.visitorToDialog, 0.667);
-  assert.equal(s.conversions.dialogToBooking, 1);                                         // both talking clients held after their first message
+  assert.equal(s.conversions.visitorToDialog, 0.667);                                    // 2 website dialogs of 3 visits; the Telegram one is not counted
+  assert.equal(s.conversions.dialogToBooking, 0.667);                                     // a and b held after their first message, c did not
   assert.equal(s.conversions.bookingToSale, 0.5);
   assert.equal(s.conversions.expiredShare, 0.5);                                          // 1 of 2 paid bookings burned
-  assert.equal(s.conversions.handoffShare, 0.5);
+  assert.equal(s.conversions.handoffShare, 0.333);
   assert.equal(s.conversions.medianFirstMessageToBookingMin, 135);                        // first message → paid booking: a 120 min, b 150 min; the unpaid hold is not a booking
   assert.equal((await get('/api/dashboard/summary?period=7d')).body.funnel.visitors, 4);
 });
