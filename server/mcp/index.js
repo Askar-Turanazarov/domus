@@ -71,6 +71,7 @@ const TEXT_MAX = 6000;
 const text = s => ({ type: 'text', text: s.length > TEXT_MAX ? `${s.slice(0, TEXT_MAX)}…` : s });
 
 // The registry's answer → an MCP result (08 §4 step 7): structuredContent + a short text; a draft says what to do next.
+// The draft's text carries confirmToken too: some clients (Claude Desktop chat) pass only the text to the model.
 export function toMcp(tool, res) {
   if (!res.ok) {
     return { isError: true, content: [text(res.fields ? `${res.message} (${res.fields.join(', ')})` : res.message)] };
@@ -78,7 +79,8 @@ export function toMcp(tool, res) {
   if (res.pending) {
     const structuredContent = { needsConfirmation: true, confirmToken: res.confirmToken, preview: res.preview, expiresAt: res.expiresAt };
     return { structuredContent, content: [text(`Требуется подтверждение: «${tool.title.ru}». Условия: ${JSON.stringify(res.preview)}. `
-      + 'Покажите условия человеку и только после его явного согласия повторите вызов с теми же аргументами и confirmToken.')] };
+      + `Покажите условия человеку и только после его явного согласия повторите вызов с теми же аргументами и confirmToken: ${res.confirmToken} `
+      + `(действует до ${res.expiresAt instanceof Date ? res.expiresAt.toISOString() : res.expiresAt}, один раз).`)] };
   }
   const body = JSON.stringify(res.out);
   return { structuredContent: res.out, content: [text(res.status === 'executed' ? `Готово: ${body}` : body)] };

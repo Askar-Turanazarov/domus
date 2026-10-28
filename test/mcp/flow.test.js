@@ -52,6 +52,7 @@ test('08 §6.3: extend_booking — the first call is a draft with confirmToken a
   assert.equal(draft.structuredContent.preview.apartmentNo, 41);
   assert.equal(draft.structuredContent.preview.to, new Date(w.a.expires_at.getTime() + 24 * 3600e3).toISOString());
   assert.match(text(draft), /Требуется подтверждение/);
+  assert.ok(text(draft).includes(draft.structuredContent.confirmToken), 'the token is in the text too: Claude Desktop chat reads only the text');
   assert.equal((await s.db.one('SELECT expires_at FROM bookings WHERE id = $1', [w.a.id])).expires_at.getTime(), w.a.expires_at.getTime());
 
   const done = await s.call('extend_booking', { bookingNo: w.a.no, hours: 24, confirmToken: draft.structuredContent.confirmToken });
