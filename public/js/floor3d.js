@@ -18,7 +18,7 @@ import { toast } from './ui.js';
 
 export const CORR_ID = 'corr';
 export const LOBBY_ID = 'lobby';
-const PASSAGE_ID = 'lobby2';
+export const PASSAGE_ID = 'lobby2';
 const OPPOSITE = { north: 'south', south: 'north', west: 'east', east: 'west' };
 const PART = 10;     // partition between the lobby and the entrance passage, cm
 

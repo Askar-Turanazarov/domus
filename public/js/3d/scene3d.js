@@ -33,6 +33,7 @@ let outline = '';
 let mainLights = null;     // lights of the active room (the walker's): sky, sun, shadows
 let foundTimer = null;
 let context = null;        // static surroundings (the floor around an embedded apartment)
+let overviewSkip = new Set();   // rooms hidden in the overview with the surroundings (corridor, lobby)
 // Soft shadows under furniture and in the corners, on unless the viewer turned them off.
 let quality = 'simple', softOn = true;
 // Drawing on demand: a frame is drawn only when something changed (camera, doors, light tweens, the scene).
@@ -193,8 +194,18 @@ function resize() {
   renderer.setSize(w, h, false);
   if (composer) { composer.setPixelRatio(renderer.getPixelRatio()); composer.setSize(w, h); }
   camera.aspect = w / h;
+  camera.fov = fovFor(camera.aspect);
   camera.updateProjectionMatrix();
   dirty = true;
+}
+
+// 60° vertical on landscape; on a narrow screen as wide sideways as a 1.3 screen, at most 100° vertical
+// (like a phone's 0.5× lens: more of the room, a little stretch at the edges).
+const FOV = 60, WIDE_ASPECT = 1.3, FOV_MAX = 100;
+export function fovFor(aspect) {
+  if (aspect >= WIDE_ASPECT) return FOV;
+  const half = Math.tan(FOV * Math.PI / 360) * WIDE_ASPECT;
+  return Math.min(FOV_MAX, 2 * Math.atan(half / aspect) * 180 / Math.PI);
 }
 
 // Pixel ratio and shadow maps of a tier; `rebuildLights` rebuilds the lights with the new shadow sizes.
@@ -469,10 +480,16 @@ function rebuild() {
   const ok = JSON.stringify(bounds);
   const resetView = ok !== outline;
   outline = ok;
-  const entries = [...rooms3d].map(([id, e]) => ({ id, doc: e.doc, shell: e.shell, furniture: e.furniture, x: e.group.position.x, z: e.group.position.z }));
+  const entries = [...rooms3d].map(([id, e]) => ({ id, doc: e.doc, shell: e.shell, furniture: e.furniture, group: e.group, x: e.group.position.x, z: e.group.position.z }));
+  // The overview of an embedded apartment: only its rooms (aimed at them), without the corridor and the floor.
+  const own = rooms.filter(r => !overviewSkip.has(r.id)).map(roomRect);
+  const focus = own.length && own.length < rooms.length ? (() => {
+    const fx = Math.min(...own.map(q => q.x)), fy = Math.min(...own.map(q => q.y));
+    return { x: fx / 100, z: fy / 100, w: (Math.max(...own.map(q => q.x + q.w)) - fx) / 100, d: (Math.max(...own.map(q => q.y + q.h)) - fy) / 100, H: bounds.H };
+  })() : null;
   if (changed) anim.attach(entries);
   controls.setApartment({
-    rooms: entries, bounds,
+    rooms: entries, bounds, focus, skip: overviewSkip, context: () => context,
     doorOpen: anim.doorOpen, openDoor: anim.openDoor, useDoor: anim.useDoor,
     onEnter: id => switchRoom(id)
   }, resetView);
@@ -750,6 +767,8 @@ export function setContext(group) {
   if (group) scene.add(group);
   redrawShadows();
 }
+
+export function setOverviewSkip(ids) { overviewSkip = new Set(ids); }
 
 export const getScene = () => scene;
 export const getCamera = () => camera;

@@ -264,6 +264,8 @@ for (const p of Object.values(early || {})) p.catch(() => {});
 async function startEmbed() {
   try {
     const floor = await early.floor;
+    // The overview shows only the apartment: set before its first build.
+    (await early.scene).setOverviewSkip([floor.CORR_ID, floor.LOBBY_ID, floor.PASSAGE_ID]);
     const params = floor.embedParams();
     if (!params) throw new Error('bad params');
     const ctx = await floor.openFloor(params);

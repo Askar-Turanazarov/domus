@@ -121,7 +121,7 @@ const mapOf = () => (map ||= walkMap(apt.rooms.map(r => r.doc), {
 const entryOf = id => apt.rooms.find(r => r.id === id) || null;
 
 function overview() {
-  const { x, z, w, d, H } = apt.bounds;
+  const { x, z, w, d, H } = apt.focus || apt.bounds;
   orbit.target.set(x + w / 2, H * 0.3, z + d / 2);
   // A steep view, so partitions hide less of the rooms behind them.
   const dist = Math.max(w, d) * 0.9 + 1;
@@ -257,7 +257,12 @@ function cutaway() {
   let changed = false;
   const vis = (o, v) => { if (o.visible !== v) { o.visible = v; changed = true; } };
   const showAll = mode !== 'orbit';
+  // Overview of an embedded apartment: the corridor / lobby and the floor around are hidden.
+  const only = !showAll && apt.focus;
+  const ctx = apt.context?.();
+  if (ctx) vis(ctx, !only);
   for (const r of apt.rooms) {
+    if (r.group) vis(r.group, !(only && apt.skip?.has(r.id)));
     if (!r.shell) continue;
     const { L, W, H } = r.shell.size;
     for (const [side, group] of Object.entries(r.shell.walls)) {
