@@ -84,6 +84,7 @@ test('R6: a link code joins the site card to the Telegram card once; reused / ex
   assert.equal(r.client.id, tg.id);
   assert.equal(r.bookingId, b.id);
   assert.equal((await db.one('SELECT client_id FROM bookings WHERE id = $1', [b.id])).client_id, tg.id);
+  assert.equal((await db.one('SELECT phone FROM clients WHERE id = $1', [tg.id])).phone, PHONE, 'the Telegram card had no phone: it takes the site one');
   assert.equal((await db.one("SELECT template FROM outbox")).template, 'link_telegram_done');
   await assert.rejects(attachTelegram(db, { code, telegram: { userId: 77 } }), { code: 'link_invalid' });
 

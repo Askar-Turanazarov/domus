@@ -127,6 +127,7 @@ export async function merge(q, loserId, winnerId, rule, actor = { type: 'system'
     [loserId, winnerId, at]);
   await q.query(`UPDATE clients SET
       name = COALESCE(NULLIF(name, ''), $2),
+      phone_verified = CASE WHEN phone IS NULL THEN $13 ELSE phone_verified END, phone = COALESCE(phone, $12),
       channels = ARRAY(SELECT DISTINCT unnest(channels || $3::text[])),
       assigned_staff_id = COALESCE(assigned_staff_id, $4), assigned_at = COALESCE(assigned_at, $5),
       lead_score = CASE WHEN $6 THEN $7 ELSE lead_score END, lead_summary = CASE WHEN $6 THEN $8 ELSE lead_summary END,
@@ -134,7 +135,7 @@ export async function merge(q, loserId, winnerId, rule, actor = { type: 'system'
       updated_at = $11
     WHERE id = $1`,
   [winnerId, loser.name, loser.channels, loser.assigned_staff_id, loser.assigned_at, fresher, loser.lead_score, loser.lead_summary,
-    loser.lead_next_step, loser.lead_scored_at, at]);
+    loser.lead_next_step, loser.lead_scored_at, at, loser.phone, Boolean(loser.phone && loser.phone_verified)]);
   await emit(q, 'client.merged', { clientId: winnerId }, { from: loserId, to: winnerId, rule }, actor, ctx);
 }
 
