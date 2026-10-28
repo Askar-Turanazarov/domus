@@ -45,8 +45,8 @@ test('texture maps: a set with its own list (leaves: colour and opacity)', () =>
 });
 
 test('download whitelist: only on-demand sets of the library', async () => {
-  assert.equal((await downloadable('blocksGrey'))?.source.ambientcg, 'Bricks034');
-  for (const id of ['brick', '../server', 'nope', '', 'constructor', '__proto__']) assert.equal(await downloadable(id), null, id);
+  // every set of the library is in the repo now (public/textures/sets): nothing is fetched on demand
+  for (const id of ['blocksGrey', 'brick','../server', 'nope', '', 'constructor', '__proto__']) assert.equal(await downloadable(id), null, id);
 });
 
 test('library set overrides in the style', () => {
