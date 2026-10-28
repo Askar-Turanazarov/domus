@@ -317,7 +317,11 @@ export function walkNow() {
 
 // Leaving the 3D view: release the mouse and stop walking.
 export function release() {
+  if (!plc) return;
   if (plc.isLocked) plc.unlock();
   touchInput.active = false;
+  touchInput.f = touchInput.r = 0;
   keys.clear();
+  if (mode === 'walk') overlay.hidden = false;
+  updateHint();
 }

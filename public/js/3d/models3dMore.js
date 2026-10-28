@@ -5,8 +5,9 @@ import * as THREE from 'three';
 import { furnitureMat } from './textures3d.js';
 import {
   conf, box, slab, rbox, cyl, taper, cushion, fm, handle, leg, panel, hinged, flap, slider, sinkBowl, tap, hob, lampHead,
-  wardrobe, bed
+  wardrobe, bed, art3d
 } from './models3d.js';
+import { artTexture as namedArt } from './art3d.js';
 
 const mat = (kind, c, s) => furnitureMat(kind, c, s);
 
@@ -411,7 +412,7 @@ function artTexture(color) {
 function painting(w, d, h, c, s) {
   const g = new THREE.Group(), frame = fm('dark', c, s), f = Math.min(0.03, w * 0.08);
   g.add(box(w, h, d, frame, 0, 0, 0));
-  const canvasMat = new THREE.MeshStandardMaterial({ map: artTexture(c), roughness: 0.85 });
+  const canvasMat = new THREE.MeshStandardMaterial({ map: namedArt(art3d()) || artTexture(c), roughness: 0.85 });
   if (s !== 'ok') canvasMat.emissive.set(s === 'bad' ? '#ff1a1a' : '#16c060'), canvasMat.emissiveIntensity = 0.35;
   g.add(box(w - 2 * f, h - 2 * f, 0.004, canvasMat, 0, f, d / 2));
   return g;

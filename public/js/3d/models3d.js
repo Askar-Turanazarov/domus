@@ -172,6 +172,7 @@ function luxePanel(g, fw, fh, x, y, zFront, mat) {
 // Look of the item being built: catalog materials for the body and the facade (doors, drawer fronts).
 let look = { body: null, facade: null };
 let ownColor = null;      // the viewer's colour of the item (setItemColor), else the style's tones
+let artName = null;       // item.art: a named painting (art3d.js)
 const FAMILY = { wood: 'board', dark: 'board', plain: 'board', fabric: 'fabric' };
 // A chosen material replaces the parts of the same family (boards or upholstery); metal, glass etc. stay.
 function fm(kind, c, s, role = 'body') {
@@ -716,6 +717,7 @@ export const conf = () => cfg;
 export const style3d = () => sty;
 export const look3d = () => look;
 export const own3d = () => ownColor;
+export const art3d = () => artName;
 export { metalOf, box, slab, rbox, cyl, taper, cushion, fm, handle, leg, panel, hinged, flap, slider, sinkBowl, tap, hob, lampHead,
   wardrobe, drawers, wallcabinet, bed, sofa, table };
 
@@ -733,6 +735,7 @@ const BUILDERS = {
 export function buildItem(item, status, materials = [], roomStyle, catalog = []) {
   look = itemLook(item, materials);
   ownColor = item.ownColor ? item.color : null;
+  artName = item.art || null;
   sty = itemStyle(item, roomStyle);
   // Luxe collections have their own silhouettes; the other types keep the base model in collection materials.
   const make = (isLuxe(sty) && LUXE_BUILDERS[item.type]) || BUILDERS[item.type] || generic;
@@ -747,6 +750,7 @@ export function buildItem(item, status, materials = [], roomStyle, catalog = [])
   const obj = dressed(make, item.type, item.w / 100, item.d / 100, item.h / 100, item.color, status);
   look = { body: null, facade: null };
   ownColor = null;
+  artName = null;
   sty = 'modern';
   obj.userData.movers = movers;
   placeItem(obj, item);

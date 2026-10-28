@@ -119,15 +119,20 @@ export function lobbyRooms(bld) {
     items: [
       it(1, 'desk', 80, 330, 180, 70, 105, 0, '#5d4037'),            // concierge
       it(2, 'chair', 145, 260, 45, 45, 90, 0, '#37474f'),
-      it(3, 'bookshelf', 2, 520, 200, 35, 170, 270, '#9aa3ab'),    // mailboxes
+      it(3, 'bookshelf', 2, 720, 200, 35, 170, 270, '#9aa3ab'),    // mailboxes, clear of the rent door
       it(4, 'sofa', 430, 20, 230, 95, 85, 0, '#6d7b8a'),
       it(5, 'coffeetable', 495, 170, 100, 60, 45, 0, '#3e2723'),
       it(6, 'armchair', 330, 150, 85, 85, 85, 90, '#8d6e63'),
       it(7, 'plant', 2, 2, 60, 60, 140, 0, '#2e7d32'),
       it(8, 'plant', L - 62, 2, 60, 60, 140, 0, '#2e7d32'),
-      it(9, 'floorlamp', 670, 30, 40, 40, 160, 0, '#cfd8dc')
+      it(9, 'floorlamp', 670, 30, 40, 40, 160, 0, '#cfd8dc'),
+      // Paintings (art3d.js): Registan over the waiting area by the lifts, textiles on the side walls.
+      { ...it(10, 'painting', 40, W - 6, 260, 4, 130, 180, '#3b2a1e'), elev: 110, art: 'registan' },
+      { ...it(11, 'painting', 2, 170, 90, 4, 150, 270, '#3b2a1e'), elev: 80, art: 'adras' },
+      { ...it(12, 'painting', L - 6, 170, 120, 4, 120, 90, '#3b2a1e'), elev: 100, art: 'suzani' },
+      { ...it(13, 'painting', L - 6, 660, 90, 4, 150, 90, '#3b2a1e'), elev: 80, art: 'atlas' }
     ],
-    seq: 10, style: hallStyle('#ece6db')
+    seq: 14, style: hallStyle('#ece6db')
   };
   // Passage: beside the core, from the lobby to the street doors.
   const dw = 220, entrance = { x0: Math.round(px + (pw - dw) / 2), x1: Math.round(px + (pw + dw) / 2) };
@@ -227,6 +232,59 @@ function plate(text, status, wide = false) {
   return mesh;
 }
 
+// Lift front over a lift door: a steel jamb, two brushed leaves with the seam, the floor display above and
+// the call button beside. Built facing +Z at the door's centre on the floor; the caller turns it to the room.
+let liftTex = null;
+function liftLeaves() {
+  if (liftTex) return liftTex;
+  const c = document.createElement('canvas');
+  c.width = 128; c.height = 256;
+  const g = c.getContext('2d');
+  const grad = g.createLinearGradient(0, 0, 128, 0);
+  grad.addColorStop(0, '#9aa1a8'); grad.addColorStop(0.3, '#d5d9dd'); grad.addColorStop(0.5, '#aeb4ba');
+  grad.addColorStop(0.7, '#d0d4d8'); grad.addColorStop(1, '#959ca3');
+  g.fillStyle = grad; g.fillRect(0, 0, 128, 256);
+  g.globalAlpha = 0.12;                                       // brushed lines
+  for (let y = 0; y < 256; y += 2) { g.fillStyle = (y * 7919) % 3 ? '#fff' : '#333'; g.fillRect(0, y, 128, 1); }
+  g.globalAlpha = 1;
+  g.fillStyle = '#2b2f33'; g.fillRect(63, 0, 2, 256);         // the seam between the leaves
+  liftTex = new THREE.CanvasTexture(c);
+  liftTex.colorSpace = THREE.SRGBColorSpace;
+  return liftTex;
+}
+
+function display(text) {
+  const c = document.createElement('canvas');
+  c.width = 128; c.height = 48;
+  const g = c.getContext('2d');
+  g.fillStyle = '#111417'; g.fillRect(0, 0, 128, 48);
+  g.fillStyle = '#ffb02e';
+  g.font = '600 30px system-ui, sans-serif';
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(text, 64, 26);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+function liftFront(width, n) {
+  const w = width / 100, h = 2.1, g = new THREE.Group();
+  const own = m => { m.userData.ownMaterial = true; return m; };
+  const steel = new THREE.MeshStandardMaterial({ color: '#7d848b', roughness: 0.45 });
+  const jamb = own(new THREE.Mesh(new THREE.PlaneGeometry(w + 0.16, h + 0.1), steel));
+  jamb.position.set(0, (h + 0.1) / 2, 0.008);
+  const leaves = own(new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: liftLeaves(), roughness: 0.35 })));
+  leaves.position.set(0, h / 2, 0.011);
+  const scr = own(new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.11), new THREE.MeshBasicMaterial({ map: display('▲▼ ' + n) })));
+  scr.position.set(0, h + 0.2, 0.01);
+  const plateMesh = own(new THREE.Mesh(new THREE.PlaneGeometry(0.07, 0.14), steel));
+  plateMesh.position.set(w / 2 + 0.2, 1.1, 0.01);
+  const btn = own(new THREE.Mesh(new THREE.CircleGeometry(0.018, 20), new THREE.MeshBasicMaterial({ color: '#e8f4ff' })));
+  btn.position.set(w / 2 + 0.2, 1.1, 0.013);
+  g.add(jamb, leaves, scr, plateMesh, btn);
+  return g;
+}
+
 // The floor around the detailed part: other apartments (or the commercial units) as merged shells (floor, walls
 // with window gaps, glass; their doors stay closed), the lift/stair core, the slab, plates over the doors.
 // One mesh per material, no shadows.
@@ -312,6 +370,20 @@ export function floorContext({ bld, a, floor: n = a?.floor }) {
     p.position.set((e.x + e.width / 2) / 100, 2.32, (north ? c.y + 1 : c.y + c.h - 1) / 100);
     if (!north) p.rotation.y = Math.PI;
     group.add(p);
+  }
+  // Lifts and stairs in the core wall: on the ground floor the lobby's south wall, else the corridor's side.
+  if (core && (floor?.lobby || c)) {
+    const south = floor?.lobby ? true : core.y >= c.y + c.h;
+    const z = (floor?.lobby ? core.y : south ? c.y + c.h : c.y) / 100 + (south ? -0.01 : 0.01);
+    const turn = o => { o.rotation.y = south ? Math.PI : 0; return o; };
+    for (const dx of [60, 200]) {
+      const f = turn(liftFront(110, n));
+      f.position.set((core.x + dx + 55) / 100, 0, z);
+      group.add(f);
+    }
+    const st = turn(plate(t('floor3d.stairs'), 'sold', true));
+    st.position.set((core.x + core.w - 105) / 100, 2.32, z);
+    group.add(st);
   }
   if (floor?.lobby && core) {
     const lb = floor.lobby, zc = (lb.y + (core.y - lb.y) / 2) / 100;
@@ -417,11 +489,12 @@ function closePanel() {
   const el = document.getElementById('lift3d');
   if (el) el.hidden = true;
   panel = null;
+  ctx?.resume?.();
 }
 
 // Called once the embedded floor is shown: door hook, hints, Esc for the panel.
-export function enableCorridor(floorCtx, { setContext, setDoorHook, release }) {
-  ctx = { ...floorCtx, setContext, release };
+export function enableCorridor(floorCtx, { setContext, setDoorHook, release, resume }) {
+  ctx = { ...floorCtx, setContext, release, resume };
   setDoorHook((roomId, doorId) => corridorDoor(roomId, doorId));
   window.addEventListener('keydown', e => { if (panel && e.code === 'Escape') { e.preventDefault(); closePanel(); } });
   const hint = () => {

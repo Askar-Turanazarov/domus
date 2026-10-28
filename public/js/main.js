@@ -270,7 +270,7 @@ async function startEmbed() {
     await setView('3d');
     view3d.setContext(floor.floorContext(ctx));
     const controls = await early.controls;
-    floor.enableCorridor(ctx, { setContext: view3d.setContext, setDoorHook: (await early.anim).setDoorHook, release: controls.release });
+    floor.enableCorridor(ctx, { setContext: view3d.setContext, setDoorHook: (await early.anim).setDoorHook, release: controls.release, resume: controls.walkNow });
     controls.setMode('walk');
     controls.walkNow();
     const card = document.querySelector('#walkOverlay [data-i18n]');

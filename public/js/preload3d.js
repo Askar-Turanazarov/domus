@@ -5,6 +5,7 @@ window.preload3d = function () {
   window.preload3d.done = 1;
   [
     "/js/3d/anim3d.js",
+    "/js/3d/art3d.js",
     "/js/3d/controls3d.js",
     "/js/3d/drag3d.js",
     "/js/3d/lights3d.js",
