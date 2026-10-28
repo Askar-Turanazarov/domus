@@ -33,6 +33,7 @@ import { createKb } from './server/kb/retrieve.js';
 import { createTurns } from './server/agents/turn.js';
 import { createSettings } from './server/core/settings.js';
 import { mountPersonalPages } from './server/http/personalPages.js';
+import { mountMini } from './server/http/mini.js';
 import { requestId, noStore, apiErrors } from './server/http/common.js';
 import { afterCommit } from './server/events/runner.js';
 
@@ -78,6 +79,7 @@ mountTelegram(app, db, { core: coreOpts, turns, tools });  // Telegram webhook (
 mountBookings(app, db, coreOpts);          // booking: hold, personal link (13 §4); own 64 KB JSON parser
 mountChat(app, db, { turns, tools }, coreOpts);   // the site chat: POST /api/chat (SSE), confirm, feedback, messages (13 §6)
 mountPayments(app, db, coreOpts);          // payments: start, emulators (05 §12); own 64 KB JSON parser
+mountMini(app, db, { ...coreOpts, buildings, buildingId: BUILDING_ID, publicDir: path.join(__dirname, 'public') });   // /mini and /api/mini/* (Tg, 10 §7)
 const staffAuth = mountAdmin(app, db, { env: process.env });   // /api/admin/login|logout|me and the gate on /api/admin/*, /api/dashboard/* (12 §2)
 mountAdminBoard(app, db);                  // the chessboard and the apartment card (12 §3)
 mountAdminBookings(app, db, staffAuth, coreOpts);   // bookings and payments: lists, cards, extend, cancel, refunds (12 §4)

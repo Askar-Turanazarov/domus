@@ -70,3 +70,10 @@ p.bkp-note { padding: 10px 14px; border: 1px solid; border-radius: var(--r-m); m
 .hold-err:empty { display: none; }
 #holdForm label.check { align-items: flex-start; }
 #holdForm label.check input { margin-top: 3px; }
+
+/* The mini app mode (11 §8): no site header and footer; Telegram shows its own title. */
+html[data-mode="mini"] .topbar, html[data-mode="mini"] .site-foot { display: none; }
+html[data-mode="mini"] body { background: var(--tg-bg, var(--bg)); }
+.mini-outside { max-width: 520px; margin: 18vh auto 0; padding: 0 20px; text-align: center; }
+.mini-outside h1 { font: 600 26px/1.2 var(--f-display, serif); margin: 0 0 10px; }
+.mini-outside p { color: var(--muted); margin: 0 0 16px; }
