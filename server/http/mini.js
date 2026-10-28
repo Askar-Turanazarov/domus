@@ -11,12 +11,11 @@ import { bookingPath } from '../core/links.js';
 import { context } from '../core/tx.js';
 import { initDataChecker } from '../telegram/initData.js';
 import { bookingByRef } from './bookings.js';
+import { MINI_CSP } from './securityHeaders.js';
 import { handler, jsonBody, parseBody, z, langOf, idempotencyKey, limit, ipKey, tz, sendError, HOUR } from './common.js';
 
 const LANGS = ['ru', 'uz', 'en'];
 const TG_SCRIPT = 'https://telegram.org/js/telegram-web-app.js';
-// 14 §9: Telegram Web opens /mini in a frame — the frame is allowed to telegram.org only.
-const FRAME = "frame-ancestors https://web.telegram.org https://*.telegram.org";
 
 // The showcase page in the mini app mode (11 §8): the server marks <html> and adds the Telegram script
 // (the page itself loads /js/mini.js, which does nothing outside the mini app).
@@ -37,8 +36,8 @@ export function mountMini(app, db, opts = {}) {
 
   app.get('/mini', (req, res) => {
     if (!page || !process.env.VERCEL) page = miniPage(fs.readFileSync(path.join(publicDir, 'building.html'), 'utf8'));
-    res.removeHeader('X-Frame-Options');
-    res.set({ 'Cache-Control': 'no-cache', 'X-Robots-Tag': 'noindex, nofollow', 'Content-Security-Policy': FRAME }).type('html').send(page);
+    res.removeHeader('X-Frame-Options');   // Telegram Web opens /mini in a frame: telegram.org only (MINI_CSP)
+    res.set({ 'Cache-Control': 'no-cache', 'X-Robots-Tag': 'noindex, nofollow', 'Content-Security-Policy': MINI_CSP }).type('html').send(page);
   });
 
   // Tg (13 §1.6): every /api/mini/* — the signature first, then the card of the Telegram user (R1).

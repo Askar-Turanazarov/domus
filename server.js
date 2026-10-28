@@ -12,6 +12,7 @@ import { writeZip } from './server/zip.js';
 import { fetchSet, libraryStatus, readLibMap } from './server/textureFetch.js';
 import { BUILDING_ID, createBuildings } from './server/buildings.js';
 import { mountAdmin } from './server/http/admin.js';
+import { securityHeaders } from './server/http/securityHeaders.js';
 import { mountAdminBoard } from './server/http/adminBoard.js';
 import { mountAdminBookings } from './server/http/adminBookings.js';
 import { mountAdminClients } from './server/http/adminClients.js';
@@ -66,11 +67,7 @@ const tools = createTools({ db, settings, env: process.env, kb });
 const turns = createTurns({ db, ai, tools, env: process.env, settings, waitUntil: p => background(p, 'chat summary') });
 
 app.set('trust proxy', 1);                 // the client's IP behind the Vercel / reverse proxy
-// Basic security headers: no MIME sniffing, frames only from this site (the floor 3D iframe), short Referer.
-app.use((req, res, next) => {
-  res.set({ 'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'SAMEORIGIN', 'Referrer-Policy': 'strict-origin-when-cross-origin' });
-  next();
-});
+app.use(securityHeaders);                 // 14 §7: CSP, frames only from this site (the floor 3D iframe), short Referer…
 app.use(requestId);
 app.use('/api', noStore);
 mountJobs(app, db, { ...notifyOpts });                      // deadlines: tick, /api/jobs/run (raw body for the QStash signature), /api/cron/daily

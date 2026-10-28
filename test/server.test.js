@@ -32,12 +32,19 @@ test('GET /api/health: statuses by 16 §6, not cached', async () => {
 });
 
 test('security headers on pages, static files and the API', async () => {
-  for (const url of ['/', '/building.html', '/js/i18n.js', '/api/catalog', '/api/nope']) {
+  for (const url of ['/', '/building.html', '/js/i18n.js', '/api/catalog', '/api/nope', '/admin/']) {
     const h = (await fetch(base() + url)).headers;
+    const staff = url.startsWith('/api/') || url.startsWith('/admin');
     assert.equal(h.get('x-content-type-options'), 'nosniff', url);
-    assert.equal(h.get('x-frame-options'), 'SAMEORIGIN', url);
+    assert.equal(h.get('x-frame-options'), staff ? 'DENY' : 'SAMEORIGIN', url);
+    assert.match(h.get('content-security-policy'), staff ? /frame-ancestors 'none'/ : /frame-ancestors 'self' https:\/\/web\.telegram\.org/, url);
     assert.equal(h.get('referrer-policy'), 'strict-origin-when-cross-origin', url);
+    assert.match(h.get('content-security-policy'), /^default-src 'self'; script-src 'self' 'sha256-/, url);
+    assert.equal(h.get('permissions-policy'), 'camera=(), microphone=(), geolocation=(), payment=()', url);
+    assert.equal(h.get('cross-origin-opener-policy'), 'same-origin', url);
   }
+  // the booking page goes on to Stripe: no COOP there (14 §7)
+  assert.equal((await fetch(base() + '/b/nope')).headers.get('cross-origin-opener-policy'), null);
 });
 
 test('unknown /api routes answer JSON 404; pages still work', async () => {

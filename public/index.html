@@ -28,7 +28,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,500&family=Manrope:wght@400;500;600;700&display=swap">
-  <script>try{document.documentElement.dataset.theme=localStorage.getItem('fsp3d.theme')||'dark'}catch(e){document.documentElement.dataset.theme='dark'}</script>
+  <script src="/js/theme-boot.js"></script>
   <link rel="stylesheet" href="/css/style.css">
   <script type="importmap">
     {
@@ -87,7 +87,7 @@
   <link rel="modulepreload" href="/js/v3dBar.js">
   <link rel="modulepreload" href="/js/validate.js">
   <link rel="modulepreload" href="/js/zones.js">
-  <script>window.preload3d=function(){if(window.preload3d.done)return;window.preload3d.done=1;["/js/3d/anim3d.js","/js/3d/controls3d.js","/js/3d/drag3d.js","/js/3d/lights3d.js","/js/3d/models3d.js","/js/3d/models3dMore.js","/js/3d/modelsDress.js","/js/3d/modelsLuxe.js","/js/3d/obstacles3d.js","/js/3d/perf.js","/js/3d/room3d.js","/js/3d/scene3d.js","/js/3d/softShadows.js","/js/3d/spotClip.js","/js/3d/textures3d.js","/js/3d/touch3d.js","/js/building.js","/js/floor3d.js","/js/walkMap.js","/vendor/three/build/three.module.js","/vendor/three/examples/jsm/controls/OrbitControls.js","/vendor/three/examples/jsm/controls/PointerLockControls.js","/vendor/three/examples/jsm/environments/RoomEnvironment.js","/vendor/three/examples/jsm/geometries/RoundedBoxGeometry.js","/vendor/three/examples/jsm/lights/RectAreaLightTexturesLib.js","/vendor/three/examples/jsm/lights/RectAreaLightUniformsLib.js","/vendor/three/examples/jsm/utils/BufferGeometryUtils.js"].forEach(function(u){var l=document.createElement('link');l.rel='modulepreload';l.href=u;document.head.appendChild(l)})};if(/[?&]embed=/.test(location.search))window.preload3d()</script>
+  <script src="/js/preload3d.js"></script>
   <!--/preload-->
 </head>
 <body>

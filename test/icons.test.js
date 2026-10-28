@@ -22,10 +22,13 @@ test('pages set the theme before the first paint and have the toggle', () => {
   for (const f of ['index.html', 'building.html', 'admin.html', 'bookings.html', 'calls.html']) {
     const html = readFileSync(new URL(`../public/${f}`, import.meta.url), 'utf8');
     const head = html.slice(0, html.indexOf('</head>'));
-    assert.match(head, /dataset\.theme=localStorage\.getItem\('fsp3d\.theme'\)/, f);
-    assert.ok(head.indexOf('dataset.theme') < head.indexOf('css/style.css'), f);
+    // a classic (blocking) script in <head>, before the styles — a file, not inline (14 §7 CSP)
+    assert.match(head, /<script src="\/js\/theme-boot\.js"><\/script>/, f);
+    assert.ok(head.indexOf('theme-boot.js') < head.indexOf('css/style.css'), f);
     assert.match(html, /data-theme-toggle/, f);
   }
+  const boot = readFileSync(new URL('../public/js/theme-boot.js', import.meta.url), 'utf8');
+  assert.match(boot, /dataset\.theme = localStorage\.getItem\('fsp3d\.theme'\) \|\| 'dark'/);
 });
 
 test('both themes define the plan palette', () => {
