@@ -5,4 +5,5 @@ Disallow: /pay/
 Disallow: /mini
 Disallow: /admin
 Disallow: /dashboard
+Disallow: /stack
 Disallow: /api/

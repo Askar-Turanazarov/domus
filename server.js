@@ -42,6 +42,7 @@ import { sendNotFound } from './server/http/notFound.js';
 import { mountMini } from './server/http/mini.js';
 import { mountViewings } from './server/http/viewings.js';
 import { mountVisits } from './server/http/visits.js';
+import { mountStack } from './server/http/stack.js';
 import { requestId, noStore, apiErrors } from './server/http/common.js';
 import { afterCommit } from './server/events/runner.js';
 
@@ -100,6 +101,7 @@ mountAdminAi(app, db, staffAuth, { ...coreOpts, ai });   // AI journals, costs, 
 mountAdminSystem(app, db, staffAuth, { ...coreOpts, ai, settings });   // settings, services, AI providers (12 §10)
 mountAdminAnalyst(app, db, staffAuth, { turns }, coreOpts);   // the head's read-only analyst: POST /api/admin/analyst (SSE, 07 §14)
 mountAdminDashboard(app, db, coreOpts);   // summary, charts and the live feed of the dashboard (12 §9)
+mountStack(app, db, { pagesDir: PAGES_DIR });   // /stack: the tour of the stack behind its own sign-in, /api/stack/login|logout
 mountPersonalPages(app, { pagesDir: PAGES_DIR, legalDir: path.join(__dirname, 'legal'), db });   // /b/…, /pay/card|click/…, /legal/…
 app.use(express.json({ limit: '4mb' }));   // the order carries the drawing PNG and a 3D picture (≤ 1.5 MB each); Vercel takes ≤ 4.5 MB
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));   // "/" is rendered below

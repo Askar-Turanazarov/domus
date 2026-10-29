@@ -17,6 +17,7 @@
     "db:migrate": "node scripts/migrate.js",
     "seed": "node scripts/seed.js",
     "staff": "node --env-file-if-exists=.env scripts/staff.js",
+    "stack:access": "node scripts/stack-access.js",
     "client:forget": "node --env-file-if-exists=.env scripts/forget.js",
     "textures:2k": "node --env-file-if-exists=.env scripts/textures-2k.js",
     "jobs:run": "node scripts/jobs-run.js",

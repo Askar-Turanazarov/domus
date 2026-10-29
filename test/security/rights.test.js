@@ -11,7 +11,7 @@ delete process.env.ADMIN_TOKEN;                        // the script token is an
 const { default: app, db } = await import('../../server.js');
 const { routes } = JSON.parse(readFileSync(new URL('../routes.json', import.meta.url), 'utf8'));
 
-const LABELS = ['Pub', 'Dcl', 'Ref', 'Pay', 'Tg', 'Staff', 'Head', 'Bearer', 'Sig'];
+const LABELS = ['Pub', 'Dcl', 'Ref', 'Pay', 'Tg', 'Staff', 'Head', 'Bearer', 'Sig', 'Stk'];
 const PASSWORD = 'rights test password';
 let server, base, manager, head;
 
