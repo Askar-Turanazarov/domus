@@ -121,3 +121,36 @@ test('the guard counts the quota of both keys: the first key running out does no
   const full = { one: async () => ({ minute: 0, day: cfg.rpd * 2 }) };
   assert.equal((await createQuota({ db: full, now: () => at, keys: 2 }).guard('gemini-3.8-flash')).reason, 'rate_day');
 });
+
+test('both keys failed differently: the chain gets the error of the key that returns first', async () => {
+  const cases = [
+    [http(429), http(429, 'GenerateRequestsPerDay'), 'rate_minute'],
+    [http(429, 'GenerateRequestsPerDay'), http(429), 'rate_minute'],
+    [http(429), http(403), 'rate_minute'],
+    [http(403), http(429, 'GenerateRequestsPerDay'), 'rate_day'],
+    [http(429), http(404), 'rate_minute'],
+    [http(403), http(404), 'not_found'],
+    [http(403), http(403), 'auth'],
+    [http(404), http(404), 'not_found']
+  ];
+  for (const [ea, eb, cls] of cases) {
+    const g = createGemini({ client: fake([ea]), backupClient: fake([eb]) });
+    await assert.rejects(g.call(req('m')), e => e.cls === cls, `${ea.status} + ${eb.status} → ${cls}`);
+  }
+});
+
+test('the minute wait the chain gets is what is left of it, also when the key was already cooling', async () => {
+  let t = Date.parse('2026-11-02T04:00:00Z');
+  const a = fake([http(429), 'ok']), b = fake(['ok', http(429, 'GenerateRequestsPerDay')]);
+  const g = createGemini({ client: a, backupClient: b, now: () => new Date(t) });
+  await g.call(req('m'));
+  t += 50_000;
+  await assert.rejects(g.call(req('m')), e => e.cls === 'rate_minute' && e.retryMs === 10_000);
+  t += 11_000;
+  assert.equal(text(await g.call(req('m'))), 'ok', 'the first key is back');
+});
+
+test('a model missing under the first key still answers under the second', async () => {
+  const a = fake([http(404)]), b = fake(['from b']);
+  assert.equal(text(await createGemini({ client: a, backupClient: b }).call(req('m'))), 'from b');
+});

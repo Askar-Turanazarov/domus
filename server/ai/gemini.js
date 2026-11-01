@@ -47,7 +47,15 @@ export function requestOf({ model, cfg, role, system, messages, tools, output, m
 const REFUSAL = new Set(['SAFETY', 'PROHIBITED_CONTENT', 'BLOCKLIST', 'SPII', 'RECITATION', 'IMAGE_SAFETY']);
 
 // What belongs to a key, not to the model: the same model may still answer under the other key's Google project.
-const KEY_ERRORS = new Set(['rate_minute', 'rate_day', 'auth']);
+const KEY_ERRORS = new Set(['rate_minute', 'rate_day', 'auth', 'not_found']);
+
+// Both keys failed: the chain must wait only as long as the key that returns first, so a quota outranks a model missing
+// under one key, and that outranks a rejected key (which would turn off the whole provider).
+function mildest(fails, t) {
+  const rate = fails.filter(f => f.err.cls.startsWith('rate_')).sort((a, b) => a.until - b.until)[0];
+  if (rate) return rate.err.cls === 'rate_minute' ? Object.assign(rate.err, { retryMs: Math.max(rate.until - t, 1000) }) : rate.err;
+  return (fails.find(f => f.err.cls === 'not_found') ?? fails[0]).err;
+}
 
 // One model step. tick() — called on the first chunk (first byte); signal — our timeouts and the client's going away.
 // backupKey — a second key: a quota or key error before the first byte moves the request to it at once. The chain and
@@ -63,25 +71,26 @@ export function createGemini({ apiKey, backupKey = null, client = null, backupCl
   }
   function cool(k, model, e) {
     const t = now();
-    if (e.cls === 'auth') k.cool.set('*', { until: t.getTime() + 15 * 60_000, err: e });
-    else k.cool.set(model, { until: e.cls === 'rate_day' ? nextPacificMidnight(t).getTime() : t.getTime() + (e.retryMs || 60_000), err: e });
+    const c = { err: e, until: e.cls === 'auth' || e.cls === 'not_found' ? t.getTime() + 15 * 60_000
+      : e.cls === 'rate_day' ? nextPacificMidnight(t).getTime() : t.getTime() + (e.retryMs || 60_000) };
+    k.cool.set(e.cls === 'auth' ? '*' : model, c);
+    return c;
   }
   // run(client) along the keys; started() — the answer already began, so the error stays with this attempt.
   async function onKeys(model, run, started = () => false) {
     if (keys.length === 1) return run(await clientOf(keys[0]));
-    let last = null;
+    const fails = [];
     for (const k of keys) {
       const c = coolOf(k, model);
-      if (c) { last ??= c.err; continue; }
+      if (c) { fails.push(c); continue; }
       try {
         return await run(await clientOf(k));
       } catch (e) {
         if (!KEY_ERRORS.has(e?.cls) || started()) throw e;
-        cool(k, model, e);
-        last = e;
+        fails.push(cool(k, model, e));
       }
     }
-    throw last;
+    throw mildest(fails, now().getTime());
   }
 
   return {
