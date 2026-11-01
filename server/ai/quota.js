@@ -39,8 +39,8 @@ const TASHKENT = 5 * 3600e3;
 export const tashkentDayStart = at => new Date(Math.floor((at.getTime() + TASHKENT) / 864e5) * 864e5 - TASHKENT);
 export const nextTashkentMidnight = at => new Date(tashkentDayStart(at).getTime() + 864e5);
 
-// db — the base; now — the clock. Counts every request, failed ones too: Google counts them.
-export function createQuota({ db, now }) {
+// db — the base; now — the clock; keys — Gemini keys in use, each with its own quota. Counts every request, failed ones too: Google counts them.
+export function createQuota({ db, now, keys = 1 }) {
   async function counts(model) {
     const at = now();
     const r = await db.one(`SELECT count(*) FILTER (WHERE at > $2)::int AS minute, count(*) FILTER (WHERE at >= $3)::int AS day,
@@ -57,8 +57,8 @@ export function createQuota({ db, now }) {
     if (!db || cfg?.provider !== 'gemini' || !cfg.rpm) return null;
     try {
       const c = await counts(model);
-      if (cfg.rpd && c.day >= cfg.rpd) return { until: nextPacificMidnight(now()), reason: 'rate_day' };
-      if (c.minute >= cfg.rpm - 1) return { until: new Date((c.oldest || now()).getTime() + 60_000), reason: 'quota_guard' };
+      if (cfg.rpd && c.day >= cfg.rpd * keys) return { until: nextPacificMidnight(now()), reason: 'rate_day' };
+      if (c.minute >= cfg.rpm * keys - 1) return { until: new Date((c.oldest || now()).getTime() + 60_000), reason: 'quota_guard' };
       return null;
     } catch { return null; }   // no counters → no guard; a real 429 still switches the model
   }

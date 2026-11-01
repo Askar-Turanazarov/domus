@@ -40,4 +40,5 @@ export const dailyBudgetUsd = (env = process.env) => {
 };
 
 export const KEY_VAR = { gemini: 'GEMINI_API_KEY', anthropic: 'ANTHROPIC_API_KEY' };
+export const GEMINI_BACKUP_VAR = 'GEMINI_API_KEY_2';     // optional: a second Google project, takes over on quota or key errors
 export const hasKey = (provider, env = process.env) => Boolean(env[KEY_VAR[provider]]);

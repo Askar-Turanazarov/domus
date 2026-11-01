@@ -99,10 +99,10 @@ export async function aiPanel(q, actor, opts = {}) {
   for (const p of PROVIDERS) {
     const models = {};
     for (const [name, cfg] of Object.entries(MODELS).filter(([, c]) => c.provider === p && c.role !== 'embed')) {
-      models[name] = { status: 'ok', ...stateOf(rows, `${p}:${name}`, at), ...(p === 'gemini' ? { today: used.get(name) ?? 0, limit: cfg.rpd } : {}) };
+      models[name] = { status: 'ok', ...stateOf(rows, `${p}:${name}`, at), ...(p === 'gemini' ? { today: used.get(name) ?? 0, limit: cfg.rpd && cfg.rpd * (env.GEMINI_API_KEY_2 ? 2 : 1) } : {}) };
     }
     const whole = stateOf(rows, p, at);
-    providers[p] = { key: hasKey(p, env), status: whole?.status ?? 'ok', ...(whole ?? {}), ...(p === 'gemini' ? { demoDisabled: Boolean(sw.geminiDisabled) } : {}), models };
+    providers[p] = { key: hasKey(p, env), status: whole?.status ?? 'ok', ...(whole ?? {}), ...(p === 'gemini' ? { demoDisabled: Boolean(sw.geminiDisabled), backupKey: Boolean(env.GEMINI_API_KEY_2) } : {}), models };
   }
 
   return {

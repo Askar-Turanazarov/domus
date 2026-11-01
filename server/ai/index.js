@@ -1,7 +1,7 @@
 // The one entry of the agents to the models (06 §2): chat() — one model step along the role's chain, embed().
 // Which model answers, how the request is translated and what an error means is decided here, never in an agent.
 // A failing model is passed over silently (§8, §10): the user sees a status, not an error, and never waits for a retry.
-import { MODELS, EMBED_MODEL, DEFAULT_MAX_OUTPUT, hasKey, KEY_VAR, timeouts, dailyBudgetUsd } from './models.js';
+import { MODELS, EMBED_MODEL, DEFAULT_MAX_OUTPUT, hasKey, KEY_VAR, GEMINI_BACKUP_VAR, timeouts, dailyBudgetUsd } from './models.js';
 import { costOf } from './cost.js';
 import { candidates } from './chains.js';
 import { AiError } from './errors.js';
@@ -37,11 +37,11 @@ function deadlines(outer, { firstByteMs, totalMs }) {
 // for the demo switches of §11 (null: none).
 export function createAi({ db = null, env = process.env, adapters = null, now = clockNow, health = null, settings = null, log = console } = {}) {
   const ad = adapters || {
-    gemini: hasKey('gemini', env) ? createGemini({ apiKey: env[KEY_VAR.gemini] }) : null,
+    gemini: hasKey('gemini', env) ? createGemini({ apiKey: env[KEY_VAR.gemini], backupKey: env[GEMINI_BACKUP_VAR] || null, now }) : null,
     anthropic: hasKey('anthropic', env) ? createAnthropic({ apiKey: env[KEY_VAR.anthropic] }) : null
   };
   const hl = health || createHealth({ db, now });
-  const quota = createQuota({ db, now });
+  const quota = createQuota({ db, now, keys: env[KEY_VAR.gemini] && env[GEMINI_BACKUP_VAR] ? 2 : 1 });
 
   // 06 §4 rule 1: no key, cooldown or disabled → skipped without a request.
   const skip = (model, provider) => (ad[provider] ? hl.skip(model, provider) : 'no_key');
